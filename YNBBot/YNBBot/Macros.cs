@@ -317,6 +317,29 @@ namespace YNBBot
         #region Misc Methods
 
         /// <summary>
+        /// Schedules messages for deletion
+        /// </summary>
+        /// <param name="delay">The delay in milliseconds to wait until the messages are to be deleted</param>
+        /// <param name="messages">All messages that are meant to be deleted</param>
+        public static void ScheduleMessagesForDeletion(long delay, params IUserMessage[] messages)
+        {
+            TimingThread.AddScheduleDelegate(async () => 
+            {
+                try
+                {
+                    foreach (IUserMessage message in messages)
+                    {
+                        await message.DeleteAsync();
+                    }
+                }
+                catch(Exception)
+                {
+                    // No handling, as an exception would only mean that we lack permission!
+                }
+            }, delay);
+        }
+
+        /// <summary>
         /// Sweeps a text for contained image urls
         /// </summary>
         /// <param name="text">The text to search for an image url</param>

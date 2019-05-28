@@ -289,7 +289,7 @@ namespace YNBBot.NestedCommands
         {
             if (!ArgumentParsingHelper.TryParseGuildChannel(context, context.Args[0], out Channel))
             {
-                return new ArgumentParseResult(Arguments[0]);
+                return new ArgumentParseResult(Arguments[0], "Failed to parse to a guild channel!");
             }
 
             Configs.Clear();
@@ -510,7 +510,7 @@ namespace YNBBot.NestedCommands
             RequireAccessLevel = AccessLevel.Admin;
 
             List<CommandArgument> arguments = new List<CommandArgument>(2);
-            arguments.Add(new CommandArgument("MessageCategory", $"Specifies the logging message category that you want to get or set. Available are: `{string.Join(", ", Enum.GetNames(typeof(DebugCategories)))}`"));
+            arguments.Add(new CommandArgument("MessageCategory", $"Specifies the logging message category that you want to get or set. Available are: `{Macros.GetEnumNames<DebugCategories>()}`"));
             arguments.Add(new CommandArgument("Enabled", "Specify the new setting for the given MessageType. Use `true`, `false`, `enable` or `disable`", true));
             InitializeHelp("Toggles logging for specific message categories", arguments.ToArray(), $"If the argument `{arguments[1]}` is not provided, will display the current setting instead");
         }
@@ -519,7 +519,7 @@ namespace YNBBot.NestedCommands
         {
             if (!Enum.TryParse(context.Args.First, out category))
             {
-                return new ArgumentParseResult(Arguments[0]);
+                return new ArgumentParseResult(Arguments[0], $"Failed to parse to a logging category! Available are: `{Macros.GetEnumNames<DebugCategories>()}`");
             }
 
             if (context.Args.Count > 1)
@@ -539,7 +539,7 @@ namespace YNBBot.NestedCommands
                 }
                 else
                 {
-                    return new ArgumentParseResult(Arguments[1]);
+                    return new ArgumentParseResult(Arguments[1], "Could not parse to a boolean value! Use `true`, `false`, `enable` or `disable`");
                 }
             }
             else

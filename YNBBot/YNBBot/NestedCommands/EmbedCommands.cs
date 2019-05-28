@@ -35,7 +35,7 @@ namespace YNBBot.NestedCommands
 
             if (!ArgumentParsingHelper.TryParseGuildTextChannel(context, context.Args[0], out channel))
             {
-                return new ArgumentParseResult(Arguments[0]);
+                return new ArgumentParseResult(Arguments[0], "Failed to parse to a guild text channel!");
             }
 
             if (context.Message.Content.Length > FullIdentifier.Length + context.Args.First.Length + 2)

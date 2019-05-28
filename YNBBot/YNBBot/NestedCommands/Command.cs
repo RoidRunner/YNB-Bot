@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Discord;
+using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
@@ -32,6 +33,8 @@ namespace YNBBot.NestedCommands
         /// The minimum amount of non-identifier arguments the command can handle
         /// </summary>
         public int MinArgCnt { get; protected set; }
+
+        private const int MESSAGE_DELETION_DELAY = 5000;
         private CommandArgument[] args;
         /// <summary>
         /// The arguments used to define min/max argument count and argument helps
@@ -137,7 +140,7 @@ namespace YNBBot.NestedCommands
                 if ((guildContext != null) && !guildContext.ChannelConfig.AllowCommands && context.UserAccessLevel < AccessLevel.Admin)
                 {
                     var message = await context.Channel.SendEmbedAsync("This channel is a no-command-zone!", true);
-                    scheduleMessageForDeletion(context, message);
+                    Macros.ScheduleMessagesForDeletion(MESSAGE_DELETION_DELAY, message, context.Message);
                 }
                 else if (context.UserAccessLevel < RequireAccessLevel)
                 {
@@ -146,7 +149,7 @@ namespace YNBBot.NestedCommands
                 else if ((guildContext != null) && IsShitposting && !guildContext.ChannelConfig.AllowShitposting && context.UserAccessLevel < AccessLevel.Admin)
                 {
                     var message = await context.Channel.SendEmbedAsync("Cannot use this command in this channel, as it is a no fun zone!", true);
-                    scheduleMessageForDeletion(context, message);
+                    Macros.ScheduleMessagesForDeletion(MESSAGE_DELETION_DELAY, message, context.Message);
                 }
                 else
                 {
@@ -174,22 +177,6 @@ namespace YNBBot.NestedCommands
                 }
             }
             return commandMatch;
-        }
-
-        private static void scheduleMessageForDeletion(CommandContext context, Discord.Rest.RestUserMessage message)
-        {
-            TimingThread.AddScheduleDelegate(async () =>
-            {
-                try
-                {
-                    await message.DeleteAsync();
-                    await context.Message.DeleteAsync();
-                }
-                catch (Exception)
-                {
-                    // Not handling this, because all it means is I don't have permissions
-                }
-            }, 5000);
         }
 
         private async Task HandleCommand(CommandContext context)
@@ -367,14 +354,14 @@ namespace YNBBot.NestedCommands
 
     public struct CommandArgument
     {
-        public string Argument;
+        public string Identifier;
         public string Help;
         public bool Optional;
         public bool Multiple;
 
-        public CommandArgument(string argument, string help, bool optional = false, bool multiple = false)
+        public CommandArgument(string identifier, string help, bool optional = false, bool multiple = false)
         {
-            Argument = argument;
+            Identifier = identifier;
             Help = help;
             Optional = optional;
             Multiple = multiple;
@@ -382,22 +369,21 @@ namespace YNBBot.NestedCommands
 
         public override string ToString()
         {
-            if (Multiple && Optional)
-            {
-                return $"([{Argument}])";
-            }
+            string result = Identifier;
             if (Multiple)
             {
-                return $"[{Argument}]";
+                result = $"[{result}]";
             }
-            else if (Optional)
+
+            if (Optional)
             {
-                return $"({Argument})";
+                result = $"({result})";
             }
             else
             {
-                return $"<{Argument}>";
+                result = $"<{result}>";
             }
+            return result;
         }
     }
 
@@ -446,7 +432,6 @@ namespace YNBBot.NestedCommands
     public enum CommandEnvironment
     {
         Base,
-        Guild,
-        Group
+        Guild
     }
 }
