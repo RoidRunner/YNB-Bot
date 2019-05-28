@@ -134,7 +134,7 @@ namespace YNBBot.NestedCommands
 
                 GuildCommandContext guildContext = context as GuildCommandContext;
 
-                if ((guildContext != null) && !guildContext.ChannelInfo.AllowCommands && context.UserAccessLevel < AccessLevel.Admin)
+                if ((guildContext != null) && !guildContext.ChannelConfig.AllowCommands && context.UserAccessLevel < AccessLevel.Admin)
                 {
                     var message = await context.Channel.SendEmbedAsync("This channel is a no-command-zone!", true);
                     scheduleMessageForDeletion(context, message);
@@ -143,7 +143,7 @@ namespace YNBBot.NestedCommands
                 {
                     await context.Channel.SendEmbedAsync($"You don't have permission to use this command! It requires `{RequireAccessLevel}` access, but you have only `{context.UserAccessLevel}` access!", true);
                 }
-                else if ((guildContext != null) && IsShitposting && !guildContext.ChannelInfo.AllowShitposting && context.UserAccessLevel < AccessLevel.Admin)
+                else if ((guildContext != null) && IsShitposting && !guildContext.ChannelConfig.AllowShitposting && context.UserAccessLevel < AccessLevel.Admin)
                 {
                     var message = await context.Channel.SendEmbedAsync("Cannot use this command in this channel, as it is a no fun zone!", true);
                     scheduleMessageForDeletion(context, message);

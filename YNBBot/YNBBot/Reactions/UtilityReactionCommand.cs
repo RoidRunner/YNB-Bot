@@ -15,7 +15,7 @@ namespace YNBBot.Reactions
 
         public static async Task HandleGetMessageLinkReaction(ReactionContext context)
         {
-            string messagelink = $"https://discordapp.com/channels/{context.Channel.Guild.Id}/{context.Channel.Id}/{context.Message.Id}";
+            string messagelink = context.Message.GetMessageURL(context.Channel.Guild.Id);
             IDMChannel dmChannel = await context.User.GetOrCreateDMChannelAsync();
             await dmChannel.SendMessageAsync(embed: new EmbedBuilder() { Title = $"Message link to requested message in #{context.Channel.Name}", Description = $"[{messagelink}]({messagelink})", Color = Var.BOTCOLOR }.Build());
         }

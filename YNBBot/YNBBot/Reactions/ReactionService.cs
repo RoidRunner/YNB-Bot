@@ -25,7 +25,7 @@ namespace YNBBot.Reactions
         {
             if (ReactionCommands.TryGetValue(reaction.Emote.Name, out ReactionCommand reactionCommand))
             {
-                SocketGuildUser user = Var.client.GetGuildUser(reaction.UserId);
+                SocketGuildUser user = channel.Guild.GetUser(reaction.UserId);
 
                 if (user != null)
                 {
@@ -62,7 +62,7 @@ namespace YNBBot.Reactions
                 embed.Color = Var.ERRORCOLOR;
                 embed.Title = "**__Exception__**";
                 embed.AddField("Command", command.Emote);
-                embed.AddField("Location", Var.client.GetTextChannel(context.Channel.Id).Mention);
+                embed.AddField("Location", context.Channel.Mention);
                 embed.AddField("Message", Macros.MultiLineCodeBlock(e.Message));
                 string stacktrace;
                 if (e.StackTrace.Length <= 500)
@@ -74,12 +74,7 @@ namespace YNBBot.Reactions
                     stacktrace = e.StackTrace.Substring(0, 500);
                 }
                 embed.AddField("StackTrace", Macros.MultiLineCodeBlock(stacktrace));
-                string message = string.Empty;
-                SocketRole botDevRole = Var.client.GetRole(SettingsModel.BotDevRole);
-                if (botDevRole != null)
-                {
-                    message = botDevRole.Mention;
-                }
+                string message = Macros.Mention_Role(SettingsModel.BotDevRole);
                 await channel.SendMessageAsync(message, embed: embed.Build());
             }
             await BotCore.Logger(new LogMessage(LogSeverity.Error, "CMDSERVICE", string.Format("An Exception occured while trying to execute command `/{0}`.Message: '{1}'\nStackTrace {2}", command.Emote, e.Message, e.StackTrace)));

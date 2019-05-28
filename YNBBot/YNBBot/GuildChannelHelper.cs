@@ -6,77 +6,80 @@ namespace YNBBot
 {
     static class GuildChannelHelper
     {
+        /// <summary>
+        /// Id of the channel assigned as debug logging channel
+        /// </summary>
         public static ulong DebugChannelId { get; set; }
+        /// <summary>
+        /// Id of the channel assigned for welcoming new users
+        /// </summary>
         public static ulong WelcomingChannelId { get; set; }
-        public static GuildChannelInformation DebugChannelInfo
-        {
-            get
-            {
-                if (channelInfos.TryGetValue(DebugChannelId, out GuildChannelInformation debugChannel))
-                { return debugChannel; }
-                else
-                {
-                    return null;
-                }
-            }
-        }
-        public static GuildChannelInformation WelcomingChannelInfo
-        {
-            get
-            {
-                if (channelInfos.TryGetValue(WelcomingChannelId, out GuildChannelInformation welcomingChannel))
-                { return welcomingChannel; }
-                else
-                {
-                    return null;
-                }
-            }
-        }
 
         private const string JSON_DEBUGCHANNELID = "DebugChannelId";
         private const string JSON_WELCOMINGCHANNELID = "WelcomingChannelId";
         private const string JSON_CHANNELINFOS = "ChannelInfos";
-        private static Dictionary<ulong, GuildChannelInformation> channelInfos = new Dictionary<ulong, GuildChannelInformation>();
+        private static Dictionary<ulong, GuildChannelConfiguration> channelConfigs = new Dictionary<ulong, GuildChannelConfiguration>();
 
-        public static GuildChannelInformation GetChannelInfoOrDefault(SocketGuildChannel channel)
+        /// <summary>
+        /// Gets channel config for a given socketguildchannel. If no channel config for that channel is stored, default is returned instead
+        /// </summary>
+        /// <param name="channel">A socketguild channel to retrieve the channel config for</param>
+        /// <returns>Specific channel config or default</returns>
+        public static GuildChannelConfiguration GetChannelConfigOrDefault(SocketGuildChannel channel)
         {
-            if (channelInfos.TryGetValue(channel.Id, out GuildChannelInformation channelInformation))
+            if (channelConfigs.TryGetValue(channel.Id, out GuildChannelConfiguration channelConfig))
             {
-                return channelInformation;
+                return channelConfig;
             }
             else
             {
-                return new GuildChannelInformation(channel.Id);
+                return new GuildChannelConfiguration(channel.Id);
             }
         }
 
-        public static bool TryGetChannelInfo(ulong channelId, out GuildChannelInformation channelInformation)
+        /// <summary>
+        /// Attempts to retrieve specific channel info for a given channel id
+        /// </summary>
+        /// <param name="channelId">ulong id of the channel</param>
+        /// <param name="channelConfig">the resulting channel info</param>
+        /// <returns>True if specific channel info was found</returns>
+        public static bool TryGetChannelConfig(ulong channelId, out GuildChannelConfiguration channelConfig)
         {
-            return channelInfos.TryGetValue(channelId, out channelInformation);
+            return channelConfigs.TryGetValue(channelId, out channelConfig);
         }
 
-        public static void SetChannelInfo(GuildChannelInformation channelInformation)
+        /// <summary>
+        /// Sets the channel config for a given channel
+        /// </summary>
+        /// <param name="channelConfig"></param>
+        public static void SetChannelConfig(GuildChannelConfiguration channelConfig)
         {
-            if (channelInfos.ContainsKey(channelInformation.Id))
+            if (channelConfigs.ContainsKey(channelConfig.Id))
             {
-                if (channelInformation.IsDefault)
+                if (channelConfig.IsDefault)
                 {
-                    channelInfos.Remove(channelInformation.Id);
+                    channelConfigs.Remove(channelConfig.Id);
                 }
                 else
                 {
-                    channelInfos[channelInformation.Id] = channelInformation;
+                    channelConfigs[channelConfig.Id] = channelConfig;
                 }
             }
             else
             {
-                if (!channelInformation.IsDefault)
+                if (!channelConfig.IsDefault)
                 {
-                    channelInfos.Add(channelInformation.Id, channelInformation);
+                    channelConfigs.Add(channelConfig.Id, channelConfig);
                 }
             }
         }
 
+        /// <summary>
+        /// Searches all guild channels available to the client for a channel Id
+        /// </summary>
+        /// <param name="channelId">ulong id of the channel to search for</param>
+        /// <param name="channel">The resulting channel</param>
+        /// <returns>True if a channel matching the id was found</returns>
         public static bool TryGetChannel(ulong channelId, out SocketGuildChannel channel)
         {
             channel = null;
@@ -91,6 +94,13 @@ namespace YNBBot
             return false;
         }
 
+        /// <summary>
+        /// Searches all guild channels available to the client for a channel id and tries converting it to a type
+        /// </summary>
+        /// <typeparam name="T">The type to try converting the channel to</typeparam>
+        /// <param name="channelId">ulong id of the channel to search for</param>
+        /// <param name="channel">The resulting channel</param>
+        /// <returns>True if of type T matching the id was found</returns>
         public static bool TryGetChannel<T>(ulong channelId, out T channel) where T : SocketGuildChannel
         {
             if (TryGetChannel(channelId, out SocketGuildChannel gChannel))
@@ -105,9 +115,13 @@ namespace YNBBot
             }
         }
 
+        /// <summary>
+        /// Initiates the GuildChannelHelpers stored configs and ids from a json object
+        /// </summary>
+        /// <param name="json">json data</param>
         public static void FromJSON(JSONObject json)
         {
-            channelInfos.Clear();
+            channelConfigs.Clear();
             DebugChannelId = 0;
             WelcomingChannelId = 0;
 
@@ -131,15 +145,19 @@ namespace YNBBot
             {
                 foreach (JSONObject channelInfo in channelInfoArray)
                 {
-                    GuildChannelInformation info = new GuildChannelInformation();
+                    GuildChannelConfiguration info = new GuildChannelConfiguration();
                     if (info.FromJSON(channelInfoArray))
                     {
-                        channelInfos.Add(info.Id, info);
+                        channelConfigs.Add(info.Id, info);
                     }
                 }
             }
         }
 
+        /// <summary>
+        /// Converts currently stored configs and ids into a json data object
+        /// </summary>
+        /// <returns>json data</returns>
         public static JSONObject ToJSON()
         {
             JSONObject json = new JSONObject();
@@ -148,7 +166,7 @@ namespace YNBBot
             json.AddField(JSON_WELCOMINGCHANNELID, WelcomingChannelId.ToString());
 
             JSONObject channelInfoArray = new JSONObject();
-            foreach (GuildChannelInformation channelInfo in channelInfos.Values)
+            foreach (GuildChannelConfiguration channelInfo in channelConfigs.Values)
             {
                 channelInfoArray.Add(channelInfo.ToJSON());
             }
@@ -158,18 +176,33 @@ namespace YNBBot
         }
     }
 
-    public class GuildChannelInformation : IJSONSerializable, ICloneable
+    /// <summary>
+    /// Stores configuration of command behaviour for one guild channel
+    /// </summary>
+    public class GuildChannelConfiguration : IJSONSerializable, ICloneable
     {
         public const bool DEFAULT_ALLOWCOMMANDS = true;
         public const bool DEFAULT_ALLOWSHITPOSTING = false;
 
-        public ulong Id;
-        public bool AllowCommands;
-        public bool AllowShitposting;
+        /// <summary>
+        /// ulong Id of the channel this object stores the configuration of
+        /// </summary>
+        public ulong Id = 0;
+        /// <summary>
+        /// Wether command execution is allowed in this channel or not
+        /// </summary>
+        public bool AllowCommands = DEFAULT_ALLOWCOMMANDS;
+        /// <summary>
+        /// Wether shitposting command execution is allowed or not
+        /// </summary>
+        public bool AllowShitposting = DEFAULT_ALLOWSHITPOSTING;
 
         public bool IsDebugChannel { get { return Id == GuildChannelHelper.DebugChannelId; } }
         public bool IsWelcomingChannel { get { return Id == GuildChannelHelper.WelcomingChannelId; } }
 
+        /// <summary>
+        /// True, if the channel configuration matches default configuration, which means it does not have to be stored
+        /// </summary>
         public bool IsDefault
         {
             get
@@ -178,30 +211,25 @@ namespace YNBBot
             }
         }
 
-        public GuildChannelInformation()
+        /// <summary>
+        /// Empty constructor initializing with default settings
+        /// </summary>
+        public GuildChannelConfiguration()
         {
 
         }
 
-        public GuildChannelInformation(ulong id, bool allowCommands = DEFAULT_ALLOWCOMMANDS, bool allowShitposting = DEFAULT_ALLOWSHITPOSTING)
+        /// <summary>
+        /// Constructor with Id and settings parameters
+        /// </summary>
+        /// <param name="id">Sets the id of the channel this object stores the config for</param>
+        /// <param name="allowCommands"></param>
+        /// <param name="allowShitposting"></param>
+        public GuildChannelConfiguration(ulong id, bool allowCommands = DEFAULT_ALLOWCOMMANDS, bool allowShitposting = DEFAULT_ALLOWSHITPOSTING)
         {
             Id = id;
             AllowCommands = allowCommands;
             AllowShitposting = allowShitposting;
-        }
-
-        public bool TryGetChannel(out SocketGuildChannel channel)
-        {
-            channel = null;
-            foreach (SocketGuild guild in Var.client.Guilds)
-            {
-                channel = guild.GetChannel(Id);
-                if (channel != null)
-                {
-                    return true;
-                }
-            }
-            return false;
         }
 
         private const string JSON_NAME = "Name";
@@ -249,7 +277,7 @@ namespace YNBBot
 
         public object Clone()
         {
-            return new GuildChannelInformation()
+            return new GuildChannelConfiguration()
             {
                 Id = this.Id,
                 AllowCommands = this.AllowCommands,

@@ -62,7 +62,7 @@ namespace YNBBot.NestedCommands
 
                 if (context.IsGuildContext)
                 {
-                    if (guildContext.ChannelInfo.AllowShitposting)
+                    if (guildContext.ChannelConfig.AllowShitposting)
                     {
                         channel = "A guild channel";
                     }
@@ -77,7 +77,7 @@ namespace YNBBot.NestedCommands
                 }
                 string description = $"This list is generated based on your AccessLevel (`{context.UserAccessLevel}`), and the current channel (`{channel}`)";
 
-                List<EmbedField> embeds = new List<EmbedField>();
+                List<EmbedFieldBuilder> embeds = new List<EmbedFieldBuilder>();
 
                 foreach (Command command in helpList)
                 {
@@ -85,11 +85,11 @@ namespace YNBBot.NestedCommands
                     {
                         if (command.HasLink)
                         {
-                            embeds.Add(new EmbedField(command.Syntax, $"{command.Description}\n[Online Documentation for `{command.PrefixIdentifier}`]({command.Link})", true));
+                            embeds.Add(Macros.EmbedField(command.Syntax, $"{command.Description}\n[Online Documentation for `{command.PrefixIdentifier}`]({command.Link})", true));
                         }
                         else
                         {
-                            embeds.Add(new EmbedField(command.Syntax, command.Description, true));
+                            embeds.Add(Macros.EmbedField(command.Syntax, command.Description, true));
                         }
                     }
                 }

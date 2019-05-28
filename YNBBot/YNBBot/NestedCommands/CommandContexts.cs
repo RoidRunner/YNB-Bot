@@ -45,7 +45,7 @@ namespace YNBBot.NestedCommands
 
     public class GuildCommandContext : CommandContext
     {
-        public GuildChannelInformation ChannelInfo { get; private set; }
+        public GuildChannelConfiguration ChannelConfig { get; private set; }
 
         public SocketGuildUser GuildUser { get; private set; }
 
@@ -61,7 +61,7 @@ namespace YNBBot.NestedCommands
                 GuildChannel = guild.GetTextChannel(Channel.Id);
                 Guild = guild;
                 IsGuildContext = true;
-                ChannelInfo = GuildChannelHelper.GetChannelInfoOrDefault(GuildChannel);
+                ChannelConfig = GuildChannelHelper.GetChannelConfigOrDefault(GuildChannel);
             }
         }
 

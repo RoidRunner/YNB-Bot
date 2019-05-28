@@ -14,25 +14,61 @@ namespace YNBBot
     {
         public static Random Rand = new Random();
 
+        #region Markdown Helpers
+
         private const string CODEBLOCKBASESTRING = "``````";
         private const string INLINECODEBLOCKBASESTRING = "``";
         private const string FATBASESTRING = "****";
 
+        /// <summary>
+        /// Adds multiline codeblock markdown syntax around the given input
+        /// </summary>
+        /// <param name="input">Any object whichs .ToString() function is used as the text</param>
+        /// <returns></returns>
         public static string MultiLineCodeBlock(object input)
         {
             return CODEBLOCKBASESTRING.Insert(3, input.ToString());
         }
 
+        /// <summary>
+        /// Adds inline codeblock markdown syntax around the given input
+        /// </summary>
+        /// <param name="input">Any object whichs .ToString() function is used as the text</param>
+        /// <returns></returns>
         public static string InlineCodeBlock(object input)
         {
             return INLINECODEBLOCKBASESTRING.Insert(1, input.ToString());
         }
 
+        /// <summary>
+        /// Adds fat markdown syntax around the given input
+        /// </summary>
+        /// <param name="input">Any object whichs .ToString() function is used as the text</param>
+        /// <returns></returns>
         public static string Fat(object input)
         {
             return FATBASESTRING.Insert(2, input.ToString());
         }
 
+        /// <summary>
+        /// Creates a mention for a given role Id
+        /// </summary>
+        /// <param name="roleId"></param>
+        /// <returns></returns>
+        public static string Mention_Role(ulong roleId)
+        {
+            return $"<@&{roleId}>";
+        }
+
+        #endregion
+        #region Embed Sending Extension Methods
+
+        /// <summary>
+        /// Sends an embedded message to this channel
+        /// </summary>
+        /// <param name="message">the string message to send</param>
+        /// <param name="error">if true, the bots error color is used as the embed color instead of the normal bot color</param>
+        /// <returns>The embed message created by using this method</returns>
         public async static Task<Discord.Rest.RestUserMessage> SendEmbedAsync(this ISocketMessageChannel channel, string message, bool error = false)
         {
             EmbedBuilder embed = new EmbedBuilder();
@@ -48,7 +84,14 @@ namespace YNBBot
             return await channel.SendMessageAsync(string.Empty, embed: embed.Build());
         }
 
-        public async static Task<Discord.Rest.RestUserMessage> SendEmbedAsync(this ISocketMessageChannel channel, string message, string embeddedmessage, bool error = false)
+        /// <summary>
+        /// Sends an embedded message to this channel
+        /// </summary>
+        /// <param name="messageContent">the unembedded part of the message</param>
+        /// <param name="embeddedmessage">the embedded part of the message</param>
+        /// <param name="error">if true, the bots error color is used as the embed color instead of the normal bot color</param>
+        /// <returns>The embed message created by using this method</returns>
+        public async static Task<Discord.Rest.RestUserMessage> SendEmbedAsync(this ISocketMessageChannel channel, string messageContent, string embeddedmessage, bool error = false)
         {
             EmbedBuilder embed = new EmbedBuilder();
             if (error)
@@ -60,15 +103,26 @@ namespace YNBBot
                 embed.Color = Var.BOTCOLOR;
             }
             embed.Description = embeddedmessage;
-            return await channel.SendMessageAsync(message, embed: embed.Build());
+            return await channel.SendMessageAsync(messageContent, embed: embed.Build());
         }
 
+        /// <summary>
+        /// Sends an embed to this channel
+        /// </summary>
+        /// <param name="embed">The embed builder carrying the embed data</param>
+        /// <returns>The embed message created by using this method</returns>
         public async static Task<Discord.Rest.RestUserMessage> SendEmbedAsync(this ISocketMessageChannel channel, EmbedBuilder embed)
         {
-            return await channel.SendMessageAsync(string.Empty, embed: embed.Build());
+            return await channel.SendMessageAsync(embed: embed.Build());
         }
 
-        public async static Task SendSafeEmbedList(this ISocketMessageChannel channel, string title, List<EmbedField> embeds, string description = null)
+        /// <summary>
+        /// Sends as many embeds as necessary based on a list of embed fields. Adhering to the maximum of 25 embed fields per embed
+        /// </summary>
+        /// <param name="title">The title applied to all embeds</param>
+        /// <param name="embeds">List of embed field builders</param>
+        /// <param name="description">The description applied to all embeds</param>
+        public async static Task SendSafeEmbedList(this ISocketMessageChannel channel, string title, List<EmbedFieldBuilder> embeds, string description = null)
         {
             List<EmbedBuilder> embedMessages = new List<EmbedBuilder>();
             EmbedBuilder CurrentBuilder = null;
@@ -88,14 +142,10 @@ namespace YNBBot
                     embedMessages.Add(CurrentBuilder);
                 }
 
-                EmbedField embed = embeds[i];
-                if (CurrentBuilder != null && !string.IsNullOrEmpty(embed.Title) && embed.Value != null && !string.IsNullOrEmpty(embed.Value.ToString()))
+                EmbedFieldBuilder embed = embeds[i];
+                if (CurrentBuilder != null)
                 {
-                    CurrentBuilder.AddField(embed.Title, embed.Value, embed.InLine);
-                }
-                else if (CurrentBuilder != null)
-                {
-                    CurrentBuilder.AddField("Warning!", $"Failed to add field `{embed.Title} - {embed.Value?.ToString()}`");
+                    CurrentBuilder.AddField(embed);
                 }
             }
 
@@ -105,11 +155,45 @@ namespace YNBBot
             }
         }
 
-        public static string GetMessageURL(this IMessage message, ulong guildId)
+        #endregion
+        #region Discord Client Extension Methods
+
+        /// <summary>
+        /// Retrieves access level (based on botadmin list and roles) for a given user Id
+        /// </summary>
+        /// <param name="userId"></param>
+        /// <returns></returns>
+        public static AccessLevel GetAccessLevel(this DiscordSocketClient client, ulong userId)
         {
-            return string.Format("https://discordapp.com/channels/{0}/{1}/{2}", guildId, message.Channel.Id, message.Id);
+            if (SettingsModel.UserIsBotAdmin(userId))
+            {
+                return AccessLevel.BotAdmin;
+            }
+            foreach (SocketGuild guild in client.Guilds)
+            {
+                SocketGuildUser userInGuild = guild.GetUser(userId);
+                if (userInGuild != null)
+                {
+                    foreach (SocketRole role in userInGuild.Roles)
+                    {
+                        if (role.Id == SettingsModel.AdminRole)
+                        {
+                            return AccessLevel.Admin;
+                        }
+                    }
+                }
+            }
+            return AccessLevel.Basic;
         }
 
+        #endregion
+        #region String Extension Methods
+
+        /// <summary>
+        /// Prunes to a maximum length if it is exceeded
+        /// </summary>
+        /// <param name="maxLength">Maximum length the string is allowed to reach</param>
+        /// <returns>A string guaranteed to not exceed maximum length</returns>
         public static string MaxLength(this string str, int maxLength)
         {
             if (str.Length <= maxLength)
@@ -122,99 +206,31 @@ namespace YNBBot
             }
         }
 
-        public static bool TryParseChannelId(string channel, out ulong channelId, ulong channelself = ulong.MaxValue)
-        {
-            channelId = 0;
-            if (ulong.TryParse(channel, out ulong Id))
-            {
-                channelId = Id;
-                return true;
-            }
-            else if (channel.StartsWith("<#") && channel.EndsWith('>') && channel.Length > 3)
-            {
-                if (ulong.TryParse(channel.Substring(2, channel.Length - 3), out ulong Id2))
-                {
-                    channelId = Id2;
-                    return true;
-                }
-            }
-            else if (channel.Equals("this"))
-            {
-                channelId = channelself;
-                return true;
-            }
-            return false;
-        }
-
-        public static bool TryParseUserId(string user, out ulong userId, ulong userself)
-        {
-            userId = 0;
-            if (user.Equals("self"))
-            {
-                userId = userself;
-                return true;
-            }
-            else if (user.StartsWith("<@") && user.EndsWith('>') && user.Length > 3)
-            {
-                if (ulong.TryParse(user.Substring(2, user.Length - 3), out userId))
-                {
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
-            }
-            else if (ulong.TryParse(user, out userId))
-            {
-                return true;
-            }
-            else
-            {
-                return false;
-            }
-        }
-
-        public static string FirstToUpper(this string str)
-        {
-            if (string.IsNullOrEmpty(str))
-            {
-                return str;
-            }
-            else
-            {
-                return str.Substring(0, 1).ToUpper() + str.Substring(1);
-            }
-        }
-
+        /// <summary>
+        /// Checks wether the string is a valid image url (http protocol and image file endings)
+        /// </summary>
+        /// <returns>True, if a valid image url</returns>
         public static bool IsValidImageURL(this string str)
         {
             return str.StartsWith("http") && str.Contains("://") && (str.EndsWith(".png") || str.EndsWith(".jpg") || str.EndsWith(".jpeg") || str.EndsWith(".gif") || str.EndsWith(".webp"));
         }
 
-        public static string BuildListString<T>(IList<T> list)
+        #endregion
+        #region Misc Extension Methods
+
+        /// <summary>
+        /// Formats a discord compatible message url
+        /// </summary>
+        /// <param name="guildId">The guild where this message was sent</param>
+        public static string GetMessageURL(this IMessage message, ulong guildId)
         {
-            if ((list == null) || list.Count == 0)
-            {
-                return "none";
-            }
-            else if (list.Count == 1)
-            {
-                return list[0].ToString();
-            }
-            else
-            {
-                StringBuilder result = new StringBuilder();
-                for (int i = 0; i < list.Count - 1; i++)
-                {
-                    result.Append(list[i].ToString());
-                    result.Append(", ");
-                }
-                result.Append(list[list.Count - 1].ToString());
-                return result.ToString();
-            }
+            return string.Format("https://discordapp.com/channels/{0}/{1}/{2}", guildId, message.Channel.Id, message.Id);
         }
 
+        /// <summary>
+        /// Formats to a shorted string (maximum data density in short human readable format)
+        /// </summary>
+        /// <returns></returns>
         public static string ToShortString(this float n)
         {
             if (n < 0)
@@ -272,45 +288,6 @@ namespace YNBBot
             }
         }
 
-        public static bool ContainsAny(this string str, char[] testers)
-        {
-            foreach (char ch in testers)
-            {
-                if (str.Contains(ch.ToString()))
-                {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        public static bool ContainsOnly(this string str, char[] testers)
-        {
-            foreach (char c in str)
-            {
-                if (!testers.Contains(c))
-                {
-                    return false;
-                }
-            }
-            return true;
-        }
-
-        public static bool TryGetImageURLFromText(string text, out string url)
-        {
-            url = null;
-            foreach (string word in text.Split(' ', StringSplitOptions.RemoveEmptyEntries))
-            {
-                word.Trim();
-                if (word.IsValidImageURL())
-                {
-                    url = word;
-                    return true;
-                }
-            }
-            return false;
-        }
-
         /// <summary>
         /// Converts <see cref="TimeSpan"/> objects to a simple human-readable string.  Examples: 3.1 seconds, 2 minutes, 4.23 hours, etc.
         /// </summary>
@@ -327,73 +304,51 @@ namespace YNBBot
                                                 : span.TotalDays.ToString(format) + " days")));
         }
 
-        public static SocketTextChannel GetTextChannel(this DiscordSocketClient client, ulong id)
-        {
-            SocketTextChannel result = client.GetChannel(id) as SocketTextChannel;
-            return result;
-        }
-
-        public static SocketGuildUser GetGuildUser(this DiscordSocketClient client, ulong id)
-        {
-            SocketGuildUser result;
-            foreach (SocketGuild guild in client.Guilds)
-            {
-                result = guild.GetUser(id);
-                if (result != null)
-                {
-                    return result;
-                }
-            }
-            return null;
-        }
-
-        public static SocketRole GetRole(this DiscordSocketClient client, ulong id)
-        {
-            SocketRole result = null;
-            foreach (SocketGuild guild in client.Guilds)
-            {
-                result = guild.GetRole(id);
-                if (result != null)
-                {
-                    break;
-                }
-            }
-            return result;
-        }
-
-        public static AccessLevel GetAccessLevel(this DiscordSocketClient client, ulong userId)
-        {
-            if (SettingsModel.UserIsBotAdmin(userId))
-            {
-                return AccessLevel.BotAdmin;
-            }
-            foreach (SocketGuild guild in client.Guilds)
-            {
-                SocketGuildUser userInGuild = guild.GetUser(userId);
-                if (userInGuild != null)
-                {
-                    foreach (SocketRole role in userInGuild.Roles)
-                    {
-                        if (role.Id == SettingsModel.AdminRole)
-                        {
-                            return AccessLevel.Admin;
-                        }
-                    }
-                }
-            }
-            return AccessLevel.Basic;
-        }
-
+        /// <summary>
+        /// Checks for an index being inside array bounds
+        /// </summary>
+        /// <returns>True, if index is withing array bounds</returns>
         public static bool WithinBounds(this Array array, int index)
         {
             return index > 0 && index < array.Length;
         }
 
+        #endregion
+        #region Misc Methods
+
+        /// <summary>
+        /// Sweeps a text for contained image urls
+        /// </summary>
+        /// <param name="text">The text to search for an image url</param>
+        /// <param name="url">The image url if a result was found</param>
+        /// <returns>True, if an image url has been found</returns>
+        public static bool TryGetImageURLFromText(string text, out string url)
+        {
+            url = null;
+            foreach (string word in text.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+            {
+                word.Trim();
+                if (word.IsValidImageURL())
+                {
+                    url = word;
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Gets code location (for debug purposes)
+        /// </summary>
         public static string GetCodeLocation([CallerFilePath] string file = "File Not Found", [CallerLineNumber] int lineNumber = 0)
         {
             return $"{file} at line {lineNumber}";
         }
 
+        /// <summary>
+        /// Returns an embed builder with title, description and color set based on an Exception
+        /// </summary>
+        /// <param name="e">The exception to base the embed on</param>
         public static EmbedBuilder EmbedFromException(Exception e)
         {
             EmbedBuilder result = new EmbedBuilder()
@@ -405,23 +360,27 @@ namespace YNBBot
             return result;
         }
 
+        /// <summary>
+        /// Get a list string of all enum names
+        /// </summary>
+        /// <typeparam name="T">Enum type to get the name list of</typeparam>
+        /// <returns></returns>
         public static string GetEnumNames<T>() where T : Enum
         {
             return string.Join(", ", Enum.GetNames(typeof(T)));
         }
-    }
 
-    public struct EmbedField
-    {
-        public string Title;
-        public object Value;
-        public bool InLine;
-
-        public EmbedField(string title, object value, bool inLine = false)
+        /// <summary>
+        /// Returns an embed field builder given embed field parameters
+        /// </summary>
+        /// <param name="title">The title of the embed field</param>
+        /// <param name="value">The value of the embed field</param>
+        /// <param name="inLine">Wether the field can be displayed inline or not</param>
+        public static EmbedFieldBuilder EmbedField(string title, object value, bool inLine = false)
         {
-            Title = title;
-            Value = value;
-            InLine = inLine;
+            return new EmbedFieldBuilder() { Name = title, Value = value, IsInline = inLine };
         }
+
+        #endregion
     }
 }

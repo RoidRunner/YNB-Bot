@@ -37,17 +37,10 @@ public static class Var
     /// Path containing the restart location
     /// </summary>
     internal static string RestartPath = string.Empty;
+    /// <summary>
+    /// Main culture that is set to all threads
+    /// </summary>
     internal static CultureInfo Culture = new CultureInfo("en-us");
-    [Obsolete()]
-    internal static ulong GuildId = 0;
-    [Obsolete()]
-    internal static SocketGuild Guild
-    {
-        get
-        {
-            return Var.client.GetGuild(GuildId);
-        }
-    }
 }
 namespace YNBBot
 {
@@ -134,11 +127,6 @@ namespace YNBBot
             {
                 System.Diagnostics.Process.Start(Var.RestartPath);
             }
-        }
-
-        private static void InitReactionsCommands()
-        {
-            UtilityReactionCommand.Init();
         }
 
         #region EventHandling
@@ -240,6 +228,11 @@ namespace YNBBot
         private void InitTextCommands()
         {
             Var.client.MessageReceived += CommandHandler.HandleMessage;
+        }
+
+        private static void InitReactionsCommands()
+        {
+            UtilityReactionCommand.Init();
         }
     }
 

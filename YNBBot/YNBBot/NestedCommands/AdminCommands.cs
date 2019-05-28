@@ -325,11 +325,11 @@ namespace YNBBot.NestedCommands
 
         protected override async Task HandleCommandGuildAsync(GuildCommandContext context)
         {
-            bool foundExisting = GuildChannelHelper.TryGetChannelInfo(Channel.Id, out GuildChannelInformation channelInformation);
+            bool foundExisting = GuildChannelHelper.TryGetChannelConfig(Channel.Id, out GuildChannelConfiguration channelConfig);
 
             if (!foundExisting)
             {
-                channelInformation = new GuildChannelInformation(Channel.Id);
+                channelConfig = new GuildChannelConfiguration(Channel.Id);
             }
 
             foreach (var config in Configs)
@@ -337,22 +337,22 @@ namespace YNBBot.NestedCommands
                 switch (config.Item1)
                 {
                     case ConfigIdentifier.allowshitposting:
-                        channelInformation.AllowShitposting = config.Item2;
+                        channelConfig.AllowShitposting = config.Item2;
                         break;
                     case ConfigIdentifier.allowcommands:
-                        channelInformation.AllowCommands = config.Item2;
+                        channelConfig.AllowCommands = config.Item2;
                         break;
                 }
             }
 
-            GuildChannelHelper.SetChannelInfo(channelInformation);
+            GuildChannelHelper.SetChannelConfig(channelConfig);
 
             await SettingsModel.SaveSettings();
 
             EmbedBuilder embed = new EmbedBuilder()
             {
                 Color = Var.BOTCOLOR,
-                Description = channelInformation.ToString()
+                Description = channelConfig.ToString()
             };
             if (Configs.Count > 0)
             {
