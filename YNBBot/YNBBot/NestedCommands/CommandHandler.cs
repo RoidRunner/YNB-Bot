@@ -10,12 +10,31 @@ namespace YNBBot.NestedCommands
     {
         public static char Prefix = '/';
 
-        public static CommandFamily BaseFamily { get; private set; } = new CommandFamily(string.Empty);
+        public static CommandFamily BaseFamily { get; private set; } = new CommandFamily();
 
         public static async Task HandleCommand(CommandContext context)
         {
-            if (! await BaseFamily.ParseOn(context))
+            List<Command> matchedCommands = new List<Command>();
+            CommandFamily matchedFamily = null;
+            IndexArray<string> args = context.Args;
+            if (BaseFamily.TryFindFamilyOrCommand(ref args, ref matchedCommands, ref matchedFamily))
             {
+                // something was found
+                if (matchedCommands.Count == 0)
+                {
+                    await context.Channel.SendEmbedAsync($"Use `{Prefix}help {matchedFamily.FullIdentifier}` for a list of all commands in the command family `{matchedFamily.FullIdentifier}`", true);
+                }
+                else
+                {
+                    if (await matchedCommands[0].TryHandleCommand(context) == Command.CommandMatchResult.IdentifiersMatch)
+                    {
+                        await context.Channel.SendEmbedAsync($"The command that matched requires more arguments: `{matchedCommands[0].Syntax}`", true);
+                    }
+                }
+            }
+            else
+            {
+                // nothing at all was found
                 await context.Message.AddReactionAsync(UnicodeEmoteService.Question);
             }
         }

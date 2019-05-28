@@ -7,173 +7,204 @@ namespace YNBBot.NestedCommands
 {
     class CommandFamily
     {
-        private List<Command> commands = new List<Command>();
+        #region Fields, Properties
 
-        public IReadOnlyList<Command> Commands => commands.AsReadOnly();
+        /// <summary>
+        /// The parent family this family is attached to
+        /// </summary>
+        public CommandFamily ParentFamily { get; private set; }
+        /// <summary>
+        /// The index depth that had been reached once parsing determined this family as a hit
+        /// </summary>
+        public int IndexDepth { get; private set; }
 
-        private List<CommandFamily> nestedFamilies = new List<CommandFamily>();
+        private Dictionary<string, Command> commands = new Dictionary<string, Command>();
 
-        public IReadOnlyList<CommandFamily> NestedFamilies => nestedFamilies.AsReadOnly();
+        /// <summary>
+        /// List of all commands contained in this family
+        /// </summary>
+        public ICollection<Command> Commands => commands.Values;
 
-        public bool TryAddCommand(Command value)
-        {
-            if (!commands.Contains(value))
-            {
-                commands.Add(value);
-                value.InitiateFullIdentifier(FullIdentifier);
-                return true;
-            }
-            else
-            {
-                return false;
-            }
-        }
+        private Dictionary<string, CommandFamily> nestedFamilies = new Dictionary<string, CommandFamily>();
 
-        public bool TryAddCommandFamily(CommandFamily value)
-        {
-            if (!nestedFamilies.Contains(value))
-            {
-                nestedFamilies.Add(value);
+        /// <summary>
+        /// List of all families nested in this family
+        /// </summary>
+        public ICollection<CommandFamily> NestedFamilies => nestedFamilies.Values;
 
-                value.SetFullIdentifier(FullIdentifier);
-
-                return true;
-            }
-            else
-            {
-                return false;
-            }
-        }
-
+        /// <summary>
+        /// Identifier used for parsing commands
+        /// </summary>
         public string Identifier { get; private set; }
 
-        public string FullIdentifier
+        /// <summary>
+        /// Full identifier (includes parent families)
+        /// </summary>
+        public string FullIdentifier { get; private set; }
+
+        #endregion
+        #region Constructors
+
+        /// <summary>
+        /// Creates a new base command family
+        /// </summary>
+        public CommandFamily()
         {
-            get;
-            private set;
+            Identifier = string.Empty;
+            IndexDepth = 0;
         }
 
-        private void SetFullIdentifier(string value)
-        {
-            if (string.IsNullOrEmpty(value))
-            {
-                FullIdentifier = Identifier;
-            }
-            else
-            {
-                FullIdentifier = value + " " + Identifier;
-            }
-        }
-
-        public CommandFamily(string identifier)
-        {
-            Identifier = identifier;
-        }
-
+        /// <summary>
+        /// Creates a new command family with identifier and parent
+        /// </summary>
+        /// <param name="identifier"></param>
+        /// <param name="parent"></param>
         public CommandFamily(string identifier, CommandFamily parent)
         {
             Identifier = identifier;
             parent.TryAddCommandFamily(this);
         }
 
-        public async Task<bool> ParseOn(CommandContext context)
+        #endregion
+        #region Command and Family Organisation
+
+        /// <summary>
+        /// Counts all commands in this and all nested families that fit the filters
+        /// </summary>
+        /// <param name="isGuildContext">Filter for the context being a guild or not</param>
+        /// <param name="accessLevel">Filter for minimum accesslevel</param>
+        /// <returns>Number of commands matching the filter</returns>
+        public int CommandCount(bool isGuildContext, AccessLevel accessLevel)
         {
-            int index = context.Args.Index;
-
-            string argument = context.Args.First;
-
-            CommandFamily identifierMatchButNotEnoughArgs = null;
-
-            foreach (CommandFamily family in nestedFamilies)
+            int result = 0;
+            foreach (CommandFamily family in NestedFamilies)
             {
-                if (family.Identifier == argument)
+                result += family.CommandCount(isGuildContext, accessLevel);
+            }
+
+            foreach (Command command in Commands)
+            {
+                if (!(!isGuildContext && command.RequireGuild) && accessLevel >= command.RequireAccessLevel)
                 {
-                    if (context.Args.Index + 1 < context.Args.TotalCount)
-                    {
-                        context.Args.Index++;
-                        bool success = await family.ParseOn(context);
-                        context.Args.Index--;
-                        if (success)
-                        {
-                            return true;
-                        }
-                    }
-                    else
-                    {
-                        identifierMatchButNotEnoughArgs = family;
-                    }
+                    result++;
                 }
             }
 
-            int remainingArgs = context.Args.TotalCount - index - 1;
-
-            foreach (Command command in commands)
-            {
-                switch (await command.TryHandleCommand(context))
-                {
-                    case Command.CommandMatchResult.CompleteMatch:
-                        return true;
-                    case Command.CommandMatchResult.IdentifiersMatch:
-                        await context.Channel.SendEmbedAsync($"The command that matched requires more arguments: `{command.Syntax}`", true);
-                        return true;
-                }
-            }
-
-            if (identifierMatchButNotEnoughArgs != null)
-            {
-                await context.Channel.SendEmbedAsync($"Use `{CommandHandler.Prefix}help {identifierMatchButNotEnoughArgs.FullIdentifier}` for a list of all commands in the command family `{identifierMatchButNotEnoughArgs.FullIdentifier}`", true);
-                return true;
-            }
-
-            return false;
+            return result;
         }
 
-        public void FindCommandHelps(ref List<Command> helps, ref IndexArray<string> args, AccessLevel minAccessLevel)
+        /// <summary>
+        /// Attempts to add a command to this family
+        /// </summary>
+        /// <param name="command">Command to add</param>
+        /// <returns>Wether the command could be added or not</returns>
+        public bool TryAddCommand(Command command)
         {
-            int index = args.Index;
-
-            if (args.Count > 0)
+            if (!commands.ContainsKey(command.Identifier) && command.ParentFamily == null)
             {
-                string argument = args.First;
-
-                foreach (CommandFamily family in nestedFamilies)
-                {
-                    if (family.Identifier == argument && args.Index < args.TotalCount)
-                    {
-                        args.Index++;
-                        family.FindCommandHelps(ref helps, ref args, minAccessLevel);
-                        args.Index--;
-                    }
-                }
-
-                foreach (Command command in commands)
-                {
-                    if (command.CheckCommandMatch(args, true) >= Command.CommandMatchResult.IdentifiersMatch && minAccessLevel >= command.RequireAccessLevel)
-                    {
-                        helps.Add(command);
-                    }
-                }
+                commands.Add(command.Identifier, command);
+                command.RegisterParent(this);
+                return true;
             }
             else
             {
-                AllCommandHelps(ref helps, minAccessLevel);
+                return false;
             }
         }
 
-        public void AllCommandHelps(ref List<Command> helps, AccessLevel minAccessLevel)
+        /// <summary>
+        /// Attempts to add a command family to this family
+        /// </summary>
+        /// <param name="family">Family to add</param>
+        /// <returns>Wether the family could be added or not</returns>
+        public bool TryAddCommandFamily(CommandFamily family)
         {
-            foreach (CommandFamily family in nestedFamilies)
+            if (!nestedFamilies.ContainsKey(family.Identifier) && family.ParentFamily == null && family.NestedFamilies.Count == 0 && family.Commands.Count == 0)
             {
-                family.AllCommandHelps(ref helps, minAccessLevel);
-            }
+                nestedFamilies.Add(family.Identifier, family);
 
-            foreach (Command command in commands)
+                family.RegisterParent(this);
+
+                return true;
+            }
+            else
             {
-                if (minAccessLevel >= command.RequireAccessLevel)
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Registers the parent of this family
+        /// </summary>
+        /// <param name="parent">Parent command family</param>
+        private void RegisterParent(CommandFamily parent)
+        {
+            ParentFamily = parent;
+            IndexDepth = parent.IndexDepth + 1;
+            if (string.IsNullOrEmpty(parent.FullIdentifier))
+            {
+                FullIdentifier = Identifier;
+            }
+            else
+            {
+                FullIdentifier = parent.FullIdentifier + " " + Identifier;
+            }
+        }
+
+        #endregion
+        #region Parsing
+
+        /// <summary>
+        /// Traverses nested families to match to an argument indexarray
+        /// </summary>
+        /// <param name="args">Arguments to match the family to</param>
+        /// <param name="matchedCommands">List of command results</param>
+        /// <param name="matchedFamily">Matched command family</param>
+        /// <returns>True, if atleast one command or one command family could be matched</returns>
+        public bool TryFindFamilyOrCommand(ref IndexArray<string> args, ref List<Command> matchedCommands, ref CommandFamily matchedFamily)
+        {
+            string argument = args.First;
+
+            bool matchingFamilyButNotEnoughArgs = false;
+
+            if (nestedFamilies.TryGetValue(argument, out matchedFamily))
+            {
+                if (args.Index + 1 < args.TotalCount)
                 {
-                    helps.Add(command);
+                    // The current argument matches the family, and there are more arguments left to continue parsing
+                    args.Index++;
+                    bool success = matchedFamily.TryFindFamilyOrCommand(ref args, ref matchedCommands, ref matchedFamily);
+                    args.Index--;
+                    if (success)
+                    {
+                        return true;
+                    }
+                }
+                else
+                {
+                    // we found a matching family, but can not continue parsing because no arguments left to identify commands in that family
+                    matchingFamilyButNotEnoughArgs = true;
                 }
             }
+
+            int remainingArgs = args.TotalCount - args.Index - 1;
+
+            if (commands.TryGetValue(argument, out Command command))
+            {
+                switch (command.CheckCommandMatch(args))
+                {
+                    case Command.CommandMatchResult.IdentifiersMatch:
+                        matchedCommands.Add(command);
+                        break;
+                    case Command.CommandMatchResult.CompleteMatch:
+                        matchedCommands.Add(command);
+                        return true;
+                }
+            }
+
+            return matchingFamilyButNotEnoughArgs;
         }
+
+        #endregion
     }
 }

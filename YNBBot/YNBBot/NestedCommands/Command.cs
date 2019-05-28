@@ -8,8 +8,10 @@ namespace YNBBot.NestedCommands
 {
     abstract class Command
     {
-        #region Definition
+        #region Fields, Properties
 
+        public CommandFamily ParentFamily { get; private set; }
+        public int FirstArgumentIndex { get; private set; }
         /// <summary>
         /// If true, the command can only be executed in a guild context
         /// </summary>
@@ -329,15 +331,17 @@ namespace YNBBot.NestedCommands
         #endregion
         #region Initialization
 
-        public void InitiateFullIdentifier(string parentFullIdentifier)
+        public void RegisterParent(CommandFamily parent)
         {
-            if (string.IsNullOrEmpty(parentFullIdentifier))
+            ParentFamily = parent;
+            FirstArgumentIndex = parent.IndexDepth + 1;
+            if (string.IsNullOrEmpty(parent.FullIdentifier))
             {
                 FullIdentifier = Identifier;
             }
             else
             {
-                FullIdentifier = parentFullIdentifier + " " + Identifier;
+                FullIdentifier = parent.FullIdentifier + " " + Identifier;
             }
         }
 

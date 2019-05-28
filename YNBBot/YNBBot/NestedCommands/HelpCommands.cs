@@ -1,7 +1,5 @@
 ﻿using Discord;
-using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace YNBBot.NestedCommands
@@ -32,131 +30,128 @@ namespace YNBBot.NestedCommands
 
         protected override async Task HandleCommandAsync(CommandContext context)
         {
-            List<Command> helpList = new List<Command>();
-
-            CommandHandler.BaseFamily.FindCommandHelps(ref helpList, ref CommandKeys, context.UserAccessLevel);
-
-            if (helpList.Count == 0)
+            if (CommandKeys.Count > 0)
             {
-                await context.Channel.SendEmbedAsync("No commands matching the criteria were found!");
-                return;
-            }
-
-            bool GenerateList = CommandKeys.Count == 0 || helpList.Count > 2;
-
-
-            if (GenerateList)
-            {
-                string title;
-                if (CommandKeys.Count == 0)
+                List<Command> matchedCommands = new List<Command>();
+                CommandFamily matchedFamily = null;
+                if (CommandHandler.BaseFamily.TryFindFamilyOrCommand(ref CommandKeys, ref matchedCommands, ref matchedFamily))
                 {
-                    title = $"List of all commands available";
-                }
-                else
-                {
-                    title = $"List of all commands matching {string.Join(" ", context.Args)}";
-                }
-                string channel;
-
-                if (GuildCommandContext.TryConvert(context, out GuildCommandContext guildContext))
-                {
-                    if (guildContext.ChannelConfig.AllowShitposting)
+                    if (matchedCommands.Count > 0)
                     {
-                        channel = "A guild channel";
-                    }
-                    else
-                    {
-                        channel = "A guild channel that does not allow shitposting";
-                    }
-                }
-                else
-                {
-                    channel = "Any channel or PM with the bot";
-                }
-                string description = $"This list is generated based on your AccessLevel (`{context.UserAccessLevel}`), and the current channel (`{channel}`)";
-
-                List<EmbedFieldBuilder> embeds = new List<EmbedFieldBuilder>();
-
-                foreach (Command command in helpList)
-                {
-                    if ((!command.RequireGuild || command.RequireGuild == context.IsGuildContext))
-                    {
-                        if (command.HasLink)
+                        foreach (Command command in matchedCommands)
                         {
-                            embeds.Add(Macros.EmbedField(command.Syntax, $"{command.Description}\n[Online Documentation for `{command.PrefixIdentifier}`]({command.Link})", true));
-                        }
-                        else
-                        {
-                            embeds.Add(Macros.EmbedField(command.Syntax, command.Description, true));
+                            await sendSpecificCommandhelp(context, command);
                         }
                     }
-                }
-
-                if (embeds.Count == 0)
-                {
-                    await context.Channel.SendEmbedAsync("No commands matching the criteria were found!", true);
-                }
-                else
-                {
-                    await context.Channel.SendSafeEmbedList(title, embeds, description);
+                    else if (matchedFamily != null)
+                    {
+                        await handleFamilyHelp(context, matchedFamily);
+                    }
                 }
             }
             else
             {
-                foreach (Command command in helpList)
+                await handleFamilyHelp(context, CommandHandler.BaseFamily);
+            }
+        }
+
+        private static async Task handleFamilyHelp(CommandContext context, CommandFamily matchedFamily)
+        {
+            string channelInformation;
+
+            if (GuildCommandContext.TryConvert(context, out GuildCommandContext guildContext))
+            {
+                if (guildContext.ChannelConfig.AllowShitposting)
                 {
-                    EmbedBuilder embed = new EmbedBuilder()
-                    {
-                        Title = $"Help For `{command.PrefixIdentifier}`",
-                        Color = Var.BOTCOLOR,
-                        Description = command.Description,
-                    };
-                    if (command.HasRemarks)
-                    {
-                        embed.AddField("Remarks", command.Remarks);
-                    }
-
-                    if (command.Arguments.Length > 0)
-                    {
-                        string[] argumentInfo = new string[command.Arguments.Length];
-                        for (int i = 0; i < command.Arguments.Length; i++)
-                        {
-                            CommandArgument argument = command.Arguments[i];
-                            argumentInfo[i] = $"`{argument}`\n{argument.Help}";
-                        }
-
-                        embed.AddField("Syntax", Macros.MultiLineCodeBlock(command.Syntax) + "\n" + string.Join("\n\n", argumentInfo));
-                        embed.AddField(syntaxHelpField);
-                    }
-                    else
-                    {
-                        embed.AddField("Syntax", Macros.MultiLineCodeBlock(command.Syntax));
-                    }
-
-                    string executionLocation;
-                    if (command.RequireGuild)
-                    {
-                        if (command.IsShitposting)
-                        {
-                            executionLocation = "Guild channels (Shitposting)";
-                        }
-                        else
-                        {
-                            executionLocation = "Guild channels";
-                        }
-                    }
-                    else
-                    {
-                        executionLocation = "Anywhere";
-                    }
-                    embed.AddField("Execution Requirements", $"Required Access Level: `{command.RequireAccessLevel}`\nRequired Execution Location `{executionLocation}`");
-                    if (command.HasLink)
-                    {
-                        embed.AddField("Documentation", $"[Online Documentation for `{command.PrefixIdentifier}`]({command.Link})");
-                    }
-                    await context.Channel.SendEmbedAsync(embed);
+                    channelInformation = "Guild (shitposting)";
+                }
+                else
+                {
+                    channelInformation = "Guild";
                 }
             }
+            else
+            {
+                channelInformation = "Anywhere";
+            }
+
+            string embedTitle = $"Matching Commands for \"{CommandHandler.Prefix + string.Join(" ", context.Args)}\"";
+            string embedDescription = $"This list is generated based on your AccessLevel (`{context.UserAccessLevel}`), and the current channel context (`{channelInformation}`)";
+
+            List<EmbedFieldBuilder> commandFields = new List<EmbedFieldBuilder>();
+
+            foreach (CommandFamily family in matchedFamily.NestedFamilies)
+            {
+                int availableCommands = family.CommandCount(context.IsGuildContext, context.UserAccessLevel);
+                if (availableCommands > 0)
+                {
+                    commandFields.Add(Macros.EmbedField($"(Command Family) {CommandHandler.Prefix + family.FullIdentifier}", $"{availableCommands} available commands. Use `{CommandHandler.Prefix}help {family.FullIdentifier}` to see a summary of commands in this command family!", true));
+                }
+            }
+
+            foreach (Command command in matchedFamily.Commands)
+            {
+                if (!(!context.IsGuildContext && command.RequireGuild) && context.UserAccessLevel >= command.RequireAccessLevel)
+                {
+                    commandFields.Add(Macros.EmbedField(command.Syntax, command.Description, true));
+                }
+            }
+
+            await context.Channel.SendSafeEmbedList(embedTitle, commandFields, embedDescription);
+        }
+
+        private async Task sendSpecificCommandhelp(CommandContext context, Command command)
+        {
+            EmbedBuilder embed = new EmbedBuilder()
+            {
+                Title = $"Help For `{command.PrefixIdentifier}`",
+                Color = Var.BOTCOLOR,
+                Description = command.Description,
+            };
+            if (command.HasRemarks)
+            {
+                embed.AddField("Remarks", command.Remarks);
+            }
+
+            if (command.Arguments.Length > 0)
+            {
+                string[] argumentInfo = new string[command.Arguments.Length];
+                for (int i = 0; i < command.Arguments.Length; i++)
+                {
+                    CommandArgument argument = command.Arguments[i];
+                    argumentInfo[i] = $"`{argument}`\n{argument.Help}";
+                }
+
+                embed.AddField("Syntax", Macros.MultiLineCodeBlock(command.Syntax) + "\n" + string.Join("\n\n", argumentInfo));
+                embed.AddField(syntaxHelpField);
+            }
+            else
+            {
+                embed.AddField("Syntax", Macros.MultiLineCodeBlock(command.Syntax));
+            }
+
+            string executionLocation;
+            if (command.RequireGuild)
+            {
+                if (command.IsShitposting)
+                {
+                    executionLocation = "Guild channels (Shitposting)";
+                }
+                else
+                {
+                    executionLocation = "Guild channels";
+                }
+            }
+            else
+            {
+                executionLocation = "Anywhere";
+            }
+            embed.AddField("Execution Requirements", $"Required Access Level: `{command.RequireAccessLevel}`\nRequired Execution Location `{executionLocation}`");
+            if (command.HasLink)
+            {
+                embed.AddField("Documentation", $"[Online Documentation for `{command.PrefixIdentifier}`]({command.Link})");
+            }
+            await context.Channel.SendEmbedAsync(embed);
         }
     }
 }
