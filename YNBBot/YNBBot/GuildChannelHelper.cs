@@ -6,6 +6,8 @@ namespace YNBBot
 {
     static class GuildChannelHelper
     {
+        #region Fields
+
         /// <summary>
         /// Id of the channel assigned as debug logging channel
         /// </summary>
@@ -19,6 +21,9 @@ namespace YNBBot
         private const string JSON_WELCOMINGCHANNELID = "WelcomingChannelId";
         private const string JSON_CHANNELINFOS = "ChannelInfos";
         private static Dictionary<ulong, GuildChannelConfiguration> channelConfigs = new Dictionary<ulong, GuildChannelConfiguration>();
+
+        #endregion
+        #region Channel Configs
 
         /// <summary>
         /// Gets channel config for a given socketguildchannel. If no channel config for that channel is stored, default is returned instead
@@ -74,6 +79,9 @@ namespace YNBBot
             }
         }
 
+        #endregion
+        #region Guild Channels
+
         /// <summary>
         /// Searches all guild channels available to the client for a channel Id
         /// </summary>
@@ -114,6 +122,9 @@ namespace YNBBot
                 return false;
             }
         }
+
+        #endregion
+        #region JSON
 
         /// <summary>
         /// Initiates the GuildChannelHelpers stored configs and ids from a json object
@@ -174,6 +185,8 @@ namespace YNBBot
 
             return json;
         }
+
+        #endregion
     }
 
     /// <summary>
@@ -181,6 +194,8 @@ namespace YNBBot
     /// </summary>
     public class GuildChannelConfiguration : IJSONSerializable, ICloneable
     {
+        #region Constants, Fields, Properties
+
         public const bool DEFAULT_ALLOWCOMMANDS = true;
         public const bool DEFAULT_ALLOWSHITPOSTING = false;
 
@@ -211,6 +226,9 @@ namespace YNBBot
             }
         }
 
+        #endregion
+        #region Constructors
+
         /// <summary>
         /// Empty constructor initializing with default settings
         /// </summary>
@@ -231,6 +249,9 @@ namespace YNBBot
             AllowCommands = allowCommands;
             AllowShitposting = allowShitposting;
         }
+
+        #endregion
+        #region JSON
 
         private const string JSON_NAME = "Name";
         private const string JSON_ID = "Id";
@@ -260,6 +281,9 @@ namespace YNBBot
             return result;
         }
 
+        #endregion
+        #region Overrides, Implements
+
         public override string ToString()
         {
             if (!AllowCommands)
@@ -284,6 +308,8 @@ namespace YNBBot
                 AllowShitposting = this.AllowShitposting
             };
         }
+
+        #endregion
     }
 
     interface IJSONSerializable

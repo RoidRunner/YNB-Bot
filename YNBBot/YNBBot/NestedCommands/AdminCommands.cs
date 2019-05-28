@@ -31,14 +31,12 @@ namespace YNBBot.NestedCommands
 
         protected override async Task HandleCommandAsync(CommandContext context)
         {
-            GuildCommandContext guildContext = context as GuildCommandContext;
-
             SocketTextChannel debugChannel = null;
             SocketTextChannel welcomingChannel = null;
             SocketRole adminRole = null;
             SocketRole botNotifications = null;
 
-            if (guildContext != null)
+            if (GuildCommandContext.TryConvert(context, out GuildCommandContext guildContext))
             {
                 GuildChannelHelper.TryGetChannel(GuildChannelHelper.DebugChannelId, out debugChannel);
                 GuildChannelHelper.TryGetChannel(GuildChannelHelper.WelcomingChannelId, out welcomingChannel);

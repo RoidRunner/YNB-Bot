@@ -88,7 +88,7 @@ namespace YNBBot.NestedCommands
             {
                 if (family.Identifier == argument)
                 {
-                    if (context.Args.Index + 1 < context.RawArgCnt)
+                    if (context.Args.Index + 1 < context.Args.TotalCount)
                     {
                         context.Args.Index++;
                         bool success = await family.ParseOn(context);
@@ -105,7 +105,7 @@ namespace YNBBot.NestedCommands
                 }
             }
 
-            int remainingArgs = context.RawArgCnt - index - 1;
+            int remainingArgs = context.Args.TotalCount - index - 1;
 
             foreach (Command command in commands)
             {

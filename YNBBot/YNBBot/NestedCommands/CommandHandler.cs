@@ -43,7 +43,7 @@ namespace YNBBot.NestedCommands
 
                 if (guildChannel != null)
                 {
-                    GuildCommandContext guildContext = new GuildCommandContext(Var.client, userMessage, guildChannel.Guild);
+                    GuildCommandContext guildContext = new GuildCommandContext(userMessage, guildChannel.Guild);
 
                     if (guildContext.IsDefined)
                     {
@@ -54,7 +54,7 @@ namespace YNBBot.NestedCommands
                     }
                 }
 
-                CommandContext context = new CommandContext(Var.client, userMessage);
+                CommandContext context = new CommandContext(userMessage);
 
                 if (context.IsDefined)
                 {

@@ -220,9 +220,8 @@ namespace YNBBot
                 };
                 debugembed.AddField("Command and Arguments", $"Matched Command```{command.PrefixIdentifier}```Arguments```{context.Message.Content}".MaxLength(1021) + "```");
                 string location;
-                if (context.IsGuildContext)
+                if (GuildCommandContext.TryConvert(context, out GuildCommandContext guildContext))
                 {
-                    GuildCommandContext guildContext = context as GuildCommandContext;
                     SocketTextChannel locationChannel = channel.Guild.GetTextChannel(guildContext.Channel.Id);
                     location = $"Guild `{guildContext.Guild.Name}` Channel {(locationChannel == null ? Macros.InlineCodeBlock(guildContext.Channel.Name) : locationChannel.Mention)}";
                 }

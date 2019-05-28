@@ -31,8 +31,6 @@ namespace YNBBot.NestedCommands
 
         protected override ArgumentParseResult TryParseArgumentsSynchronous(CommandContext context)
         {
-            GuildCommandContext guildContext = context as GuildCommandContext;
-
             if (!ArgumentParsingHelper.TryParseGuildTextChannel(context, context.Args[0], out channel))
             {
                 return new ArgumentParseResult(Arguments[0], "Failed to parse to a guild text channel!");
@@ -99,8 +97,6 @@ namespace YNBBot.NestedCommands
 
         protected override ArgumentParseResult TryParseArgumentsSynchronous(CommandContext context)
         {
-            GuildCommandContext guildContext = context as GuildCommandContext;
-
             if (context.Message.Content.Length > FullIdentifier.Length + 1)
             {
                 string embedText = context.Message.Content.Substring(FullIdentifier.Length + 1).Replace("[3`]", "```");

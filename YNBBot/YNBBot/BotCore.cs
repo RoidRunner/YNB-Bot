@@ -1,10 +1,6 @@
 ﻿using Discord;
-using Discord.Commands;
 using Discord.WebSocket;
-using Microsoft.Extensions.DependencyInjection;
-using YNBBot;
 using System;
-using System.Reflection;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Globalization;

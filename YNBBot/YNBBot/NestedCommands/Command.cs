@@ -135,7 +135,7 @@ namespace YNBBot.NestedCommands
             {
                 context.Args.Index++;
 
-                GuildCommandContext guildContext = context as GuildCommandContext;
+                GuildCommandContext.TryConvert(context, out GuildCommandContext guildContext);
 
                 if ((guildContext != null) && !guildContext.ChannelConfig.AllowCommands && context.UserAccessLevel < AccessLevel.Admin)
                 {
@@ -352,13 +352,35 @@ namespace YNBBot.NestedCommands
         #endregion
     }
 
+    /// <summary>
+    /// Contains parsing and help information for a command argument
+    /// </summary>
     public struct CommandArgument
     {
+        /// <summary>
+        /// String identifier that represents the argument in syntax and help
+        /// </summary>
         public string Identifier;
+        /// <summary>
+        /// Help text that provides information on usage of the argument
+        /// </summary>
         public string Help;
+        /// <summary>
+        /// Wether the argument is optional or not
+        /// </summary>
         public bool Optional;
+        /// <summary>
+        /// Wether multiple arguments are allowed or not
+        /// </summary>
         public bool Multiple;
 
+        /// <summary>
+        /// Creates a new CommandArgument object
+        /// </summary>
+        /// <param name="identifier">String representation of the argument in syntax and help</param>
+        /// <param name="help">Help text that provides information on usage of the argument</param>
+        /// <param name="optional">Wether the argument is optional or not</param>
+        /// <param name="multiple">Wether multiple arguments are allowed or not</param>
         public CommandArgument(string identifier, string help, bool optional = false, bool multiple = false)
         {
             Identifier = identifier;
@@ -387,9 +409,18 @@ namespace YNBBot.NestedCommands
         }
     }
 
+    /// <summary>
+    /// Provides parsing results for argument parsers. Only the static readonly objects represent a successful parse, all other represent a parse error!
+    /// </summary>
     public class ArgumentParseResult
     {
+        /// <summary>
+        /// Wether parsing was successful or not
+        /// </summary>
         public bool Success { get; private set; } = false;
+        /// <summary>
+        /// The error message, if parsing was unsuccessful
+        /// </summary>
         public string Message { get; private set; }
 
         public static readonly ArgumentParseResult DefaultNoArguments = new ArgumentParseResult("No arguments given");
@@ -401,16 +432,29 @@ namespace YNBBot.NestedCommands
             SuccessfullParse.Success = true;
         }
 
+        /// <summary>
+        /// Creates an ArgumentParseResult with a simple error message
+        /// </summary>
+        /// <param name="errormessage">The error message text</param>
         public ArgumentParseResult(string errormessage)
         {
             Message = errormessage;
         }
 
+        /// <summary>
+        /// Creates an ArgumentParseResult based on a CommandArgument
+        /// </summary>
+        /// <param name="argument">Command Argument which could not be parsed</param>
         public ArgumentParseResult(CommandArgument argument)
         {
             Message = $"*`{argument}`*: Failed to parse!";
         }
 
+        /// <summary>
+        /// Creates a detailed ArgumentParseResult based on a CommandArgument
+        /// </summary>
+        /// <param name="argument">Command Argument which could not be parsed</param>
+        /// <param name="errormessage">Error message text that explains why parsing failed</param>
         public ArgumentParseResult(CommandArgument argument, string errormessage)
         {
             Message = $"*`{argument}`*: {errormessage}";

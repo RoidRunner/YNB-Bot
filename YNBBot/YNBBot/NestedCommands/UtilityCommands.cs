@@ -30,17 +30,17 @@ namespace YNBBot.NestedCommands
             }
             else
             {
-                GuildCommandContext guildContext = context as GuildCommandContext;
-
-                if (guildContext != null)
+                if (GuildCommandContext.TryConvert(context, out GuildCommandContext guildContext))
                 {
                     if (ArgumentParsingHelper.TryParseGuildUser(guildContext, context.Args.First, out SocketGuildUser guildUser))
                     {
                         User = guildUser;
                     }
                 }
-
-                User = await ArgumentParsingHelper.ParseUser(context, context.Args.First);
+                else
+                {
+                    User = await ArgumentParsingHelper.ParseUser(context, context.Args.First);
+                }
             }
 
             if (User != null)
@@ -121,17 +121,17 @@ namespace YNBBot.NestedCommands
             }
             else
             {
-                GuildCommandContext guildContext = context as GuildCommandContext;
-
-                if (guildContext != null)
+                if (GuildCommandContext.TryConvert(context, out GuildCommandContext guildContext))
                 {
                     if (ArgumentParsingHelper.TryParseGuildUser(guildContext, context.Args.First, out SocketGuildUser guildUser))
                     {
                         User = guildUser;
                     }
                 }
-
-                User = await ArgumentParsingHelper.ParseUser(context, context.Args.First);
+                else
+                {
+                    User = await ArgumentParsingHelper.ParseUser(context, context.Args.First);
+                }
             }
 
             if (User != null)

@@ -14,6 +14,8 @@ namespace YNBBot
     /// </summary>
     static class TimingThread
     {
+        #region Fields, Properties
+
         /// <summary>
         /// The thread the timing happens in
         /// </summary>
@@ -71,6 +73,9 @@ namespace YNBBot
             timingThread.Start();
         }
 
+        #endregion
+        #region Run
+
         /// <summary>
         /// The method running the timer thread
         /// </summary>
@@ -110,6 +115,9 @@ namespace YNBBot
             }
         }
 
+        #endregion
+        #region Schedule Delegates
+
         /// <summary>
         /// Schedules a delegate to be fired after specified delay
         /// </summary>
@@ -143,6 +151,8 @@ namespace YNBBot
             
             AddScheduleDelegate(UpdateTimeActivity, (61 - now.Second) * 1000);
         }
+
+        #endregion
     }
 
     /// <summary>

@@ -58,9 +58,7 @@ namespace YNBBot.NestedCommands
                 }
                 string channel;
 
-                GuildCommandContext guildContext = context as GuildCommandContext;
-
-                if (context.IsGuildContext)
+                if (GuildCommandContext.TryConvert(context, out GuildCommandContext guildContext))
                 {
                     if (guildContext.ChannelConfig.AllowShitposting)
                     {

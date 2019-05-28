@@ -184,9 +184,9 @@ namespace YNBBot.NestedCommands
                     return result != null;
                 }
             }
-            if (allowThis && argument.Equals("this") && context.IsGuildContext)
+            if (allowThis && argument.Equals("this") && GuildCommandContext.TryConvert(context, out GuildCommandContext guildContext))
             {
-                result = (context as GuildCommandContext)?.GuildChannel;
+                result = guildContext.GuildChannel;
                 return result != null;
             }
             return false;
