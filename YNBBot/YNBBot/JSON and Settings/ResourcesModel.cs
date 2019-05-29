@@ -10,11 +10,13 @@ namespace YNBBot
     {
         public static readonly string SettingsDirectory;
         public static readonly string SettingsFilePath;
+        public static readonly string GuildsDirectory;
 
         static ResourcesModel()
         {
             SettingsDirectory = Environment.CurrentDirectory + "/YNBBot/Settings/";
             SettingsFilePath = SettingsDirectory + "Settings.json";
+            GuildsDirectory = SettingsDirectory + "Guilds/";
         }
 
         public static bool CheckSettingsFilesExistence()

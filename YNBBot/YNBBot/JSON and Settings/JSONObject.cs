@@ -544,6 +544,10 @@ public class JSONObject : IEnumerable
     {
         AddField(name, CreateStringObject(val));
     }
+    public void AddField(string name, ulong val)
+    {
+        AddField(name, CreateStringObject(val.ToString()));
+    }
     public void AddField(string name, JSONObject obj)
     {
         if (obj)
@@ -698,6 +702,20 @@ public bool GetField(ref double field, string name, FieldNotFound fail = null)
     {
         field = fallback;
         return GetField(ref field, name);
+    }
+    public bool GetField(out ulong field, string name)
+    {
+        if (IsObject)
+        {
+            int index = keys.IndexOf(name);
+            if (index >= 0)
+            {
+                string field_str = list[index].str;
+                return ulong.TryParse(field_str, out field);
+            }
+        }
+        field = 0;
+        return false;
     }
     public bool GetField(ref string field, string name, FieldNotFound fail = null)
     {

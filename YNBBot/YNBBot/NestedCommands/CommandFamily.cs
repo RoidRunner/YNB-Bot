@@ -174,10 +174,13 @@ namespace YNBBot.NestedCommands
                     // The current argument matches the family, and there are more arguments left to continue parsing
                     args.Index++;
                     bool success = matchedFamily.TryFindFamilyOrCommand(ref args, ref matchedCommands, ref matchedFamily);
-                    args.Index--;
                     if (success)
                     {
                         return true;
+                    }
+                    else
+                    {
+                        args.Index--;
                     }
                 }
                 else

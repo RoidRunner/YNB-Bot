@@ -11,14 +11,24 @@ namespace YNBBot
         /// <summary>
         /// Id of the channel assigned as debug logging channel
         /// </summary>
-        public static ulong DebugChannelId { get; set; }
+        public static ulong DebugChannelId;
         /// <summary>
         /// Id of the channel assigned for welcoming new users
         /// </summary>
-        public static ulong WelcomingChannelId { get; set; }
+        public static ulong WelcomingChannelId;
+        /// <summary>
+        /// Id of the channel used to log admin command usage
+        /// </summary>
+        public static ulong AdminCommandUsageLogChannelId;
+        /// <summary>
+        /// Id of the channel used to send admin notifications to
+        /// </summary>
+        public static ulong AdminNotificationChannelId;
 
         private const string JSON_DEBUGCHANNELID = "DebugChannelId";
         private const string JSON_WELCOMINGCHANNELID = "WelcomingChannelId";
+        private const string JSON_ADMINCOMMANDUSAGELOGCHANNELID = "CommandLogChannelId";
+        private const string JSON_ADMINNOTIFICATIONCHANNELID = "NotificationChannelId";
         private const string JSON_CHANNELINFOS = "ChannelInfos";
         private static Dictionary<ulong, GuildChannelConfiguration> channelConfigs = new Dictionary<ulong, GuildChannelConfiguration>();
 
@@ -136,20 +146,10 @@ namespace YNBBot
             DebugChannelId = 0;
             WelcomingChannelId = 0;
 
-            if (json.GetField(out string debugChannelId_str, JSON_DEBUGCHANNELID, null))
-            {
-                if (ulong.TryParse(debugChannelId_str, out ulong debugChannelId))
-                {
-                    DebugChannelId = debugChannelId;
-                }
-            }
-            if (json.GetField(out string welcomingChannelId_str, JSON_WELCOMINGCHANNELID, null))
-            {
-                if (ulong.TryParse(welcomingChannelId_str, out ulong welcomingChannelId))
-                {
-                    WelcomingChannelId = welcomingChannelId;
-                }
-            }
+            json.GetField(out DebugChannelId, JSON_DEBUGCHANNELID);
+            json.GetField(out WelcomingChannelId, JSON_WELCOMINGCHANNELID);
+            json.GetField(out AdminCommandUsageLogChannelId, JSON_ADMINCOMMANDUSAGELOGCHANNELID);
+            json.GetField(out AdminNotificationChannelId, JSON_ADMINNOTIFICATIONCHANNELID);
 
             JSONObject channelInfoArray = json[JSON_CHANNELINFOS];
             if ((channelInfoArray != null) && channelInfoArray.IsArray)
@@ -173,8 +173,10 @@ namespace YNBBot
         {
             JSONObject json = new JSONObject();
 
-            json.AddField(JSON_DEBUGCHANNELID, DebugChannelId.ToString());
-            json.AddField(JSON_WELCOMINGCHANNELID, WelcomingChannelId.ToString());
+            json.AddField(JSON_DEBUGCHANNELID, DebugChannelId);
+            json.AddField(JSON_WELCOMINGCHANNELID, WelcomingChannelId);
+            json.AddField(JSON_ADMINCOMMANDUSAGELOGCHANNELID, AdminCommandUsageLogChannelId);
+            json.AddField(JSON_ADMINNOTIFICATIONCHANNELID, AdminNotificationChannelId);
 
             JSONObject channelInfoArray = new JSONObject();
             foreach (GuildChannelConfiguration channelInfo in channelConfigs.Values)

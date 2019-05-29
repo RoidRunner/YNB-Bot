@@ -31,17 +31,19 @@ namespace YNBBot.NestedCommands
 
         protected override async Task HandleCommandAsync(CommandContext context)
         {
-            SocketTextChannel debugChannel = null;
-            SocketTextChannel welcomingChannel = null;
+            GuildChannelHelper.TryGetChannel(GuildChannelHelper.DebugChannelId, out SocketTextChannel debugChannel);
+            GuildChannelHelper.TryGetChannel(GuildChannelHelper.WelcomingChannelId, out SocketTextChannel welcomingChannel);
+            GuildChannelHelper.TryGetChannel(GuildChannelHelper.AdminCommandUsageLogChannelId, out SocketTextChannel adminCommandUsageLogging);
+            GuildChannelHelper.TryGetChannel(GuildChannelHelper.AdminNotificationChannelId, out SocketTextChannel adminNotificationChannel);
             SocketRole adminRole = null;
             SocketRole botNotifications = null;
+            SocketRole minecraftBranch = null;
 
             if (GuildCommandContext.TryConvert(context, out GuildCommandContext guildContext))
             {
-                GuildChannelHelper.TryGetChannel(GuildChannelHelper.DebugChannelId, out debugChannel);
-                GuildChannelHelper.TryGetChannel(GuildChannelHelper.WelcomingChannelId, out welcomingChannel);
                 adminRole = guildContext.Guild.GetRole(SettingsModel.AdminRole);
                 botNotifications = guildContext.Guild.GetRole(SettingsModel.BotDevRole);
+                minecraftBranch = guildContext.Guild.GetRole(SettingsModel.MinecraftBranchRole);
             }
 
             EmbedBuilder embed = new EmbedBuilder()
@@ -65,10 +67,13 @@ namespace YNBBot.NestedCommands
                 debugLogging.AppendLine($"{(DebugCategories)i}: { (option ? "**enabled**" : "disabled") }");
             }
             embed.AddField("Debug Logging", debugLogging);
-            embed.AddField("Channels", $"Welcoming Channel: { (welcomingChannel == null ? Macros.InlineCodeBlock(GuildChannelHelper.WelcomingChannelId) : welcomingChannel.Mention) }");
+            embed.AddField("Channels", $"Welcoming: { (welcomingChannel == null ? Macros.InlineCodeBlock(GuildChannelHelper.WelcomingChannelId) : welcomingChannel.Mention) }\n" +
+                $"Admin Command Usage Logging: {(adminCommandUsageLogging == null ? Macros.InlineCodeBlock(GuildChannelHelper.AdminCommandUsageLogChannelId) : adminCommandUsageLogging.Mention)}\n" +
+                $"Admin Notifications: {(adminNotificationChannel == null ? Macros.InlineCodeBlock(GuildChannelHelper.AdminNotificationChannelId) : adminNotificationChannel.Mention)}");
 
-            embed.AddField("Channels", $"Admin Role: { (adminRole == null ? Macros.InlineCodeBlock(SettingsModel.AdminRole) : adminRole.Mention) }\n" +
-                $"Bot Notifications Role: { (botNotifications == null ? Macros.InlineCodeBlock(SettingsModel.BotDevRole) : botNotifications.Mention) }");
+            embed.AddField("Roles", $"Admin Role: { (adminRole == null ? Macros.InlineCodeBlock(SettingsModel.AdminRole) : adminRole.Mention) }\n" +
+                $"Bot Notifications Role: { (botNotifications == null ? Macros.InlineCodeBlock(SettingsModel.BotDevRole) : botNotifications.Mention) }\n" +
+                $"Minecraft Branch Role: {(minecraftBranch == null ? Macros.InlineCodeBlock(SettingsModel.MinecraftBranchRole) : minecraftBranch.Mention)}");
             await context.Channel.SendEmbedAsync(embed);
         }
     }
@@ -128,8 +133,11 @@ namespace YNBBot.NestedCommands
                     case SettingRoles.admin:
                         roleId = SettingsModel.AdminRole;
                         break;
-                    case SettingRoles.botNotifications:
+                    case SettingRoles.botnotifications:
                         roleId = SettingsModel.BotDevRole;
+                        break;
+                    case SettingRoles.minecraftbranch:
+                        roleId = SettingsModel.MinecraftBranchRole;
                         break;
                 }
 
@@ -144,8 +152,11 @@ namespace YNBBot.NestedCommands
                     case SettingRoles.admin:
                         SettingsModel.AdminRole = Role.Id;
                         break;
-                    case SettingRoles.botNotifications:
+                    case SettingRoles.botnotifications:
                         SettingsModel.BotDevRole = Role.Id;
+                        break;
+                    case SettingRoles.minecraftbranch:
+                        SettingsModel.MinecraftBranchRole = Role.Id;
                         break;
                 }
                 await SettingsModel.SaveSettings();
@@ -157,7 +168,8 @@ namespace YNBBot.NestedCommands
         public enum SettingRoles
         {
             admin,
-            botNotifications
+            botnotifications,
+            minecraftbranch
         }
     }
 
@@ -225,6 +237,12 @@ namespace YNBBot.NestedCommands
                     case OutputChannelType.welcoming:
                         channelId = GuildChannelHelper.WelcomingChannelId;
                         break;
+                    case OutputChannelType.admincommandlog:
+                        channelId = GuildChannelHelper.AdminCommandUsageLogChannelId;
+                        break;
+                    case OutputChannelType.adminnotifications:
+                        channelId = GuildChannelHelper.AdminNotificationChannelId;
+                        break;
                 }
 
                 channel = context.Guild.GetTextChannel(channelId);
@@ -241,6 +259,12 @@ namespace YNBBot.NestedCommands
                     case OutputChannelType.welcoming:
                         GuildChannelHelper.WelcomingChannelId = channel.Id;
                         break;
+                    case OutputChannelType.admincommandlog:
+                        GuildChannelHelper.AdminCommandUsageLogChannelId = channel.Id;
+                        break;
+                    case OutputChannelType.adminnotifications:
+                        GuildChannelHelper.AdminNotificationChannelId = channel.Id;
+                        break;
                 }
                 await SettingsModel.SaveSettings();
 
@@ -252,7 +276,9 @@ namespace YNBBot.NestedCommands
         private enum OutputChannelType
         {
             debuglogging,
-            welcoming
+            welcoming,
+            admincommandlog,
+            adminnotifications
         }
     }
 

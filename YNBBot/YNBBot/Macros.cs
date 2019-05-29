@@ -169,6 +169,7 @@ namespace YNBBot
             {
                 return AccessLevel.BotAdmin;
             }
+            AccessLevel level = AccessLevel.Basic;
             foreach (SocketGuild guild in client.Guilds)
             {
                 SocketGuildUser userInGuild = guild.GetUser(userId);
@@ -180,10 +181,28 @@ namespace YNBBot
                         {
                             return AccessLevel.Admin;
                         }
+                        else if (role.Id == SettingsModel.MinecraftBranchRole)
+                        {
+                            level = AccessLevel.Minecraft;
+                        }
                     }
                 }
             }
-            return AccessLevel.Basic;
+            return level;
+        }
+
+        public static bool TryGetRole(this DiscordSocketClient client, ulong roleId, out SocketRole result)
+        {
+            result = null;
+            foreach (SocketGuild guild in client.Guilds)
+            {
+                result = guild.GetRole(roleId);
+                if (result != null)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         #endregion

@@ -235,6 +235,7 @@ namespace YNBBot
     public enum AccessLevel
     {
         Basic,
+        Minecraft,
         Admin,
         BotAdmin
     }

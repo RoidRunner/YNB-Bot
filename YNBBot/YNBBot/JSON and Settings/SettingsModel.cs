@@ -29,6 +29,10 @@ namespace YNBBot
         /// </summary>
         public static ulong AdminRole = 0;
         /// <summary>
+        /// The Id of the minecraft branch role
+        /// </summary>
+        public static ulong MinecraftBranchRole = 0;
+        /// <summary>
         /// The ID of the bot dev role (pinging on error messages)
         /// </summary>
         public static ulong BotDevRole = 0;
@@ -65,6 +69,7 @@ namespace YNBBot
         private const string JSON_WELCOMINGMESSAGE = "WelcomingMessage";
         private const string JSON_MODERATORROLE = "Adminrole";
         private const string JSON_BOTDEVROLE = "BotDevRole";
+        private const string JSON_MINECRAFTBRANCHROLE = "MinecraftBranchRole";
         private const string JSON_PREFIX = "Prefix";
         private const string JSON_CHANNELINFOS = "ChannelInfos";
 
@@ -115,6 +120,7 @@ namespace YNBBot
                     {
                         ulong.TryParse(id, out BotDevRole);
                     }
+                    json.GetField(out MinecraftBranchRole, JSON_MINECRAFTBRANCHROLE);
                     string prefix_str = string.Empty;
                     if (json.GetField(ref prefix_str, JSON_PREFIX))
                     {
@@ -155,6 +161,7 @@ namespace YNBBot
             json.AddField(JSON_WELCOMINGMESSAGE, JSONObject.GetSafelyFormattedString(welcomingMessage));
             json.AddField(JSON_MODERATORROLE, AdminRole.ToString());
             json.AddField(JSON_BOTDEVROLE, BotDevRole.ToString());
+            json.AddField(JSON_MINECRAFTBRANCHROLE, MinecraftBranchRole);
             json.AddField(JSON_PREFIX, CommandHandler.Prefix.ToString());
             json.AddField(JSON_CHANNELINFOS, GuildChannelHelper.ToJSON());
 
@@ -211,7 +218,7 @@ namespace YNBBot
 
         public static async Task SendAdminCommandUsedMessage(CommandContext context, Command command)
         {
-            if (GuildChannelHelper.TryGetChannel(GuildChannelHelper.DebugChannelId, out SocketTextChannel channel))
+            if (GuildChannelHelper.TryGetChannel(GuildChannelHelper.AdminCommandUsageLogChannelId, out SocketTextChannel channel))
             {
                 EmbedBuilder debugembed = new EmbedBuilder
                 {
