@@ -167,8 +167,9 @@ namespace YNBBot.NestedCommands
                 $"`{GuildModifyActions.recolor}:<Color>` - Assignes a new color to the guild\n" +
                 $"`{GuildModifyActions.setcaptain}:<Captain>` - Sets the captain of the guild. Has to be a member!\n" +
                 $"`{GuildModifyActions.addmember}:<Member>` - Manually adds a member to the guild\n" +
-                $"`{GuildModifyActions.removemember}:<Member>` - Manually removes a member from the guild"
-                //$"`{GuildModifyActions}` : " + 
+                $"`{GuildModifyActions.removemember}:<Member>` - Manually removes a member from the guild" +
+                $"`{GuildModifyActions.timestamp}:<Timestamp>` - Sets the founding timestamp for this guild. Format is a variant of ISO 8601: `YYYY-MM-DD hh:mm:ssZ`, example: `2019-06-11 17:55:35Z`"
+                //$"`{GuildModifyActions}` - " + 
                 );
         }
 
@@ -884,7 +885,7 @@ namespace YNBBot.NestedCommands
                     }
                 };
 
-                await ConfirmationInteractiveMessage.CreateConfirmationMessage($"{newMember} Invitation to join Guild \"{TargetGuild.Name}\"", $"Confirm you want to join \"{TargetGuild.Name}\"", TargetGuild.DiscordColor, "", UnicodeEmoteService.Checkmark, UnicodeEmoteService.Cross, onConfirm, async x => { await InteractiveMessage.GenericInteractionEnd(x.Message, "Invitation Dismissed"); return true; });
+                await ConfirmationInteractiveMessage.CreateConfirmationMessage($"{newMember.Mention} Invitation to join Guild \"{TargetGuild.Name}\"", $"Confirm you want to join \"{TargetGuild.Name}\"", TargetGuild.DiscordColor, "", UnicodeEmoteService.Checkmark, UnicodeEmoteService.Cross, onConfirm, async x => { await InteractiveMessage.GenericInteractionEnd(x.Message, "Invitation Dismissed"); return true; });
             }
 
             if (parseErrors.Count > 0)
