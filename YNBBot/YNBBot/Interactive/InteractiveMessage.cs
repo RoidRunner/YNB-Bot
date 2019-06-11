@@ -54,7 +54,7 @@ namespace YNBBot.Interactive
 
         public async Task HandleInteraction(MessageInteractionContext context)
         {
-            if (ExpirationTime < TimingThread.Millis)
+            if (ExpirationTime < TimingThread.Millis && ExpirationTime >= 0)
             {
                 InteractiveMessageService.RemoveInteractiveMessage(MessageId);
                 await OnMessageExpire();
@@ -69,5 +69,31 @@ namespace YNBBot.Interactive
         }
 
         public virtual Task OnMessageExpire() { return Task.CompletedTask; }
+
+        internal static readonly EmbedBuilder GenericSuccess = new EmbedBuilder() { Title = "Success", Color = Var.BOTCOLOR };
+        internal static readonly EmbedBuilder GenericExpired = new EmbedBuilder() { Title = "Expired", Color = Var.ERRORCOLOR };
+        internal static readonly EmbedBuilder GenericFailure = new EmbedBuilder() { Title = "Failure", Color = Var.ERRORCOLOR };
+
+        internal static async Task GenericInteractionEnd(IUserMessage message, EmbedBuilder embed)
+        {
+            if (InteractiveMessageService.RemoveInteractiveMessage(message.Id))
+            {
+                await message.ModifyAsync(MessageProperties =>
+                {
+                    MessageProperties.Embed = embed.Build();
+                });
+            }
+        }
+        internal static async Task GenericInteractionEnd(IUserMessage message, string title)
+        {
+            if (InteractiveMessageService.RemoveInteractiveMessage(message.Id))
+            {
+                EmbedBuilder success = new EmbedBuilder() { Title = title, Color = Var.BOTCOLOR };
+                await message.ModifyAsync(MessageProperties =>
+                {
+                    MessageProperties.Embed = success.Build();
+                });
+            }
+        }
     }
 }

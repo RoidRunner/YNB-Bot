@@ -108,6 +108,8 @@ namespace YNBBot.NestedCommands
             CommandFamily GuildFamily = new CommandFamily("guild", BaseFamily);
             GuildFamily.TryAddCommand(new CreateGuildCommand());
             GuildFamily.TryAddCommand(new ModifyGuildCommand());
+            GuildFamily.TryAddCommand(new GuildInfoCommand());
+            GuildFamily.TryAddCommand(new InviteMemberCommand());
         }
     }
 }

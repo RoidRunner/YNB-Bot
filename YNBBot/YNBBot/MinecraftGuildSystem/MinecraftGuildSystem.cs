@@ -319,8 +319,7 @@ namespace YNBBot.MinecraftGuildSystem
                     await guildChannel.DeleteAsync();
                 }
                 errorhint = "Removing Guild and Saving";
-                Guilds.Remove(guild);
-                await SaveAll();
+                await DeleteGuildDatasetAsync(guild);
                 return true;
             }
             catch (Exception e)
@@ -328,6 +327,12 @@ namespace YNBBot.MinecraftGuildSystem
                 await GuildChannelHelper.SendExceptionNotification(e, $"Error removing guild {guild.Name}. Hint: {errorhint}");
                 return false;
             }
+        }
+
+        public static async Task DeleteGuildDatasetAsync(MinecraftGuild guild)
+        {
+            Guilds.Remove(guild);
+            await SaveAll();
         }
     }
 }

@@ -41,7 +41,14 @@ namespace YNBBot.Interactive
                 await GuildChannelHelper.SendExceptionNotification(e, $"Error handling EmoteInteraction, MessageId `{MessageId}`, Emote {Emote.Name}");
             }
         }
+#pragma warning disable 1998
+        internal static async Task<bool> EmptyMessageInteractionMethod(MessageInteractionContext context)
+#pragma warning restore 1998
+        {
+            return true;
+        }
     }
 
     internal delegate Task<bool> MessageInteractionDelegate(MessageInteractionContext context);
+
 }

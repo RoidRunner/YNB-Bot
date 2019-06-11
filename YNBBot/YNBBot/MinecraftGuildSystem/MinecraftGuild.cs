@@ -1,7 +1,9 @@
-﻿using Discord.WebSocket;
+﻿using Discord;
+using Discord.WebSocket;
 using JSON;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Text;
 using YNBBot.PagedStorageService;
 
@@ -14,9 +16,11 @@ namespace YNBBot.MinecraftGuildSystem
         public ulong ChannelId;
         public ulong RoleId;
         public GuildColor Color;
+        public Color DiscordColor => new Color((uint)Color);
         public string Name;
         public ulong CaptainId;
         public List<ulong> MemberIds = new List<ulong>();
+        public DateTimeOffset FoundingTimestamp = DateTimeOffset.MinValue;
 
         public MinecraftGuild()
         {
@@ -31,6 +35,7 @@ namespace YNBBot.MinecraftGuildSystem
             Name = name;
             CaptainId = captainId;
             NameAndColorRetrieved = true;
+            FoundingTimestamp = DateTimeOffset.UtcNow;
         }
 
 
@@ -40,6 +45,7 @@ namespace YNBBot.MinecraftGuildSystem
         private const string JSON_CHANNELIDS = "ChannelId";
         private const string JSON_ROLEID = "RoleId";
         private const string JSON_CAPTAINID = "CaptainId";
+        private const string JSON_FOUNDINGTIMESTAMP = "Founded";
 
         public bool TryRetrieveNameAndColor()
         {
@@ -70,6 +76,13 @@ namespace YNBBot.MinecraftGuildSystem
                         MemberIds.Add(memberIdJson.Unsigned_Int64);
                     }
                 }
+                if (json.TryGetField(JSON_FOUNDINGTIMESTAMP, out string timestamp_str))
+                {
+                    if (!DateTimeOffset.TryParseExact(timestamp_str, "u", CultureInfo.InvariantCulture, DateTimeStyles.None, out FoundingTimestamp))
+                    {
+                        FoundingTimestamp = DateTimeOffset.MinValue;
+                    }
+                }
 
                 TryRetrieveNameAndColor();
 
@@ -85,6 +98,7 @@ namespace YNBBot.MinecraftGuildSystem
             result.TryAddField(JSON_CHANNELIDS, ChannelId);
             result.TryAddField(JSON_ROLEID, RoleId);
             result.TryAddField(JSON_CAPTAINID, CaptainId);
+            result.TryAddField(JSON_FOUNDINGTIMESTAMP, FoundingTimestamp.ToString("u"));
             JSONContainer memberIdList = JSONContainer.NewArray();
             foreach (ulong id in MemberIds)
             {
