@@ -1,4 +1,5 @@
-﻿using System;
+﻿using JSON;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -10,13 +11,13 @@ namespace YNBBot
     {
         public static readonly string SettingsDirectory;
         public static readonly string SettingsFilePath;
-        public static readonly string GuildsDirectory;
+        public static readonly string GuildsFilePath;
 
         static ResourcesModel()
         {
             SettingsDirectory = Environment.CurrentDirectory + "/YNBBot/Settings/";
             SettingsFilePath = SettingsDirectory + "Settings.json";
-            GuildsDirectory = SettingsDirectory + "Guilds/";
+            GuildsFilePath = SettingsDirectory + "Guilds.json";
         }
 
         public static bool CheckSettingsFilesExistence()
@@ -45,8 +46,7 @@ namespace YNBBot
                 try
                 {
                     fileContent = await File.ReadAllTextAsync(path, Encoding.UTF8);
-                    operation.Result = new JSONObject(fileContent);
-                    operation.Success = true;
+                    operation.Success = JSONContainer.TryParse(fileContent, out operation.Result, out string error);
                     return operation;
                 }
                 catch (Exception e)
@@ -57,11 +57,11 @@ namespace YNBBot
             return operation;
         }
 
-        public static async Task WriteJSONObjectToFile(string path, JSONObject json)
+        public static async Task WriteJSONObjectToFile(string path, JSONContainer json)
         {
             try
             {
-                await File.WriteAllTextAsync(path, json.ToString(), Encoding.UTF8);
+                await File.WriteAllTextAsync(path, json.Build(), Encoding.UTF8);
             }
             catch (Exception e)
             {
@@ -99,6 +99,6 @@ namespace YNBBot
     public struct LoadFileOperation
     {
         public bool Success;
-        public JSONObject Result;
+        public JSONContainer Result;
     }
 }

@@ -1,5 +1,6 @@
 ﻿using Discord;
 using Discord.WebSocket;
+using JSON;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -40,9 +41,14 @@ namespace YNBBot.NestedCommands
             {
                 string embedText = context.Message.Content.Substring(FullIdentifier.Length + context.Args[0].Length + 2).Replace("[3`]", "```");
 
-                JSONObject json = new JSONObject(embedText);
-
-                return EmbedHelper.TryParseEmbedFromJSONObject(json, out embed, out messageContent);
+                if (JSONContainer.TryParse(embedText, out JSONContainer json, out string errormessage))
+                {
+                    return EmbedHelper.TryParseEmbedFromJSONObject(json, out embed, out messageContent);
+                }
+                else
+                {
+                    return new ArgumentParseResult(Arguments[1], $"Unable to parse JSON text to a json data structure! Error: `{errormessage}`");
+                }
             }
             else
             {
@@ -101,9 +107,14 @@ namespace YNBBot.NestedCommands
             {
                 string embedText = context.Message.Content.Substring(FullIdentifier.Length + 1).Replace("[3`]", "```");
 
-                JSONObject json = new JSONObject(embedText);
-
-                return EmbedHelper.TryParseEmbedFromJSONObject(json, out embed, out messageContent);
+                if (JSONContainer.TryParse(embedText, out JSONContainer json, out string errormessage))
+                {
+                    return EmbedHelper.TryParseEmbedFromJSONObject(json, out embed, out messageContent);
+                }
+                else
+                {
+                    return new ArgumentParseResult(Arguments[0], $"Unable to parse JSON text to a json data structure! Error: `{errormessage}`");
+                }
             }
             else
             {
@@ -236,7 +247,7 @@ namespace YNBBot.NestedCommands
 
         protected override async Task HandleCommandAsync(CommandContext context)
         {
-            EmbedHelper.GetJSONFromUserMessage(message, out JSONObject json, out bool isAdminCommandLog);
+            EmbedHelper.GetJSONFromUserMessage(message, out JSONContainer json, out bool isAdminCommandLog);
             IReadOnlyCollection<IAttachment> attachments = message.Attachments;
 
             bool pretty = options.Contains(ExecutionOptions.pretty);
@@ -250,7 +261,7 @@ namespace YNBBot.NestedCommands
                 {
                     Color = Var.BOTCOLOR,
                     Title = $"Message JSON for original message in {guild.Name} - {channel.Name} by {message.Author.Username}#{message.Author.Discriminator}",
-                    Description = Macros.MaxLength("```json\n" + json.Print(true).Replace("```", "[3`]"), EmbedHelper.EMBEDDESCRIPTION_MAX - 8) + "```",
+                    Description = Macros.MaxLength("```json\n" + json.Build(true).Replace("```", "[3`]"), EmbedHelper.EMBEDDESCRIPTION_MAX - 8) + "```",
                 };
             }
             else
@@ -261,7 +272,7 @@ namespace YNBBot.NestedCommands
                     Title = $"Message JSON for original message in {guild.Name} - {channel.Name} by {message.Author.Username}#{message.Author.Discriminator}",
                     Footer = new EmbedFooterBuilder()
                     {
-                        Text = Macros.MaxLength(json.Print(false), EmbedHelper.EMBEDFOOTERTEXT_MAX)
+                        Text = Macros.MaxLength(json.Build(false), EmbedHelper.EMBEDFOOTERTEXT_MAX)
                     }
                 };
             }
@@ -382,9 +393,14 @@ namespace YNBBot.NestedCommands
             {
                 string embedText = context.Message.Content.Substring(FullIdentifier.Length + context.Args[0].Length + 2).Replace("[3`]", "```");
 
-                JSONObject json = new JSONObject(embedText);
-
-                return EmbedHelper.TryParseEmbedFromJSONObject(json, out embed, out messageContent);
+                if (JSONContainer.TryParse(embedText, out JSONContainer json, out string errormessage))
+                {
+                    return EmbedHelper.TryParseEmbedFromJSONObject(json, out embed, out messageContent);
+                }
+                else
+                {
+                    return new ArgumentParseResult(Arguments[1], $"Unable to parse JSON text to a json data structure! Error: `{errormessage}`");
+                }
             }
             else
             {
@@ -395,7 +411,7 @@ namespace YNBBot.NestedCommands
 
         protected override async Task HandleCommandAsync(CommandContext context)
         {
-            EmbedHelper.GetJSONFromUserMessage(message, out JSONObject json, out bool isAdminCommandLog);
+            EmbedHelper.GetJSONFromUserMessage(message, out JSONContainer json, out bool isAdminCommandLog);
 
             if (isAdminCommandLog)
             {
@@ -444,13 +460,13 @@ namespace YNBBot.NestedCommands
         public const int EMBEDAUTHORNAME_MAX = 256;
         public const int EMBEDTOTALLENGTH_MAX = 6000;
 
-        public static ArgumentParseResult TryParseEmbedFromJSONObject(JSONObject json, out EmbedBuilder embed, out string messageContent)
+        public static ArgumentParseResult TryParseEmbedFromJSONObject(JSONContainer json, out EmbedBuilder embed, out string messageContent)
         {
             embed = null;
             messageContent = null;
 
-            JSONObject messageContentJSON = json[MESSAGECONTENT];
-            JSONObject embedJSON = json[EMBED];
+            json.TryGetField(MESSAGECONTENT, out JSONField messageContentJSON);
+            json.TryGetField(EMBED, out JSONContainer embedJSON);
 
             if (messageContentJSON == null && embedJSON == null)
             {
@@ -459,13 +475,13 @@ namespace YNBBot.NestedCommands
 
             if ((messageContentJSON != null) && messageContentJSON.IsString)
             {
-                if (!string.IsNullOrEmpty(messageContentJSON.str))
+                if (!string.IsNullOrEmpty(messageContentJSON.String))
                 {
-                    if (messageContentJSON.str.Length > MESSAGECONTENT_MAX)
+                    if (messageContentJSON.String.Length > MESSAGECONTENT_MAX)
                     {
                         return new ArgumentParseResult($"The message content may not exceed {MESSAGECONTENT_MAX} characters!");
                     }
-                    messageContent = RemoveJSONCompatibilitySymbols(messageContentJSON.str);
+                    messageContent = messageContentJSON.String;
                 }
             }
             else
@@ -479,7 +495,7 @@ namespace YNBBot.NestedCommands
 
                 // Parse TITLE, DESCRIPTION, TITLE_URL, TIMESTAMP
 
-                if (embedJSON.GetField(out string embedTitle, TITLE, null))
+                if (embedJSON.TryGetField(TITLE, out string embedTitle))
                 {
                     if (!string.IsNullOrEmpty(embedTitle))
                     {
@@ -487,10 +503,10 @@ namespace YNBBot.NestedCommands
                         {
                             return new ArgumentParseResult($"The embed title may not exceed {EMBEDTITLE_MAX} characters!");
                         }
-                        embed.Title = RemoveJSONCompatibilitySymbols(embedTitle);
+                        embed.Title = embedTitle;
                     }
                 }
-                if (embedJSON.GetField(out string embedDescription, DESCRIPTION, null))
+                if (embedJSON.TryGetField(DESCRIPTION, out string embedDescription))
                 {
                     if (!string.IsNullOrEmpty(embedDescription))
                     {
@@ -498,10 +514,10 @@ namespace YNBBot.NestedCommands
                         {
                             return new ArgumentParseResult($"The embed title may not exceed {EMBEDDESCRIPTION_MAX} characters!");
                         }
-                        embed.Description = RemoveJSONCompatibilitySymbols(embedDescription);
+                        embed.Description = embedDescription;
                     }
                 }
-                if (embedJSON.GetField(out string embedURL, URL, null))
+                if (embedJSON.TryGetField(URL, out string embedURL))
                 {
                     if (!string.IsNullOrEmpty(embedURL))
                     {
@@ -515,7 +531,7 @@ namespace YNBBot.NestedCommands
                         }
                     }
                 }
-                if (embedJSON.GetField(out string embedFooterTimestamp, TIMESTAMP, null))
+                if (embedJSON.TryGetField(TIMESTAMP, out string embedFooterTimestamp))
                 {
                     if (!string.IsNullOrEmpty(embedFooterTimestamp))
                     {
@@ -532,12 +548,11 @@ namespace YNBBot.NestedCommands
 
                 // Parse AUTHOR
 
-                JSONObject authorJSON = embedJSON[AUTHOR];
-                if (authorJSON != null)
+                if (embedJSON.TryGetField(AUTHOR, out JSONContainer authorJSON))
                 {
                     EmbedAuthorBuilder author = new EmbedAuthorBuilder();
 
-                    if (authorJSON.GetField(out string authorName, NAME, null))
+                    if (authorJSON.TryGetField(NAME, out string authorName))
                     {
                         if (!string.IsNullOrEmpty(authorName))
                         {
@@ -545,17 +560,17 @@ namespace YNBBot.NestedCommands
                             {
                                 return new ArgumentParseResult($"The embed author name may not exceed {EMBEDAUTHORNAME_MAX} characters!");
                             }
-                            author.Name = RemoveJSONCompatibilitySymbols(authorName);
+                            author.Name = authorName;
                         }
                     }
-                    if (authorJSON.GetField(out string authorIconUrl, ICON_URL, null))
+                    if (authorJSON.TryGetField(ICON_URL, out string authorIconUrl))
                     {
                         if (!string.IsNullOrEmpty(authorIconUrl))
                         {
                             author.IconUrl = authorIconUrl;
                         }
                     }
-                    if (authorJSON.GetField(out string authorUrl, URL, null))
+                    if (authorJSON.TryGetField(URL, out string authorUrl))
                     {
                         if (!string.IsNullOrEmpty(authorUrl))
                         {
@@ -568,34 +583,38 @@ namespace YNBBot.NestedCommands
 
                 // Parse THUMBNAIL, IMAGE
 
-                JSONObject thumbnailJSON = embedJSON[THUMBNAIL];
-                if ((thumbnailJSON != null) && thumbnailJSON.GetField(out string thumbnailUrl, URL, null))
+                if (embedJSON.TryGetField(THUMBNAIL, out JSONContainer thumbnailJSON))
                 {
-                    if (Uri.IsWellFormedUriString(thumbnailUrl, UriKind.Absolute))
+                    if (thumbnailJSON.TryGetField(URL, out string thumbnailUrl))
                     {
-                        embed.ThumbnailUrl = thumbnailUrl;
-                    }
-                    else
-                    {
-                        return new ArgumentParseResult("The url for the embed thumbnail is not a well formed url!");
+                        if (Uri.IsWellFormedUriString(thumbnailUrl, UriKind.Absolute))
+                        {
+                            embed.ThumbnailUrl = thumbnailUrl;
+                        }
+                        else
+                        {
+                            return new ArgumentParseResult("The url for the embed thumbnail is not a well formed url!");
+                        }
                     }
                 }
-                JSONObject imageJSON = embedJSON[IMAGE];
-                if ((imageJSON != null) && imageJSON.GetField(out string imageUrl, URL, null))
+                if (embedJSON.TryGetField(IMAGE, out JSONContainer imageJSON))
                 {
-                    if (Uri.IsWellFormedUriString(imageUrl, UriKind.Absolute))
+                    if (imageJSON.TryGetField(URL, out string imageUrl))
                     {
-                        embed.ImageUrl = imageUrl;
-                    }
-                    else
-                    {
-                        return new ArgumentParseResult("The url for the embed image is not a well formed url!");
+                        if (Uri.IsWellFormedUriString(imageUrl, UriKind.Absolute))
+                        {
+                            embed.ImageUrl = imageUrl;
+                        }
+                        else
+                        {
+                            return new ArgumentParseResult("The url for the embed image is not a well formed url!");
+                        }
                     }
                 }
 
                 // Parse Color
 
-                if (embedJSON.GetField(out int color, COLOR, 0))
+                if (embedJSON.TryGetField(COLOR, out int color))
                 {
                     Discord.Color embedColor = new Color((uint)color);
                     embed.Color = embedColor;
@@ -603,12 +622,11 @@ namespace YNBBot.NestedCommands
 
                 // Parse Footer
 
-                JSONObject footerJSON = embedJSON[FOOTER];
-                if (footerJSON != null)
+                if (embedJSON.TryGetField(FOOTER, out JSONContainer footerJSON))
                 {
                     EmbedFooterBuilder footer = new EmbedFooterBuilder();
 
-                    if (footerJSON.GetField(out string footerText, TEXT, null))
+                    if (footerJSON.TryGetField(TEXT, out string footerText))
                     {
                         if (!string.IsNullOrEmpty(footerText))
                         {
@@ -616,10 +634,10 @@ namespace YNBBot.NestedCommands
                             {
                                 return new ArgumentParseResult($"The embed footer text may not exceed {EMBEDFOOTERTEXT_MAX} characters!");
                             }
-                            footer.Text = RemoveJSONCompatibilitySymbols(footerText);
+                            footer.Text = footerText;
                         }
                     }
-                    if (footerJSON.GetField(out string footerIconUrl, ICON_URL, null))
+                    if (footerJSON.TryGetField(ICON_URL, out string footerIconUrl))
                     {
                         if (!string.IsNullOrEmpty(footerIconUrl))
                         {
@@ -639,30 +657,31 @@ namespace YNBBot.NestedCommands
 
                 // Parse Fields
 
-                JSONObject fieldsListJSON = embedJSON[FIELDS];
-
-                if ((fieldsListJSON != null) && fieldsListJSON.IsArray && fieldsListJSON.list.Count > 0)
-                {
-                    if (fieldsListJSON.list.Count > EMBEDFIELDCOUNT_MAX)
+                if (embedJSON.TryGetField(FIELDS, out IReadOnlyList<JSONField> fieldsList))
+                { 
+                    if (fieldsList.Count > EMBEDFIELDCOUNT_MAX)
                     {
                         return new ArgumentParseResult($"The embed can not have more than {EMBEDFIELDCOUNT_MAX} fields!");
                     }
-                    foreach (JSONObject fieldJSON in fieldsListJSON)
+                    foreach (JSONField fieldJSON in fieldsList)
                     {
-                        if (fieldJSON.GetField(out string fieldName, NAME, null) && fieldJSON.GetField(out string fieldValue, VALUE, null))
+                        if (fieldJSON.IsObject && fieldJSON.Container != null)
                         {
-                            fieldJSON.GetField(out bool fieldInline, INLINE, false);
-                            if (fieldName != null && fieldValue != null)
+                            if (fieldJSON.Container.TryGetField(NAME, out string fieldName) && fieldJSON.Container.TryGetField(VALUE, out string fieldValue))
                             {
-                                if (fieldName.Length > EMBEDFIELDNAME_MAX)
+                                fieldJSON.Container.TryGetField(INLINE, out bool fieldInline, false);
+                                if (fieldName != null && fieldValue != null)
                                 {
-                                    return new ArgumentParseResult($"A field name may not exceed {EMBEDFIELDNAME_MAX} characters!");
+                                    if (fieldName.Length > EMBEDFIELDNAME_MAX)
+                                    {
+                                        return new ArgumentParseResult($"A field name may not exceed {EMBEDFIELDNAME_MAX} characters!");
+                                    }
+                                    if (fieldValue.Length > EMBEDFIELDVALUE_MAX)
+                                    {
+                                        return new ArgumentParseResult($"A field value may not exceed {EMBEDFIELDVALUE_MAX} characters!");
+                                    }
+                                    embed.AddField(fieldName, fieldValue, fieldInline);
                                 }
-                                if (fieldValue.Length > EMBEDFIELDVALUE_MAX)
-                                {
-                                    return new ArgumentParseResult($"A field value may not exceed {EMBEDFIELDVALUE_MAX} characters!");
-                                }
-                                embed.AddField(RemoveJSONCompatibilitySymbols(fieldName), RemoveJSONCompatibilitySymbols(fieldValue), fieldInline);
                             }
                         }
                     }
@@ -677,7 +696,7 @@ namespace YNBBot.NestedCommands
             return ArgumentParseResult.SuccessfullParse;
         }
 
-        public static void GetJSONFromUserMessage(IMessage message, out JSONObject json, out bool isAdminCommandLog)
+        public static void GetJSONFromUserMessage(IMessage message, out JSONContainer json, out bool isAdminCommandLog)
         {
             string messageContent = message.Content;
             IEmbed embed = null;
@@ -696,25 +715,25 @@ namespace YNBBot.NestedCommands
             GetJSONFromMessageContentAndEmbed(messageContent, embed, out json, out isAdminCommandLog);
         }
 
-        public static void GetJSONFromMessageContentAndEmbed(string messageContent, IEmbed embed, out JSONObject json, out bool isAdminCommandLog)
+        public static void GetJSONFromMessageContentAndEmbed(string messageContent, IEmbed embed, out JSONContainer json, out bool isAdminCommandLog)
         {
-            json = new JSONObject();
+            json = JSONContainer.NewObject();
             isAdminCommandLog = false;
 
             if (messageContent != null)
             {
-                json.AddField(MESSAGECONTENT, MakeMagicBotJSONParserSafe(messageContent));
+                json.TryAddField(MESSAGECONTENT, messageContent);
             }
 
             if (embed != null)
             {
-                JSONObject embedJSON = new JSONObject();
+                JSONContainer embedJSON = JSONContainer.NewObject();
 
                 // Insert TITLE, DESCRIPTION, TITLE_URL, TIMESTAMP
 
                 if (!string.IsNullOrEmpty(embed.Title))
                 {
-                    embedJSON.AddField(TITLE, MakeMagicBotJSONParserSafe(embed.Title));
+                    embedJSON.TryAddField(TITLE, embed.Title);
                     if (embed.Title.StartsWith("Admin-Only command used by"))
                     {
                         isAdminCommandLog = true;
@@ -722,15 +741,15 @@ namespace YNBBot.NestedCommands
                 }
                 if (!string.IsNullOrEmpty(embed.Description))
                 {
-                    embedJSON.AddField(DESCRIPTION, MakeMagicBotJSONParserSafe(embed.Description));
+                    embedJSON.TryAddField(DESCRIPTION, embed.Description);
                 }
                 if (!string.IsNullOrEmpty(embed.Url))
                 {
-                    embedJSON.AddField(URL, embed.Url);
+                    embedJSON.TryAddField(URL, embed.Url);
                 }
                 if (embed.Timestamp != null)
                 {
-                    embedJSON.AddField(TIMESTAMP, embed.Timestamp?.ToString("u"));
+                    embedJSON.TryAddField(TIMESTAMP, embed.Timestamp?.ToString("u"));
                 }
 
                 // Insert AUTHOR
@@ -738,22 +757,22 @@ namespace YNBBot.NestedCommands
                 if (embed.Author != null)
                 {
                     EmbedAuthor author = embed.Author.Value;
-                    JSONObject authorJSON = new JSONObject();
+                    JSONContainer authorJSON = JSONContainer.NewObject();
 
                     if (!string.IsNullOrEmpty(author.Name))
                     {
-                        authorJSON.AddField(NAME, MakeMagicBotJSONParserSafe(author.Name));
+                        authorJSON.TryAddField(NAME, author.Name);
                     }
                     if (!string.IsNullOrEmpty(author.IconUrl))
                     {
-                        authorJSON.AddField(ICON_URL, author.IconUrl);
+                        authorJSON.TryAddField(ICON_URL, author.IconUrl);
                     }
                     if (!string.IsNullOrEmpty(author.Url))
                     {
-                        authorJSON.AddField(URL, author.Url);
+                        authorJSON.TryAddField(URL, author.Url);
                     }
 
-                    embedJSON.AddField(AUTHOR, authorJSON);
+                    embedJSON.TryAddField(AUTHOR, authorJSON);
                 }
 
                 // Insert THUMBNAIL, IMAGE
@@ -762,18 +781,18 @@ namespace YNBBot.NestedCommands
                 {
                     if (!string.IsNullOrEmpty(embed.Thumbnail.Value.Url))
                     {
-                        JSONObject thumbnailJSON = new JSONObject();
-                        thumbnailJSON.AddField(URL, embed.Thumbnail.Value.Url);
-                        embedJSON.AddField(THUMBNAIL, thumbnailJSON);
+                        JSONContainer thumbnailJSON = JSONContainer.NewObject();
+                        thumbnailJSON.TryAddField(URL, embed.Thumbnail.Value.Url);
+                        embedJSON.TryAddField(THUMBNAIL, thumbnailJSON);
                     }
                 }
                 if (embed.Image != null)
                 {
                     if (!string.IsNullOrEmpty(embed.Image.Value.Url))
                     {
-                        JSONObject imagJSON = new JSONObject();
-                        imagJSON.AddField(URL, embed.Image.Value.Url);
-                        embedJSON.AddField(IMAGE, imagJSON);
+                        JSONContainer imagJSON = JSONContainer.NewObject();
+                        imagJSON.TryAddField(URL, embed.Image.Value.Url);
+                        embedJSON.TryAddField(IMAGE, imagJSON);
                     }
                 }
 
@@ -783,7 +802,7 @@ namespace YNBBot.NestedCommands
                 {
                     if (embed.Color.Value.RawValue != 0)
                     {
-                        embedJSON.AddField(COLOR, embed.Color.Value.RawValue);
+                        embedJSON.TryAddField(COLOR, embed.Color.Value.RawValue);
                     }
                 }
 
@@ -792,47 +811,49 @@ namespace YNBBot.NestedCommands
                 if (embed.Footer != null)
                 {
                     EmbedFooter footer = embed.Footer.Value;
-                    JSONObject footerJSON = new JSONObject();
+                    JSONContainer footerJSON = JSONContainer.NewObject();
 
                     if (!string.IsNullOrEmpty(footer.Text))
                     {
-                        footerJSON.AddField(TEXT, MakeMagicBotJSONParserSafe(footer.Text));
+                        footerJSON.TryAddField(TEXT, footer.Text);
                     }
                     if (!string.IsNullOrEmpty(footer.IconUrl))
                     {
-                        footerJSON.AddField(ICON_URL, footer.IconUrl);
+                        footerJSON.TryAddField(ICON_URL, footer.IconUrl);
                     }
 
-                    embedJSON.AddField(FOOTER, footerJSON);
+                    embedJSON.TryAddField(FOOTER, footerJSON);
                 }
 
                 // Insert Fields
 
                 if ((embed.Fields != null) && embed.Fields.Length > 0)
                 {
-                    JSONObject fieldsJSON = new JSONObject();
+                    JSONContainer fieldsJSON = JSONContainer.NewArray();
 
                     foreach (Discord.EmbedField embedField in embed.Fields)
                     {
-                        JSONObject fieldJSON = new JSONObject();
-                        fieldJSON.AddField(NAME, MakeMagicBotJSONParserSafe(embedField.Name));
-                        fieldJSON.AddField(VALUE, MakeMagicBotJSONParserSafe(embedField.Value));
-                        fieldJSON.AddField(INLINE, embedField.Inline);
+                        JSONContainer fieldJSON = JSONContainer.NewObject();
+                        fieldJSON.TryAddField(NAME, embedField.Name);
+                        fieldJSON.TryAddField(VALUE, embedField.Value);
+                        fieldJSON.TryAddField(INLINE, embedField.Inline);
                         fieldsJSON.Add(fieldJSON);
                     }
 
-                    embedJSON.AddField(FIELDS, fieldsJSON);
+                    embedJSON.TryAddField(FIELDS, fieldsJSON);
                 }
 
-                json.AddField(EMBED, embedJSON);
+                json.TryAddField(EMBED, embedJSON);
             }
         }
 
+        [Obsolete]
         public static string MakeMagicBotJSONParserSafe(string input)
         {
             return JSONObject.GetSafelyFormattedString(input);
         }
 
+        [Obsolete]
         public static string RemoveJSONCompatibilitySymbols(string input)
         {
             return JSONObject.GetOriginalFormat(input);

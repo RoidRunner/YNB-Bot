@@ -1,19 +1,20 @@
 ﻿using Discord.WebSocket;
+using JSON;
 using System;
 using System.Collections.Generic;
 using System.Text;
 using YNBBot.PagedStorageService;
 
-namespace YNBBot.GuildSystem
+namespace YNBBot.MinecraftGuildSystem
 {
-    class MinecraftGuild : PageStorable
+    class MinecraftGuild : IJSONSerializable
     {
         public ulong ChannelId;
         public ulong RoleId;
         public GuildColor Color;
         public string Name;
         public ulong CaptainId;
-        public List<ulong> MemberIds;
+        public List<ulong> MemberIds = new List<ulong>();
 
         public MinecraftGuild()
         {
@@ -27,51 +28,44 @@ namespace YNBBot.GuildSystem
         private const string JSON_ROLEID = "RoleId";
         private const string JSON_CAPTAINID = "CaptainId";
 
-        internal override bool FromJSON(JSONObject json)
+        public bool FromJSON(JSONContainer json)
         {
             MemberIds.Clear();
 
-            JSONObject memberIdList = json[JSON_MEMBERIDS];
-            if (json.GetField(out string channelId_str, JSON_CHANNELIDS, null) && json.GetField(out string roleId_str, JSON_ROLEID, null) && json.GetField(out string captainId_str, JSON_CAPTAINID, null) && memberIdList != null)
+            if (json.TryGetField(JSON_CHANNELIDS, out ChannelId) && json.TryGetField(JSON_ROLEID, out RoleId) && json.TryGetField(JSON_CAPTAINID, out CaptainId) && json.TryGetField(JSON_MEMBERIDS, out IReadOnlyList<JSONField> memberIdList))
             {
-                if (ulong.TryParse(channelId_str, out ChannelId) && ulong.TryParse(roleId_str, out RoleId) && ulong.TryParse(captainId_str, out CaptainId) && memberIdList.IsArray)
+                if (Var.client.TryGetRole(RoleId, out SocketRole guildRole))
                 {
-                    if (Var.client.TryGetRole(RoleId, out SocketRole guildRole))
+                    Color = (GuildColor)guildRole.Color.RawValue;
+                    Name = guildRole.Name;
+
+                    foreach (JSONField memberIdJson in memberIdList)
                     {
-                        Color = (GuildColor)guildRole.Color.RawValue;
-                        Name = guildRole.Name;
-
-                        foreach (JSONObject memberIdJson in memberIdList)
+                        if (memberIdJson.IsNumber && !memberIdJson.IsSigned && !memberIdJson.IsFloat)
                         {
-                            if (memberIdJson.IsString)
-                            {
-                                if (ulong.TryParse(memberIdJson.str, out ulong memberId))
-                                {
-                                    MemberIds.Add(memberId);
-                                }
-                            }
+                            MemberIds.Add(memberIdJson.Unsigned_Int64);
                         }
-
-                        return MemberIds.Count >= 2;
                     }
+
+                    return true;
                 }
             }
             return false;
         }
 
-        internal override JSONObject ToJSON()
+        public JSONContainer ToJSON()
         {
-            JSONObject result = IdJSON;
+            JSONContainer result = JSONContainer.NewObject();
 
-            result.AddField(JSON_CHANNELIDS, ChannelId.ToString());
-            result.AddField(JSON_ROLEID, RoleId.ToString());
-            result.AddField(JSON_CAPTAINID, CaptainId.ToString());
-            JSONObject memberIdList = new JSONObject();
+            result.TryAddField(JSON_CHANNELIDS, ChannelId);
+            result.TryAddField(JSON_ROLEID, RoleId);
+            result.TryAddField(JSON_CAPTAINID, CaptainId);
+            JSONContainer memberIdList = JSONContainer.NewArray();
             foreach (ulong id in MemberIds)
             {
-                memberIdList.Add(id.ToString());
+                memberIdList.Add(id);
             }
-            result.AddField(JSON_MEMBERIDS, memberIdList);
+            result.TryAddField(JSON_MEMBERIDS, memberIdList);
             return result;
         }
 

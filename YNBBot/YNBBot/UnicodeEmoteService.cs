@@ -40,6 +40,11 @@ namespace YNBBot
         {
             Name = UnicodeEmoteService.GetEmote(emote);
         }
+
+        public override string ToString()
+        {
+            return Name;
+        }
     }
 
     public enum Emotes

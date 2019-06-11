@@ -1,6 +1,10 @@
-﻿using Discord.WebSocket;
+﻿using Discord;
+using Discord.Rest;
+using Discord.WebSocket;
+using JSON;
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace YNBBot
 {
@@ -24,11 +28,21 @@ namespace YNBBot
         /// Id of the channel used to send admin notifications to
         /// </summary>
         public static ulong AdminNotificationChannelId;
+        /// <summary>
+        /// Id of the channel used to send interactive messages to
+        /// </summary>
+        public static ulong InteractiveMessagesChannelId;
+        /// <summary>
+        /// Id of the category all guilds are placed below
+        /// </summary>
+        public static ulong GuildCategoryId;
 
         private const string JSON_DEBUGCHANNELID = "DebugChannelId";
         private const string JSON_WELCOMINGCHANNELID = "WelcomingChannelId";
         private const string JSON_ADMINCOMMANDUSAGELOGCHANNELID = "CommandLogChannelId";
         private const string JSON_ADMINNOTIFICATIONCHANNELID = "NotificationChannelId";
+        private const string JSON_INTERACTIVEMESSAGECHANNELID = "InteractiveChannelId";
+        private const string JSON_GUILDCATEGORYID = "GuildCategoryId";
         private const string JSON_CHANNELINFOS = "ChannelInfos";
         private static Dictionary<ulong, GuildChannelConfiguration> channelConfigs = new Dictionary<ulong, GuildChannelConfiguration>();
 
@@ -140,26 +154,28 @@ namespace YNBBot
         /// Initiates the GuildChannelHelpers stored configs and ids from a json object
         /// </summary>
         /// <param name="json">json data</param>
-        public static void FromJSON(JSONObject json)
+        public static void FromJSON(JSONContainer json)
         {
             channelConfigs.Clear();
-            DebugChannelId = 0;
-            WelcomingChannelId = 0;
 
-            json.GetField(out DebugChannelId, JSON_DEBUGCHANNELID);
-            json.GetField(out WelcomingChannelId, JSON_WELCOMINGCHANNELID);
-            json.GetField(out AdminCommandUsageLogChannelId, JSON_ADMINCOMMANDUSAGELOGCHANNELID);
-            json.GetField(out AdminNotificationChannelId, JSON_ADMINNOTIFICATIONCHANNELID);
+            json.TryGetField(JSON_DEBUGCHANNELID, out DebugChannelId);
+            json.TryGetField(JSON_WELCOMINGCHANNELID, out WelcomingChannelId);
+            json.TryGetField(JSON_ADMINCOMMANDUSAGELOGCHANNELID, out AdminCommandUsageLogChannelId);
+            json.TryGetField(JSON_ADMINNOTIFICATIONCHANNELID, out AdminNotificationChannelId);
+            json.TryGetField(JSON_INTERACTIVEMESSAGECHANNELID, out InteractiveMessagesChannelId);
+            json.TryGetField(JSON_GUILDCATEGORYID, out GuildCategoryId);
 
-            JSONObject channelInfoArray = json[JSON_CHANNELINFOS];
-            if ((channelInfoArray != null) && channelInfoArray.IsArray)
+            if (json.TryGetField(JSON_CHANNELINFOS, out IReadOnlyList<JSONField> channelInfos))
             {
-                foreach (JSONObject channelInfo in channelInfoArray)
+                foreach (JSONField channelInfo in channelInfos)
                 {
-                    GuildChannelConfiguration info = new GuildChannelConfiguration();
-                    if (info.FromJSON(channelInfoArray))
+                    if (channelInfo.IsObject)
                     {
-                        channelConfigs.Add(info.Id, info);
+                        GuildChannelConfiguration info = new GuildChannelConfiguration();
+                        if (info.FromJSON(channelInfo.Container))
+                        {
+                            channelConfigs.Add(info.Id, info);
+                        }
                     }
                 }
             }
@@ -169,23 +185,70 @@ namespace YNBBot
         /// Converts currently stored configs and ids into a json data object
         /// </summary>
         /// <returns>json data</returns>
-        public static JSONObject ToJSON()
+        public static JSONContainer ToJSON()
         {
-            JSONObject json = new JSONObject();
+            JSONContainer json = JSONContainer.NewObject();
 
-            json.AddField(JSON_DEBUGCHANNELID, DebugChannelId);
-            json.AddField(JSON_WELCOMINGCHANNELID, WelcomingChannelId);
-            json.AddField(JSON_ADMINCOMMANDUSAGELOGCHANNELID, AdminCommandUsageLogChannelId);
-            json.AddField(JSON_ADMINNOTIFICATIONCHANNELID, AdminNotificationChannelId);
+            json.TryAddField(JSON_DEBUGCHANNELID, DebugChannelId);
+            json.TryAddField(JSON_WELCOMINGCHANNELID, WelcomingChannelId);
+            json.TryAddField(JSON_ADMINCOMMANDUSAGELOGCHANNELID, AdminCommandUsageLogChannelId);
+            json.TryAddField(JSON_ADMINNOTIFICATIONCHANNELID, AdminNotificationChannelId);
+            json.TryAddField(JSON_INTERACTIVEMESSAGECHANNELID, InteractiveMessagesChannelId);
+            json.TryAddField(JSON_GUILDCATEGORYID, GuildCategoryId);
 
-            JSONObject channelInfoArray = new JSONObject();
+            JSONContainer channelInfoArray = JSONContainer.NewArray();
             foreach (GuildChannelConfiguration channelInfo in channelConfigs.Values)
             {
                 channelInfoArray.Add(channelInfo.ToJSON());
             }
-            json.AddField(JSON_CHANNELINFOS, channelInfoArray);
+            json.TryAddField(JSON_CHANNELINFOS, channelInfoArray);
 
             return json;
+        }
+
+        #endregion
+        #region Message Sending
+
+        public static async Task<RestUserMessage> SendMessage(ulong channelId, string content = null, EmbedBuilder embed = null, string embedTitle = null, string embedDescription = null, bool useErrorColor = false)
+        {
+            return await SendMessage(channelId, useErrorColor ? Var.ERRORCOLOR : Var.BOTCOLOR, content, embed, embedTitle, embedDescription);
+        }
+
+        public static async Task<RestUserMessage> SendMessage(ulong channelId, Color color, string content = null, EmbedBuilder embed = null, string embedTitle = null, string embedDescription = null)
+        {
+            if (TryGetChannel(channelId, out SocketTextChannel channel))
+            {
+                if (embed == null && (embedDescription != null || embedTitle != null))
+                {
+                    embed = new EmbedBuilder()
+                    {
+                        Color = color
+                    };
+                    if (embedTitle != null)
+                    {
+                        embed.Title = embedTitle;
+                    }
+                    if (embedDescription != null)
+                    {
+                        embed.Description = embedDescription;
+                    }
+                }
+                if (content != null || embed != null)
+                {
+                    return await channel.SendMessageAsync(content, embed: embed.Build());
+                }
+                else
+                {
+                    return null;
+                }
+            }
+            return null;
+        }
+
+        public static async Task<RestUserMessage> SendExceptionNotification(Exception e, string context)
+        {
+            bool botDevRoleFound = Var.client.TryGetRole(SettingsModel.BotDevRole, out SocketRole botDevRole);
+            return await SendMessage(DebugChannelId, content: $"{(botDevRoleFound ? botDevRole.Mention : "")} {context}", embed: Macros.EmbedFromException(e), useErrorColor: true);
         }
 
         #endregion
@@ -255,31 +318,27 @@ namespace YNBBot
         #endregion
         #region JSON
 
-        private const string JSON_NAME = "Name";
         private const string JSON_ID = "Id";
         private const string JSON_ALLOWCOMMANDS = "AllowCommands";
         private const string JSON_ALLOWSHITPOSTING = "AllowShitposting";
 
-        public bool FromJSON(JSONObject json)
+        public bool FromJSON(JSONContainer json)
         {
-            if (json.GetField(out string id_str, JSON_ID, "0"))
+            if (json.TryGetField(JSON_ID, out Id))
             {
-                if (ulong.TryParse(id_str, out Id))
-                {
-                    json.GetField(out AllowCommands, JSON_ALLOWCOMMANDS, DEFAULT_ALLOWCOMMANDS);
-                    json.GetField(out AllowShitposting, JSON_ALLOWSHITPOSTING, DEFAULT_ALLOWSHITPOSTING);
-                    return true;
-                }
+                json.TryGetField(JSON_ALLOWCOMMANDS, out AllowCommands, DEFAULT_ALLOWCOMMANDS);
+                json.TryGetField(JSON_ALLOWSHITPOSTING, out AllowShitposting, DEFAULT_ALLOWSHITPOSTING);
+                return true;
             }
             return false;
         }
 
-        public JSONObject ToJSON()
+        public JSONContainer ToJSON()
         {
-            JSONObject result = new JSONObject();
-            result.AddField(JSON_ID, Id.ToString());
-            result.AddField(JSON_ALLOWCOMMANDS, AllowCommands);
-            result.AddField(JSON_ALLOWSHITPOSTING, AllowShitposting);
+            JSONContainer result = JSONContainer.NewObject();
+            result.TryAddField(JSON_ID, Id);
+            result.TryAddField(JSON_ALLOWCOMMANDS, AllowCommands);
+            result.TryAddField(JSON_ALLOWSHITPOSTING, AllowShitposting);
             return result;
         }
 
@@ -316,7 +375,7 @@ namespace YNBBot
 
     interface IJSONSerializable
     {
-        bool FromJSON(JSONObject json);
-        JSONObject ToJSON();
+        bool FromJSON(JSONContainer json);
+        JSONContainer ToJSON();
     }
 }

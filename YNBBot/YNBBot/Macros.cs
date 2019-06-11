@@ -205,6 +205,21 @@ namespace YNBBot
             return false;
         }
 
+        public static async Task<SocketUserMessage> GetMessage(this DiscordSocketClient client, ulong guildId, ulong channelId, ulong messageId)
+        {
+            SocketUserMessage message = null;
+            SocketGuild guild = client.GetGuild(guildId);
+            if (guild != null)
+            {
+                SocketTextChannel channel = guild.GetTextChannel(channelId);
+                if (channel != null)
+                {
+                    message = await channel.GetMessageAsync(messageId) as SocketUserMessage;
+                }
+            }
+            return message;
+        }
+
         #endregion
         #region String Extension Methods
 

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using JSON;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -35,7 +36,7 @@ namespace YNBBot.PagedStorageService
 
             if (storageSettings.Success)
             {
-                if (storageSettings.Result.GetField(ref nextId, JSON_ID))
+                if (storageSettings.Result.TryGetField(JSON_ID, out nextId))
                 {
 
                     string[] files = Directory.GetFiles(StorageDirectory);
@@ -109,6 +110,18 @@ namespace YNBBot.PagedStorageService
             return this[id];
         }
 
+        internal int GetListLocation(T entry)
+        {
+            for (int i = 0; i < pageStorables.Count; i++)
+            {
+                if (pageStorables[i].Id == entry.Id)
+                {
+                    return i;
+                }
+            }
+            return -1;
+        }
+
         internal bool HasEntryWithId(int id)
         {
             if (id >= nextId)
@@ -130,8 +143,8 @@ namespace YNBBot.PagedStorageService
 
         internal async Task SafePages(int listLocation = -1)
         {
-            JSONObject idSettings = new JSONObject();
-            idSettings.AddField(JSON_ID, nextId);
+            JSONContainer idSettings = JSONContainer.NewObject();
+            idSettings.TryAddField(JSON_ID, nextId);
             await ResourcesModel.WriteJSONObjectToFile(StorageDirectory + ID_SAFEFILE, idSettings);
 
             if (listLocation == -1)
@@ -158,7 +171,7 @@ namespace YNBBot.PagedStorageService
 
         internal async Task SafePage(int page)
         {
-            JSONObject entryList = new JSONObject();
+            JSONContainer entryList = JSONContainer.NewArray();
             for (int i = page * PAGESIZE; i < pageStorables.Count && i < (page + 1) * PAGESIZE; i++)
             {
                 entryList.Add(pageStorables[i].ToJSON());
@@ -166,14 +179,14 @@ namespace YNBBot.PagedStorageService
             await ResourcesModel.WriteJSONObjectToFile(string.Format("{0}page-{1}.json", StorageDirectory, page), entryList);
         }
 
-        private void handlePageJSON(JSONObject page)
+        private void handlePageJSON(JSONContainer page)
         {
-            if (page.IsArray && page.Count > 0)
+            if (page.IsArray && page.Array.Count > 0)
             {
-                foreach (JSONObject pageEntry in page)
+                foreach (JSONField pageEntry in page.Array)
                 {
                     T loadedStorable = new T();
-                    if (loadedStorable.FromJSON(pageEntry) && loadedStorable.RetrieveId(pageEntry))
+                    if (loadedStorable.FromJSON(pageEntry.Container) && loadedStorable.RetrieveId(pageEntry.Container))
                     {
                         if (!HasEntryWithId(loadedStorable.Id))
                         {

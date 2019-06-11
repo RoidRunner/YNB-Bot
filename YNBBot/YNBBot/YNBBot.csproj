@@ -1,8 +1,8 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>netcoreapp2.0</TargetFramework>
+    <TargetFramework>netcoreapp2.1</TargetFramework>
     <RootNamespace>YNBBot</RootNamespace>
     <ApplicationIcon />
     <StartupObject></StartupObject>
@@ -20,7 +20,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Discord.Net" Version="2.0.1" />
+    <PackageReference Include="Discord.Net" Version="2.1.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="JSON_Serialization">
+      <HintPath>..\..\..\..\Custom Libraries\JSON_Serialization\netcoreapp2.1\JSON_Serialization.dll</HintPath>
+    </Reference>
   </ItemGroup>
 
 </Project>

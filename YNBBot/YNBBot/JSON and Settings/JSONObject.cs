@@ -28,6 +28,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
+    [Obsolete]
 public class JSONObject : IEnumerable
 {
 #if POOLING
@@ -502,6 +503,10 @@ public class JSONObject : IEnumerable
     public void Add(string str)
     {
         Add(CreateStringObject(str));
+    }
+    public void Add(ulong val)
+    {
+        Add(CreateStringObject(val.ToString()));
     }
     public void Add(AddJSONContents content)
     {
@@ -1384,6 +1389,7 @@ public bool GetField(ref double field, string name, FieldNotFound fail = null)
     }
 }
 
+[Obsolete]
 public class JSONObjectEnumer : IEnumerator
 {
     public JSONObject _jobj;

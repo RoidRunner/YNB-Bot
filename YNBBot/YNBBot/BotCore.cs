@@ -6,6 +6,7 @@ using System.Threading;
 using System.Globalization;
 using YNBBot.Reactions;
 using YNBBot.NestedCommands;
+using YNBBot.Interactive;
 
 // dotnet publish -c Release -r win10-x64
 // dotnet publish -c Release -r linux-x64
@@ -79,12 +80,17 @@ namespace YNBBot
                 Var.client.Log += Logger;
                 SettingsModel.DebugMessage += Logger;
                 Var.client.ReactionAdded += ReactionAddedHandler;
+                Var.client.ReactionAdded += InteractiveMessageService.ReactionAddedHandler;
                 Var.client.ChannelUpdated += ChannelUpdatedHandler;
 
                 await Var.client.LoginAsync(TokenType.Bot, SettingsModel.token);
                 await Var.client.StartAsync();
 
                 await TimingThread.UpdateTimeActivity();
+
+                await Task.Delay(500);
+
+                await MinecraftGuildSystem.MinecraftGuildModel.Init();
 
                 while (Var.running)
                 {

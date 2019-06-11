@@ -174,7 +174,17 @@ namespace YNBBot.NestedCommands
                     }
                     catch (Exception e)
                     {
-                        await context.Channel.SendEmbedAsync(Macros.EmbedFromException(e));
+                        string location;
+                        if (guildContext != null)
+                        {
+                            location = Macros.GetMessageURL(guildContext.Message, guildContext.Guild.Id);
+                        }
+                        else
+                        {
+                            location = $"PM with {context.User.Mention} ({context.User.Username}#{context.User.Discriminator})";
+                        }
+                        await GuildChannelHelper.SendExceptionNotification(e, $"Error Executing Command `{CommandHandler.Prefix}{FullIdentifier}`, here: {location}");
+                        await context.Channel.SendEmbedAsync("The command you attempted to execute unexpectedly threw an exception. Bot Dev is notified, stand by!");
                     }
                 }
             }

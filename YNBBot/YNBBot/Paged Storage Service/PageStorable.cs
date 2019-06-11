@@ -1,4 +1,5 @@
-﻿using System;
+﻿using JSON;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -8,20 +9,20 @@ namespace YNBBot.PagedStorageService
     {
         internal int Id;
 
-        internal bool RetrieveId(JSONObject json)
+        internal bool RetrieveId(JSONContainer json)
         {
-            return json.GetField(ref Id, "Id");
+            return json.TryGetField("Id", out Id);
         }
-        protected JSONObject IdJSON
+        protected JSONContainer IdJSON
         {
             get
             {
-                JSONObject json = new JSONObject();
-                json.AddField("Id", Id);
+                JSONContainer json = JSONContainer.NewObject();
+                json.TryAddField("Id", Id);
                 return json;
             }
         }
-        internal abstract JSONObject ToJSON();
-        internal abstract bool FromJSON(JSONObject json);
+        internal abstract JSONContainer ToJSON();
+        internal abstract bool FromJSON(JSONContainer json);
     }
 }

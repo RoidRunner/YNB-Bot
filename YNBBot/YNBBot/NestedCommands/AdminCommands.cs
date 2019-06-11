@@ -35,6 +35,7 @@ namespace YNBBot.NestedCommands
             GuildChannelHelper.TryGetChannel(GuildChannelHelper.WelcomingChannelId, out SocketTextChannel welcomingChannel);
             GuildChannelHelper.TryGetChannel(GuildChannelHelper.AdminCommandUsageLogChannelId, out SocketTextChannel adminCommandUsageLogging);
             GuildChannelHelper.TryGetChannel(GuildChannelHelper.AdminNotificationChannelId, out SocketTextChannel adminNotificationChannel);
+            GuildChannelHelper.TryGetChannel(GuildChannelHelper.InteractiveMessagesChannelId, out SocketTextChannel interactiveMessagesChannel);
             SocketRole adminRole = null;
             SocketRole botNotifications = null;
             SocketRole minecraftBranch = null;
@@ -68,6 +69,7 @@ namespace YNBBot.NestedCommands
             }
             embed.AddField("Debug Logging", debugLogging);
             embed.AddField("Channels", $"Welcoming: { (welcomingChannel == null ? Macros.InlineCodeBlock(GuildChannelHelper.WelcomingChannelId) : welcomingChannel.Mention) }\n" +
+                $"Interactive Messages: {(interactiveMessagesChannel == null ? Macros.InlineCodeBlock(GuildChannelHelper.InteractiveMessagesChannelId) : interactiveMessagesChannel.Mention)}\n" +
                 $"Admin Command Usage Logging: {(adminCommandUsageLogging == null ? Macros.InlineCodeBlock(GuildChannelHelper.AdminCommandUsageLogChannelId) : adminCommandUsageLogging.Mention)}\n" +
                 $"Admin Notifications: {(adminNotificationChannel == null ? Macros.InlineCodeBlock(GuildChannelHelper.AdminNotificationChannelId) : adminNotificationChannel.Mention)}");
 
@@ -194,7 +196,7 @@ namespace YNBBot.NestedCommands
         }
 
         private OutputChannelType channelType;
-        private SocketTextChannel channel;
+        private SocketGuildChannel channel;
 
         protected override ArgumentParseResult TryParseArgumentsGuildSynchronous(GuildCommandContext context)
         {
@@ -207,17 +209,9 @@ namespace YNBBot.NestedCommands
 
             if (context.Args.Count == 2)
             {
-                if (ArgumentParsingHelper.TryParseGuildChannel(context, context.Args[1], out SocketGuildChannel gChannel))
+                if (!ArgumentParsingHelper.TryParseGuildChannel(context, context.Args[1], out channel))
                 {
-                    channel = gChannel as SocketTextChannel;
-                    if (channel == null)
-                    {
-                        return new ArgumentParseResult(Arguments[1], $"Could not parse to a text channel in this guild");
-                    }
-                }
-                else
-                {
-                    return new ArgumentParseResult(Arguments[1], $"Could not parse to a text channel in this guild");
+                    return new ArgumentParseResult(Arguments[1], $"Could not parse to a channel in this guild");
                 }
             }
 
@@ -243,11 +237,18 @@ namespace YNBBot.NestedCommands
                     case OutputChannelType.adminnotifications:
                         channelId = GuildChannelHelper.AdminNotificationChannelId;
                         break;
+                    case OutputChannelType.interactive:
+                        channelId = GuildChannelHelper.InteractiveMessagesChannelId;
+                        break;
+                    case OutputChannelType.guildcategory:
+                        channelId = GuildChannelHelper.GuildCategoryId;
+                        break;
                 }
 
                 channel = context.Guild.GetTextChannel(channelId);
+                SocketTextChannel textChannel = channel as SocketTextChannel;
 
-                await context.Channel.SendEmbedAsync($"Current setting for `{channelType}` is {(channel == null ? Macros.InlineCodeBlock(channelId) : channel.Mention)}");
+                await context.Channel.SendEmbedAsync($"Current setting for `{channelType}` is {(channel == null ? Macros.InlineCodeBlock(channelId) : (textChannel == null ? channel.Name : textChannel.Mention))}");
             }
             else
             {
@@ -265,10 +266,18 @@ namespace YNBBot.NestedCommands
                     case OutputChannelType.adminnotifications:
                         GuildChannelHelper.AdminNotificationChannelId = channel.Id;
                         break;
+                    case OutputChannelType.interactive:
+                        GuildChannelHelper.InteractiveMessagesChannelId = channel.Id;
+                        break;
+                    case OutputChannelType.guildcategory:
+                        GuildChannelHelper.GuildCategoryId = channel.Id;
+                        break;
                 }
                 await SettingsModel.SaveSettings();
 
-                await context.Channel.SendEmbedAsync($"Set setting for `{channelType}` to {channel.Mention}");
+                SocketTextChannel textChannel = channel as SocketTextChannel;
+
+                await context.Channel.SendEmbedAsync($"Set setting for `{channelType}` to {(textChannel == null ? channel.Name : textChannel.Mention)}");
             }
         }
 
@@ -278,7 +287,9 @@ namespace YNBBot.NestedCommands
             debuglogging,
             welcoming,
             admincommandlog,
-            adminnotifications
+            adminnotifications,
+            interactive,
+            guildcategory
         }
     }
 

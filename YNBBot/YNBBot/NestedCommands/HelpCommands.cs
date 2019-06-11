@@ -34,7 +34,8 @@ namespace YNBBot.NestedCommands
             {
                 List<Command> matchedCommands = new List<Command>();
                 CommandFamily matchedFamily = null;
-                if (CommandHandler.BaseFamily.TryFindFamilyOrCommand(ref CommandKeys, ref matchedCommands, ref matchedFamily))
+                CommandHandler.BaseFamily.TryFindFamilyOrCommand(ref CommandKeys, ref matchedCommands, ref matchedFamily);
+                if (matchedCommands.Count > 0 || matchedFamily != null)
                 {
                     if (matchedCommands.Count > 0)
                     {

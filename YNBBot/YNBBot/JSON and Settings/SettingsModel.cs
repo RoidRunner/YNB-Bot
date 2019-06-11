@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.IO;
 using YNBBot.NestedCommands;
+using JSON;
 
 namespace YNBBot
 {
@@ -82,57 +83,37 @@ namespace YNBBot
             LoadFileOperation operation = await ResourcesModel.LoadToJSONObject(ResourcesModel.SettingsFilePath);
             if (operation.Success)
             {
-                JSONObject json = operation.Result;
-                if (json.GetField(ref token, JSON_BOTTOKEN) && json.HasFields(new string[] { JSON_ADMINIDS }))
+                JSONContainer json = operation.Result;
+                if (json.TryGetField(JSON_BOTTOKEN, out token) && json.TryGetField(JSON_ADMINIDS, out JSONContainer botAdmins))
                 {
-                    JSONObject botadmins = json[JSON_ADMINIDS];
-                    if (botadmins.IsArray && botadmins.list != null)
+                    if (botAdmins.IsArray)
                     {
-                        foreach (var admin in botadmins.list)
+                        foreach (var admin in botAdmins.Array)
                         {
-                            if (ulong.TryParse(admin.str, out ulong nID))
+                            if (admin.IsNumber && !admin.IsFloat && !admin.IsSigned)
                             {
-                                botAdminIDs.Add(nID);
+                                botAdminIDs.Add(admin.Unsigned_Int64);
                             }
                         }
                     }
-                    if (json.HasField(JSON_ENABLEDEBUG))
+                    if (json.TryGetField(JSON_ENABLEDEBUG, out JSONContainer debugSettings))
                     {
-                        JSONObject debugSettings = json[JSON_ENABLEDEBUG];
                         if (debugSettings.IsArray)
                         {
-                            for (int i = 0; i < debugSettings.list.Count && i < debugLogging.Length; i++)
+                            for (int i = 0; i < debugSettings.Array.Count && i < debugLogging.Length; i++)
                             {
-                                debugLogging[i] = debugSettings.list[i].b;
+                                debugLogging[i] = debugSettings.Array[i].Boolean;
                             }
                         }
                     }
-                    string id = "";
-                    if (json.GetField(out string welcomingMessage_str, JSON_WELCOMINGMESSAGE, null))
+                    json.TryGetField(JSON_WELCOMINGMESSAGE, out welcomingMessage, welcomingMessage);
+                    json.TryGetField(JSON_MODERATORROLE, out AdminRole);
+                    json.TryGetField(JSON_BOTDEVROLE, out BotDevRole);
+                    json.TryGetField(JSON_MINECRAFTBRANCHROLE, out MinecraftBranchRole);
+                    json.TryGetField(JSON_PREFIX, out CommandHandler.Prefix, CommandHandler.Prefix);
+                    if (json.TryGetField(JSON_CHANNELINFOS, out JSONContainer guildChannelInfoContainer))
                     {
-                        welcomingMessage = JSONObject.GetOriginalFormat(welcomingMessage_str);
-                    }
-                    if (json.GetField(ref id, JSON_MODERATORROLE))
-                    {
-                        ulong.TryParse(id, out AdminRole);
-                    }
-                    if (json.GetField(ref id, JSON_BOTDEVROLE))
-                    {
-                        ulong.TryParse(id, out BotDevRole);
-                    }
-                    json.GetField(out MinecraftBranchRole, JSON_MINECRAFTBRANCHROLE);
-                    string prefix_str = string.Empty;
-                    if (json.GetField(ref prefix_str, JSON_PREFIX))
-                    {
-                        if (prefix_str.Length > 0)
-                        {
-                            CommandHandler.Prefix = prefix_str[0];
-                        }
-                    }
-                    JSONObject guildChannelInfos = json[JSON_CHANNELINFOS];
-                    if (guildChannelInfos != null)
-                    {
-                        GuildChannelHelper.FromJSON(guildChannelInfos);
+                        GuildChannelHelper.FromJSON(guildChannelInfoContainer);
                     }
                 }
             }
@@ -143,27 +124,28 @@ namespace YNBBot
         /// </summary>
         internal static async Task SaveSettings()
         {
-            JSONObject json = new JSONObject();
+            JSONContainer json = JSONContainer.NewObject();
 
-            json.AddField(JSON_BOTTOKEN, token);
-            JSONObject adminIDs = new JSONObject();
+            json.TryAddField(JSON_BOTTOKEN, token);
+
+            JSONContainer adminIDs = JSONContainer.NewArray();
             foreach (var adminID in botAdminIDs)
             {
-                adminIDs.Add(adminID.ToString());
+                adminIDs.Add(adminID);
             }
-            json.AddField(JSON_ADMINIDS, adminIDs);
-            JSONObject debugSettings = new JSONObject();
+            json.TryAddField(JSON_ADMINIDS, adminIDs);
+            JSONContainer debugSettings = JSONContainer.NewArray();
             foreach (bool b in debugLogging)
             {
                 debugSettings.Add(b);
             }
-            json.AddField(JSON_ENABLEDEBUG, debugSettings);
-            json.AddField(JSON_WELCOMINGMESSAGE, JSONObject.GetSafelyFormattedString(welcomingMessage));
-            json.AddField(JSON_MODERATORROLE, AdminRole.ToString());
-            json.AddField(JSON_BOTDEVROLE, BotDevRole.ToString());
-            json.AddField(JSON_MINECRAFTBRANCHROLE, MinecraftBranchRole);
-            json.AddField(JSON_PREFIX, CommandHandler.Prefix.ToString());
-            json.AddField(JSON_CHANNELINFOS, GuildChannelHelper.ToJSON());
+            json.TryAddField(JSON_ENABLEDEBUG, debugSettings);
+            json.TryAddField(JSON_WELCOMINGMESSAGE, welcomingMessage);
+            json.TryAddField(JSON_MODERATORROLE, AdminRole);
+            json.TryAddField(JSON_BOTDEVROLE, BotDevRole);
+            json.TryAddField(JSON_MINECRAFTBRANCHROLE, MinecraftBranchRole);
+            json.TryAddField(JSON_PREFIX, CommandHandler.Prefix);
+            json.TryAddField(JSON_CHANNELINFOS, GuildChannelHelper.ToJSON());
 
             await ResourcesModel.WriteJSONObjectToFile(ResourcesModel.SettingsFilePath, json);
         }
