@@ -24,9 +24,16 @@ namespace YNBBot.MinecraftGuildSystem
             {
                 List<GuildColor> allColors = new List<GuildColor>((GuildColor[])Enum.GetValues(typeof(GuildColor)));
 
-                foreach (MinecraftGuild guild in Guilds)
+                if (Guilds.Count < 14)
                 {
-                    allColors.Remove(guild.Color);
+
+                    foreach (MinecraftGuild guild in Guilds)
+                    {
+                        if (guild.TryRetrieveNameAndColor())
+                        {
+                            allColors.Remove(guild.Color);
+                        }
+                    }
                 }
 
                 return allColors;
@@ -42,22 +49,40 @@ namespace YNBBot.MinecraftGuildSystem
         {
             foreach (MinecraftGuild guild in Guilds)
             {
-                if (guild.Name.Equals(name, StringComparison.CurrentCultureIgnoreCase))
+                if (guild.TryRetrieveNameAndColor())
                 {
-                    return false;
+                    if (guild.Name.Equals(name, StringComparison.CurrentCultureIgnoreCase))
+                    {
+                        return false;
+                    }
                 }
             }
             return true;
         }
 
-        public static bool TryGetGuildOfUser(ulong id, out MinecraftGuild guild)
+        public static bool GetGuild(string name, out MinecraftGuild guild, bool invalidDatasets = false)
+        {
+            foreach (MinecraftGuild item in Guilds)
+            {
+                item.TryRetrieveNameAndColor();
+                if (string.Equals(item.Name, name, StringComparison.InvariantCultureIgnoreCase))
+                {
+                    guild = item;
+                    return guild.TryRetrieveNameAndColor() || invalidDatasets;
+                }
+            }
+            guild = null;
+            return false;
+        }
+
+        public static bool TryGetGuildOfUser(ulong id, out MinecraftGuild guild, bool invalidDatasets = false)
         {
             foreach (MinecraftGuild item in Guilds)
             {
                 if (item.CaptainId == id || item.MemberIds.Contains(id))
                 {
                     guild = item;
-                    return true;
+                    return guild.TryRetrieveNameAndColor() || invalidDatasets;
                 }
             }
             guild = null;
@@ -91,22 +116,25 @@ namespace YNBBot.MinecraftGuildSystem
             JSONContainer json = JSONContainer.NewArray();
             foreach (MinecraftGuild guild in Guilds)
             {
-                json.Add(guild.ToJSON());
+                if (guild.TryRetrieveNameAndColor())
+                {
+                    json.Add(guild.ToJSON());
+                }
             }
             await ResourcesModel.WriteJSONObjectToFile(ResourcesModel.GuildsFilePath, json);
         }
 
-        private static readonly OverwritePermissions GuildRoleChannelPerms = new OverwritePermissions(addReactions:PermValue.Allow, viewChannel:PermValue.Allow, sendMessages:PermValue.Allow, readMessageHistory:PermValue.Allow);
-        private static readonly OverwritePermissions CaptainChannelPerms = new OverwritePermissions(addReactions:PermValue.Allow, viewChannel:PermValue.Allow, sendMessages:PermValue.Allow, readMessageHistory:PermValue.Allow, manageMessages:PermValue.Allow);
+        private static readonly OverwritePermissions GuildRoleChannelPerms = new OverwritePermissions(addReactions: PermValue.Allow, viewChannel: PermValue.Allow, sendMessages: PermValue.Allow, readMessageHistory: PermValue.Allow);
+        private static readonly OverwritePermissions CaptainChannelPerms = new OverwritePermissions(addReactions: PermValue.Allow, viewChannel: PermValue.Allow, sendMessages: PermValue.Allow, readMessageHistory: PermValue.Allow, manageMessages: PermValue.Allow);
 
         public static async Task<bool> CreateGuildAsync(SocketGuild guild, string name, GuildColor color, SocketGuildUser captain, List<SocketGuildUser> members)
         {
             string errorhint = "Failed to create Guild Role!";
             try
             {
-                RestRole guildRole = await guild.CreateRoleAsync(name, color: new Discord.Color((uint)color), isHoisted:true);
+                RestRole guildRole = await guild.CreateRoleAsync(name, color: new Discord.Color((uint)color), isHoisted: true);
                 errorhint = "Move role into position";
-                await guildRole.ModifyAsync(RoleProperties => 
+                await guildRole.ModifyAsync(RoleProperties =>
                 {
                     RoleProperties.Position = GUILD_ROLE_POSITION;
                 });
@@ -115,7 +143,7 @@ namespace YNBBot.MinecraftGuildSystem
                 if (guildCategory == null)
                 {
                     throw new Exception("Could not find Guild Category Channel!");
-                } 
+                }
                 RestTextChannel guildChannel = await guild.CreateTextChannelAsync(name, TextChannelProperties =>
                 {
                     TextChannelProperties.CategoryId = GuildChannelHelper.GuildCategoryId;
@@ -141,7 +169,7 @@ namespace YNBBot.MinecraftGuildSystem
                     await member.AddRoleAsync(guildRole);
                 }
                 errorhint = "Failed to create MinecraftGuild!";
-                MinecraftGuild minecraftGuild = new MinecraftGuild() { CaptainId = captain.Id, Name = name, Color = color, ChannelId = guildChannel.Id, RoleId = guildRole.Id };
+                MinecraftGuild minecraftGuild = new MinecraftGuild(guildChannel.Id, guildRole.Id, color, name, captain.Id);
                 foreach (SocketGuildUser member in members)
                 {
                     minecraftGuild.MemberIds.Add(member.Id);
@@ -190,7 +218,7 @@ namespace YNBBot.MinecraftGuildSystem
             try
             {
                 if (guild.MemberIds.Contains(leavingMember.Id))
-                { 
+                {
                     foreach (SocketRole role in leavingMember.Roles)
                     {
                         if (role.Id == guild.RoleId)

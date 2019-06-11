@@ -107,6 +107,7 @@ namespace YNBBot.NestedCommands
             EmbedFamily.TryAddCommand(new ReplaceEmbedCommand());
             CommandFamily GuildFamily = new CommandFamily("guild", BaseFamily);
             GuildFamily.TryAddCommand(new CreateGuildCommand());
+            GuildFamily.TryAddCommand(new ModifyGuildCommand());
         }
     }
 }

@@ -15,10 +15,13 @@ namespace YNBBot.Interactive
 
         public static async Task ReactionAddedHandler(Cacheable<IUserMessage, ulong> message, ISocketMessageChannel channel, SocketReaction reaction)
         {
-            IUserMessage reactionMessage = reaction.Message.Value;
-            if (reactionMessage == null)
+            IUserMessage reactionMessage;
+            if (reaction.Message.IsSpecified)
             {
-                IMessage msg = await channel.GetMessageAsync(reaction.MessageId);
+                reactionMessage = reaction.Message.Value;
+            }
+            else
+            { 
                 reactionMessage = await channel.GetMessageAsync(reaction.MessageId) as IUserMessage;
             }
             SocketTextChannel textChannel = channel as SocketTextChannel;

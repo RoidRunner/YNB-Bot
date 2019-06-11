@@ -86,11 +86,11 @@ namespace YNBBot
                 await Var.client.LoginAsync(TokenType.Bot, SettingsModel.token);
                 await Var.client.StartAsync();
 
+                await MinecraftGuildSystem.MinecraftGuildModel.Init();
                 await TimingThread.UpdateTimeActivity();
 
                 await Task.Delay(500);
 
-                await MinecraftGuildSystem.MinecraftGuildModel.Init();
 
                 while (Var.running)
                 {

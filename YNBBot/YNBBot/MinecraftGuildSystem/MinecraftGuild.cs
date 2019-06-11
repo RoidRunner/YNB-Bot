@@ -9,6 +9,8 @@ namespace YNBBot.MinecraftGuildSystem
 {
     class MinecraftGuild : IJSONSerializable
     {
+        public bool NameAndColorRetrieved { get; private set; } = false;
+
         public ulong ChannelId;
         public ulong RoleId;
         public GuildColor Color;
@@ -21,6 +23,17 @@ namespace YNBBot.MinecraftGuildSystem
 
         }
 
+        public MinecraftGuild(ulong channelId, ulong roleId, GuildColor color, string name, ulong captainId)
+        {
+            ChannelId = channelId;
+            RoleId = roleId;
+            Color = color;
+            Name = name;
+            CaptainId = captainId;
+            NameAndColorRetrieved = true;
+        }
+
+
         #region JSON
 
         private const string JSON_MEMBERIDS = "MemberIds";
@@ -28,27 +41,39 @@ namespace YNBBot.MinecraftGuildSystem
         private const string JSON_ROLEID = "RoleId";
         private const string JSON_CAPTAINID = "CaptainId";
 
+        public bool TryRetrieveNameAndColor()
+        {
+            if (NameAndColorRetrieved)
+            {
+                return true;
+            }
+            if (Var.client.TryGetRole(RoleId, out SocketRole guildRole) && !NameAndColorRetrieved)
+            {
+                Color = (GuildColor)guildRole.Color.RawValue;
+                Name = guildRole.Name;
+                NameAndColorRetrieved = true;
+                return true;
+            }
+            return false;
+        }
+
         public bool FromJSON(JSONContainer json)
         {
             MemberIds.Clear();
 
             if (json.TryGetField(JSON_CHANNELIDS, out ChannelId) && json.TryGetField(JSON_ROLEID, out RoleId) && json.TryGetField(JSON_CAPTAINID, out CaptainId) && json.TryGetField(JSON_MEMBERIDS, out IReadOnlyList<JSONField> memberIdList))
             {
-                if (Var.client.TryGetRole(RoleId, out SocketRole guildRole))
+                foreach (JSONField memberIdJson in memberIdList)
                 {
-                    Color = (GuildColor)guildRole.Color.RawValue;
-                    Name = guildRole.Name;
-
-                    foreach (JSONField memberIdJson in memberIdList)
+                    if (memberIdJson.IsNumber && !memberIdJson.IsSigned && !memberIdJson.IsFloat)
                     {
-                        if (memberIdJson.IsNumber && !memberIdJson.IsSigned && !memberIdJson.IsFloat)
-                        {
-                            MemberIds.Add(memberIdJson.Unsigned_Int64);
-                        }
+                        MemberIds.Add(memberIdJson.Unsigned_Int64);
                     }
-
-                    return true;
                 }
+
+                TryRetrieveNameAndColor();
+
+                return true;
             }
             return false;
         }
