@@ -11,16 +11,52 @@ namespace YNBBot.MinecraftGuildSystem
 {
     class MinecraftGuild : IJSONSerializable
     {
-        public bool NameAndColorRetrieved { get; private set; } = false;
+        #region Fields and Properties
 
+        private bool nameAndColorRetrieved = false;
+
+        /// <summary>
+        /// Channel Id of the Guilds private channel
+        /// </summary>
         public ulong ChannelId;
+        /// <summary>
+        /// Role Id of the Guilds Role
+        /// </summary>
         public ulong RoleId;
+        /// <summary>
+        /// Color assigned to the Guilds Role
+        /// </summary>
         public GuildColor Color;
-        public Color DiscordColor => new Color((uint)Color);
+        /// <summary>
+        /// Color converted to discords color system
+        /// </summary>
+        public Color DiscordColor
+        {
+            get
+            {
+                return ToDiscordColor(Color);
+            }
+        }
+
+        /// <summary>
+        /// Name of the Guild
+        /// </summary>
         public string Name;
+        /// <summary>
+        /// User Id of the Captain
+        /// </summary>
         public ulong CaptainId;
+        /// <summary>
+        /// User Ids of the members
+        /// </summary>
         public List<ulong> MemberIds = new List<ulong>();
+        /// <summary>
+        /// Timestamp when the guild was founded
+        /// </summary>
         public DateTimeOffset FoundingTimestamp = DateTimeOffset.MinValue;
+
+        #endregion
+        #region Properties
 
         public MinecraftGuild()
         {
@@ -34,11 +70,63 @@ namespace YNBBot.MinecraftGuildSystem
             Color = color;
             Name = name;
             CaptainId = captainId;
-            NameAndColorRetrieved = true;
+            nameAndColorRetrieved = true;
             FoundingTimestamp = DateTimeOffset.UtcNow;
         }
 
+        #endregion
+        #region Name And Colors
 
+        private const int DISCORDBLACK = 0x010000;
+
+        /// <summary>
+        /// Wether the name and color of the guild had been found. This fails when the client hadn't loaded the role when checking or the role got deleted
+        /// </summary>
+        public bool NameAndColorFound
+        {
+            get
+            {
+                if (nameAndColorRetrieved)
+                {
+                    return true;
+                }
+                return TryFindNameAndColor();
+            }
+        }
+
+        /// <summary>
+        /// Tries to find Name and Color by retrieving the guilds role
+        /// </summary>
+        /// <returns>True if name and color could be retrieved</returns>
+        public bool TryFindNameAndColor()
+        {
+            if (Var.client.TryGetRole(RoleId, out SocketRole guildRole) && !nameAndColorRetrieved)
+            {
+                Color = (GuildColor)guildRole.Color.RawValue;
+                if (guildRole.Color.RawValue == DISCORDBLACK)
+                {
+                    Color = GuildColor.black;
+                }
+                Name = guildRole.Name;
+                nameAndColorRetrieved = true;
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Converts a guild color to a discord color
+        /// </summary>
+        public static Color ToDiscordColor(GuildColor color)
+        {
+            if (color == GuildColor.black)
+            {
+                return new Color(DISCORDBLACK);
+            }
+            return new Color((uint)color);
+        }
+
+        #endregion
         #region JSON
 
         private const string JSON_MEMBERIDS = "MemberIds";
@@ -47,21 +135,6 @@ namespace YNBBot.MinecraftGuildSystem
         private const string JSON_CAPTAINID = "CaptainId";
         private const string JSON_FOUNDINGTIMESTAMP = "Founded";
 
-        public bool TryRetrieveNameAndColor()
-        {
-            if (NameAndColorRetrieved)
-            {
-                return true;
-            }
-            if (Var.client.TryGetRole(RoleId, out SocketRole guildRole) && !NameAndColorRetrieved)
-            {
-                Color = (GuildColor)guildRole.Color.RawValue;
-                Name = guildRole.Name;
-                NameAndColorRetrieved = true;
-                return true;
-            }
-            return false;
-        }
 
         public bool FromJSON(JSONContainer json)
         {
@@ -84,7 +157,7 @@ namespace YNBBot.MinecraftGuildSystem
                     }
                 }
 
-                TryRetrieveNameAndColor();
+                TryFindNameAndColor();
 
                 return true;
             }
@@ -111,6 +184,9 @@ namespace YNBBot.MinecraftGuildSystem
         #endregion
     }
 
+    /// <summary>
+    /// Enum of color codes Minecraft can display
+    /// </summary>
     enum GuildColor
     {
         black = 0x000000,

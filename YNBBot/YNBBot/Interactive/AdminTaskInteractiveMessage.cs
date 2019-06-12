@@ -7,23 +7,32 @@ using Discord.WebSocket;
 
 namespace YNBBot.Interactive
 {
+    /// <summary>
+    /// Represents a generic admin task that can be completed or dismissed with emote reactions
+    /// </summary>
     class AdminTaskInteractiveMessage : InteractiveMessage
     {
-        public static readonly Color Red = new Color(1f, 0f, 0f);
-        public static readonly Color Green = new Color(0f, 1f, 0f);
-        public static readonly EmbedFooterBuilder Footer = new EmbedFooterBuilder() { Text = $"{UnicodeEmoteService.Checkmark} = Done, {UnicodeEmoteService.Cross} = Remove Message" };
+        private static readonly Color Red = new Color(1f, 0f, 0f);
+        private static readonly Color Green = new Color(0f, 1f, 0f);
+        private static readonly EmbedFooterBuilder Footer = new EmbedFooterBuilder() { Text = $"{UnicodeEmoteService.Checkmark} = Done, {UnicodeEmoteService.Cross} = Remove Message" };
 
+        /// <summary>
+        /// Title of this task
+        /// </summary>
         public string Title { get; private set; }
+        /// <summary>
+        /// Wether the task has been marked as complete
+        /// </summary>
         public bool Completed { get; private set; }
 
         public AdminTaskInteractiveMessage(IUserMessage message, string title) : base(message)
         {
             Title = title;
             Completed = false;
-            AddMessageInteractionParams(new EmoteInteraction(UnicodeEmoteService.Checkmark, MarkTaskAsDone), new EmoteInteraction(UnicodeEmoteService.Cross, RemoveMessage));
+            AddMessageInteractionParams(new EmoteInteraction(UnicodeEmoteService.Checkmark, MarkTaskAsComplete), new EmoteInteraction(UnicodeEmoteService.Cross, RemoveMessage));
         }
 
-        private async Task<bool> MarkTaskAsDone(MessageInteractionContext context)
+        private async Task<bool> MarkTaskAsComplete(MessageInteractionContext context)
         {
             if (!Completed)
             {
@@ -41,10 +50,22 @@ namespace YNBBot.Interactive
 
         private async Task<bool> RemoveMessage(MessageInteractionContext context)
         {
-            await context.Message.DeleteAsync();
-            return true;
+            if (context.UserAccessLevel >= AccessLevel.Admin)
+            {
+                await context.Message.DeleteAsync();
+                return true;
+            }
+            else
+            {
+                return false;
+            }
         }
 
+        /// <summary>
+        /// Sends a new admin task
+        /// </summary>
+        /// <param name="taskTitle">Title of the task</param>
+        /// <param name="taskDescription">Further information</param>
         public static async Task<AdminTaskInteractiveMessage> CreateAdminTaskMessage(string taskTitle, string taskDescription)
         {
             if (GuildChannelHelper.TryGetChannel(GuildChannelHelper.AdminNotificationChannelId, out SocketTextChannel channel))

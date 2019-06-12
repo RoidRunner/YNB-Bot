@@ -6,14 +6,35 @@ using System.Text;
 
 namespace YNBBot.Interactive
 {
+    /// <summary>
+    /// Provides context for InteractiveMessageHandlers
+    /// </summary>
     class MessageInteractionContext
     {
-        public SocketGuild Guild;
-        public SocketTextChannel Channel;
-        public IUserMessage Message;
-        public SocketGuildUser User;
-        public AccessLevel UserAccessLevel;
-        public IEmote Emote;
+        /// <summary>
+        /// Guild of the message
+        /// </summary>
+        public SocketGuild Guild { get; private set; }
+        /// <summary>
+        /// Channel of the message
+        /// </summary>
+        public SocketTextChannel Channel { get; private set; }
+        /// <summary>
+        /// Message the reaction was added to
+        /// </summary>
+        public IUserMessage Message { get; private set; }
+        /// <summary>
+        /// User that added the reaction
+        /// </summary>
+        public SocketGuildUser User { get; private set; }
+        /// <summary>
+        /// AccessLevel of the User
+        /// </summary>
+        public AccessLevel UserAccessLevel { get; private set; }
+        /// <summary>
+        /// Reaction that was added
+        /// </summary>
+        public IEmote Emote { get; private set; }
 
         public MessageInteractionContext(SocketReaction reaction, IUserMessage message, SocketTextChannel channel)
         {

@@ -10,8 +10,13 @@ namespace YNBBot
 {
     static class PingSpamDefenceService
     {
+        /// <summary>
+        /// Amount of effective mentions a user has to reach to trigger a warning
+        /// </summary>
         public const int EM_WARNING_LIMIT = 20;
-
+        /// <summary>
+        /// Amount of effective mentions a user has to reach to get muted
+        /// </summary>
         public const int EM_MUTE_LIMIT = 25;
 
         /// <summary>
@@ -35,12 +40,16 @@ namespace YNBBot
             WarningEmbed = new EmbedBuilder()
             {
                 Title = "Warning for spamming Mentions",
-                Description = "You have breached the warning limit in place excessive ping spamming. Avoid mentions in your next messages to avoid getting muted!",
+                Description = "You have breached the warning limit in place to prevent excessive ping spamming. Avoid mentions in your next messages to avoid getting muted!",
                 Color = Var.ERRORCOLOR
             };
         }
 
-
+        /// <summary>
+        /// Handles a message sent, and checks it for mentions
+        /// </summary>
+        /// <param name="message"></param>
+        /// <returns></returns>
         public static async Task HandleMessage(SocketMessage message)
         {
             SocketUserMessage userMessage = message as SocketUserMessage;
@@ -51,6 +60,7 @@ namespace YNBBot
                 {
                     SocketGuild guild = user.Guild;
                     AccessLevel userAccessLevel = Var.client.GetAccessLevel(user.Id);
+
                     int effectiveMentionCount = message.MentionedUsers.Count;
                     foreach (SocketRole role in message.MentionedRoles)
                     {
@@ -75,6 +85,11 @@ namespace YNBBot
             }
         }
 
+        /// <summary>
+        /// Checks a string for mentions of @everyone and @here outside of codeblocks
+        /// </summary>
+        /// <param name="str">string to check</param>
+        /// <returns>true, if it would create a notification</returns>
         public static bool MessageMentionesEveryoneOrHere(string str)
         {
             bool inlineCodeBlock = false;
@@ -123,6 +138,11 @@ namespace YNBBot
             return false;
         }
 
+        /// <summary>
+        /// Handles a mention event
+        /// </summary>
+        /// <param name="user">The user who sent the mentioning message</param>
+        /// <param name="messageEMs">Amount of EMs inside that message</param>
         private static async Task HandleMention(SocketGuildUser user, int messageEMs)
         {
             bool firstInfraction = true;
@@ -177,7 +197,7 @@ namespace YNBBot
             }
         }
 
-        struct MentionEvent
+        private struct MentionEvent
         {
             public ulong UserId;
             public int EffectiveMentions;

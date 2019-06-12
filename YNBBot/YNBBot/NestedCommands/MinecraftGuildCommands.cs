@@ -60,11 +60,15 @@ namespace YNBBot.NestedCommands
             {
                 return new ArgumentParseResult(Arguments[0], "Too short! Minimum of 3 Characters");
             }
-            if (GuildName.Length > 30)
+            if (GuildName.Length > 50)
             {
-                return new ArgumentParseResult(Arguments[0], "Too long! Maximum of 30 Characters");
+                return new ArgumentParseResult(Arguments[0], "Too long! Maximum of 50 Characters");
             }
-            if (!MinecraftGuildSystem.MinecraftGuildModel.NameIsAvailable(GuildName))
+            if (!MinecraftGuildModel.NameIsLegal(GuildName))
+            {
+                return new ArgumentParseResult(Arguments[0], "The guild name contains illegal characters! (Or starts/ends with a whitespace)");
+            }
+            if (!MinecraftGuildModel.NameIsAvailable(GuildName))
             {
                 return new ArgumentParseResult(Arguments[0], "A guild with this name already exists!");
             }
@@ -249,7 +253,7 @@ namespace YNBBot.NestedCommands
                 context.Args.Index++;
             }
 
-            if (!MinecraftGuildModel.GetGuild(guildName, out TargetGuild, true))
+            if (!MinecraftGuildModel.TryGetGuild(guildName, out TargetGuild, true))
             {
                 return new ArgumentParseResult(Arguments[0], "Unable to find a guild of this name!");
             }
@@ -388,7 +392,7 @@ namespace YNBBot.NestedCommands
                                 await newGuildRole.ModifyAsync(RoleProperties =>
                                 {
                                     RoleProperties.Name = TargetGuild.Name;
-                                    RoleProperties.Color = new Color((uint)TargetGuild.Color);
+                                    RoleProperties.Color = TargetGuild.DiscordColor;
                                 });
                                 TargetGuild.RoleId = newGuildRole.Id;
                                 saveChanges = true;
@@ -657,7 +661,7 @@ namespace YNBBot.NestedCommands
                     context.Args.Index++;
                 }
 
-                if (!MinecraftGuildModel.GetGuild(guildName, out TargetGuild, true))
+                if (!MinecraftGuildModel.TryGetGuild(guildName, out TargetGuild, true))
                 {
                     return new ArgumentParseResult(Arguments[0], "Unable to find a guild of this name!");
                 }
@@ -676,7 +680,7 @@ namespace YNBBot.NestedCommands
             {
                 embed = new EmbedBuilder()
                 {
-                    Color = new Color((uint)TargetGuild.Color),
+                    Color = TargetGuild.DiscordColor,
                     Title = $"Guild \"{TargetGuild.Name}\"",
                 };
                 if (TargetGuild.FoundingTimestamp == DateTimeOffset.MinValue)
@@ -745,7 +749,7 @@ namespace YNBBot.NestedCommands
                     string name = "Guild Role Not Found!";
                     string color = "Guild Role Not Found!";
                     string captain;
-                    if (guild.TryRetrieveNameAndColor())
+                    if (guild.NameAndColorFound)
                     {
                         name = $"Guild \"{guild.Name}\"";
                         color = guild.Color.ToString();
@@ -822,7 +826,7 @@ namespace YNBBot.NestedCommands
                 {
                     if (MinecraftGuildModel.TryGetGuildOfUser(newMember.Id, out MinecraftGuild existingGuild, true))
                     {
-                        parseErrors.Add($"{newMember.Mention} is already in guild \"{(existingGuild.TryRetrieveNameAndColor() ? existingGuild.Name : existingGuild.ChannelId.ToString())}\"");
+                        parseErrors.Add($"{newMember.Mention} is already in guild \"{(existingGuild.NameAndColorFound ? existingGuild.Name : existingGuild.ChannelId.ToString())}\"");
                     }
                     else
                     {
@@ -857,7 +861,7 @@ namespace YNBBot.NestedCommands
                             EmbedBuilder failure = new EmbedBuilder()
                             {
                                 Title = "Failed",
-                                Description = $"Already in guild \"{(existingGuild.TryRetrieveNameAndColor() ? existingGuild.Name : existingGuild.ChannelId.ToString())}\""
+                                Description = $"Already in guild \"{(existingGuild.NameAndColorFound ? existingGuild.Name : existingGuild.ChannelId.ToString())}\""
                             };
                             await messageInteractionContext.Message.ModifyAsync(MessageProperties =>
                             {

@@ -8,12 +8,27 @@ using System.Threading.Tasks;
 
 namespace YNBBot.Interactive
 {
+    /// <summary>
+    /// Represents an individual specialized handler for emote reactions added to an assigned message
+    /// </summary>
     class InteractiveMessage
     {
+        /// <summary>
+        /// The Id of the assigned message
+        /// </summary>
         public ulong MessageId { get; private set; }
+        /// <summary>
+        /// The Id of the channel where the assigned message was posted
+        /// </summary>
         public ulong ChannelId { get; private set; }
+        /// <summary>
+        /// The Id of the guild where the channel and message reside in
+        /// </summary>
         public ulong GuildId { get; private set; }
 
+        /// <summary>
+        /// Time in millis since bot startup for when the message expires
+        /// </summary>
         public long ExpirationTime { get; protected set; }
 
         private Dictionary<string, EmoteInteraction> Interactions = new Dictionary<string, EmoteInteraction>();
@@ -33,11 +48,17 @@ namespace YNBBot.Interactive
             InteractiveMessageService.AddInteractiveMessage(this);
         }
 
+        /// <summary>
+        /// Adds MessageInteractions
+        /// </summary>
         protected void AddMessageInteractionParams(params EmoteInteraction[] interactions)
         {
             AddMessageInteractions(interactions);
         }
 
+        /// <summary>
+        /// Adds MessageInteractions
+        /// </summary>
         protected void AddMessageInteractions(ICollection<EmoteInteraction> interactions)
         {
             foreach (EmoteInteraction interaction in interactions)
@@ -46,12 +67,19 @@ namespace YNBBot.Interactive
             }
         }
 
+        /// <summary>
+        /// Adds a MessageInteraction
+        /// </summary>
         protected void AddMessageInteraction(EmoteInteraction interaction)
         {
             interaction.MessageId = MessageId;
             Interactions.Add(interaction.Emote.Name, interaction);
         }
 
+        /// <summary>
+        /// Handles an interaction with this message
+        /// </summary>
+        /// <param name="context">MessageInteraction Context</param>
         public async Task HandleInteraction(MessageInteractionContext context)
         {
             if (ExpirationTime < TimingThread.Millis && ExpirationTime >= 0)

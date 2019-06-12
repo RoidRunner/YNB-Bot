@@ -7,10 +7,27 @@ using Discord.WebSocket;
 
 namespace YNBBot.Interactive
 {
+    /// <summary>
+    /// Represents a generic message that can be confirmed
+    /// </summary>
     internal class ConfirmationInteractiveMessage : InteractiveMessage
     {
         public ConfirmationInteractiveMessage(IUserMessage message, ICollection<EmoteInteraction> interactions, long expirationTime = -1) : base(message, interactions, expirationTime)
         {
+        }
+
+        /// <summary>
+        /// Creates a new Message asking for confirmation by the user
+        /// </summary>
+        /// <param name="messageContent"></param>
+        /// <param name="title"></param>
+        /// <param name="description"></param>
+        /// <param name="onConfirm"></param>
+        /// <param name="onDeny"></param>
+        /// <returns></returns>
+        public static Task<ConfirmationInteractiveMessage> CreateConfirmationMessage(string messageContent, string title, string description, MessageInteractionDelegate onConfirm, MessageInteractionDelegate onDeny)
+        {
+            return CreateConfirmationMessage(messageContent, title, Var.BOTCOLOR, description, UnicodeEmoteService.Checkmark, UnicodeEmoteService.Cross, onConfirm, onDeny);
         }
 
         public static async Task<ConfirmationInteractiveMessage> CreateConfirmationMessage(string messageContent, string title, Color color, string description, IEmote confirmEmote, IEmote denyEmote, MessageInteractionDelegate onConfirm, MessageInteractionDelegate onDeny)

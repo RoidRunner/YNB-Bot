@@ -89,7 +89,7 @@ namespace YNBBot.Interactive
                         embed = new EmbedBuilder()
                         {
                             Title = "Success",
-                            Color = new Color((uint)Guild.Color),
+                            Color = Guild.DiscordColor,
                             Description = $"Guild `{Guild.Name}` has been founded!"
                         };
                     }
@@ -137,7 +137,7 @@ namespace YNBBot.Interactive
                 mentionString.Append(" ");
             }
 
-            RestUserMessage message = await GuildChannelHelper.SendMessage(GuildChannelHelper.InteractiveMessagesChannelId, new Color((uint)guild.Color), content: $"{mentionString}Please confirm ({UnicodeEmoteService.Checkmark}) or deny ({UnicodeEmoteService.Cross}) founding Membership in Guild `{guild.Name}` by reacting to this message! {Macros.Mention_Role(SettingsModel.AdminRole)} Please choose to confirm ({UnicodeEmoteService.Checkmark}) or deny ({UnicodeEmoteService.Cross}) founding of this guild!", embedTitle: "Setting up Interactive Message - Stand By");
+            RestUserMessage message = await GuildChannelHelper.SendMessage(GuildChannelHelper.InteractiveMessagesChannelId, guild.DiscordColor, content: $"{mentionString}Please confirm ({UnicodeEmoteService.Checkmark}) or deny ({UnicodeEmoteService.Cross}) founding Membership in Guild `{guild.Name}` by reacting to this message! {Macros.Mention_Role(SettingsModel.AdminRole)} Please choose to confirm ({UnicodeEmoteService.Checkmark}) or deny ({UnicodeEmoteService.Cross}) founding of this guild!", embedTitle: "Setting up Interactive Message - Stand By");
             GuildCreationInteractiveMessage result = new GuildCreationInteractiveMessage(message as IUserMessage, guild);
             await message.AddReactionsAsync(new IEmote[] { UnicodeEmoteService.Checkmark, UnicodeEmoteService.Cross });
             await result.UpdateMessage(message as IUserMessage, Members[0].Guild);
@@ -164,7 +164,7 @@ namespace YNBBot.Interactive
             embed = new EmbedBuilder()
             {
                 Title = $"Founding of Guild \"{minecraftGuild.Name}\" - Waiting for confirmations",
-                Color = new Color((uint)minecraftGuild.Color),
+                Color = minecraftGuild.DiscordColor,
                 Description = description.ToString()
             };
             return embed;

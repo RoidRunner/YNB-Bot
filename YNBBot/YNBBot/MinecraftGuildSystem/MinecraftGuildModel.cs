@@ -12,25 +12,46 @@ using YNBBot.Interactive;
 
 namespace YNBBot.MinecraftGuildSystem
 {
+    /// <summary>
+    /// Manages minecraft guilds
+    /// </summary>
     static class MinecraftGuildModel
     {
-        public static List<MinecraftGuild> Guilds = new List<MinecraftGuild>();
+        #region Fields and Properties
 
+        private static List<MinecraftGuild> guilds = new List<MinecraftGuild>();
+
+        /// <summary>
+        /// Returns a list of all Guilds
+        /// </summary>
+        public static IReadOnlyList<MinecraftGuild> Guilds => guilds.AsReadOnly();
+
+        /// <summary>
+        /// Min amount of members required to found a guild
+        /// </summary>
         public const int MIN_GUILDFOUNDINGMEMBERS = 1;
         private const int GUILD_ROLE_POSITION = 2;
 
+        private static readonly OverwritePermissions GuildRoleChannelPerms = new OverwritePermissions(addReactions: PermValue.Allow, viewChannel: PermValue.Allow, sendMessages: PermValue.Allow, readMessageHistory: PermValue.Allow);
+        private static readonly OverwritePermissions CaptainChannelPerms = new OverwritePermissions(addReactions: PermValue.Allow, viewChannel: PermValue.Allow, sendMessages: PermValue.Allow, readMessageHistory: PermValue.Allow, manageMessages: PermValue.Allow);
+
+        private static readonly EmbedBuilder GuildHelpEmbed;
+
+        /// <summary>
+        /// List of all available guild colors.
+        /// </summary>
         public static List<GuildColor> AvailableColors
         {
             get
             {
                 List<GuildColor> allColors = new List<GuildColor>((GuildColor[])Enum.GetValues(typeof(GuildColor)));
 
-                if (Guilds.Count < 14)
+                if (guilds.Count < 14)
                 {
 
-                    foreach (MinecraftGuild guild in Guilds)
+                    foreach (MinecraftGuild guild in guilds)
                     {
-                        if (guild.TryRetrieveNameAndColor())
+                        if (guild.NameAndColorFound)
                         {
                             allColors.Remove(guild.Color);
                         }
@@ -41,16 +62,29 @@ namespace YNBBot.MinecraftGuildSystem
             }
         }
 
+        #endregion
+        #region CheckOperations
+
+        /// <summary>
+        /// Returns true if the color provided is still available
+        /// </summary>
+        /// <param name="color"></param>
+        /// <returns></returns>
         public static bool ColorIsAvailable(GuildColor color)
         {
             return AvailableColors.Contains(color);
         }
 
+        /// <summary>
+        /// Returns true if the name provided is still available
+        /// </summary>
+        /// <param name="name"></param>
+        /// <returns></returns>
         public static bool NameIsAvailable(string name)
         {
-            foreach (MinecraftGuild guild in Guilds)
+            foreach (MinecraftGuild guild in guilds)
             {
-                if (guild.TryRetrieveNameAndColor())
+                if (guild.NameAndColorFound)
                 {
                     if (guild.Name.Equals(name, StringComparison.CurrentCultureIgnoreCase))
                     {
@@ -61,58 +95,83 @@ namespace YNBBot.MinecraftGuildSystem
             return true;
         }
 
-        public static bool GetGuild(string name, out MinecraftGuild guild, bool invalidDatasets = false)
+        private static readonly List<char> legalChars = new List<char>(new char[] {
+            '1', '2', '3', '4', '5', '5', '6', '7', '8', '9', '0',
+            'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
+            'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
+            'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
+            'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
+            '!', '\'', '#', '$', '%', '&', '(', ')', '*', '+', ',', '-', '_', '.',
+            ':', ';', '<', '=', '>', '?', '@', '[', ']', '^', '`', '{', '}', '~', ' '
+        });
+
+        /// <summary>
+        /// Checks a name for illegal characters and makes sure neither front or end are whitespace characters
+        /// </summary>
+        /// <param name="name">Name to check</param>
+        /// <returns>true, if the name passed the test</returns>
+        public static bool NameIsLegal(string name)
         {
-            foreach (MinecraftGuild item in Guilds)
+            if (name[0] == ' ' || name[name.Length-1] == ' ')
             {
-                item.TryRetrieveNameAndColor();
+                return false;
+            }
+            for (int i = 0; i < name.Length; i++)
+            {
+                char c = name[i];
+                if (!legalChars.Contains(c))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Attempts to find a guild
+        /// </summary>
+        /// <param name="name">Name filter to select a guild</param>
+        /// <param name="guild">Guild result</param>
+        /// <param name="invalidDatasets">Wether to include guilds where name and color could not be sourced (Role not found)</param>
+        /// <returns>True, if a result was found</returns>
+        public static bool TryGetGuild(string name, out MinecraftGuild guild, bool invalidDatasets = false)
+        {
+            foreach (MinecraftGuild item in guilds)
+            {
+                item.TryFindNameAndColor();
                 if (string.Equals(item.Name, name, StringComparison.InvariantCultureIgnoreCase))
                 {
                     guild = item;
-                    return guild.TryRetrieveNameAndColor() || invalidDatasets;
+                    return guild.NameAndColorFound || invalidDatasets;
                 }
             }
             guild = null;
             return false;
         }
 
+        /// <summary>
+        /// Attempts to find a guild
+        /// </summary>
+        /// <param name="id">Id of the user to check guild membership for</param>
+        /// <param name="guild">Guild result</param>
+        /// <param name="invalidDatasets">Wether to include guilds where name and color could not be sourced (Role not found)</param>
+        /// <returns>True, if a result was found</returns>
         public static bool TryGetGuildOfUser(ulong id, out MinecraftGuild guild, bool invalidDatasets = false)
         {
-            foreach (MinecraftGuild item in Guilds)
+            foreach (MinecraftGuild item in guilds)
             {
                 if (item.CaptainId == id || item.MemberIds.Contains(id))
                 {
                     guild = item;
-                    return guild.TryRetrieveNameAndColor() || invalidDatasets;
+                    return guild.NameAndColorFound || invalidDatasets;
                 }
             }
             guild = null;
             return false;
         }
 
-        public static async Task Init()
-        {
-            var fileOperation = await ResourcesModel.LoadToJSONObject(ResourcesModel.GuildsFilePath);
-            if (fileOperation.Success)
-            {
-                if (fileOperation.Result.IsArray)
-                {
-                    foreach (JSONField guild_json in fileOperation.Result.Array)
-                    {
-                        if (guild_json.IsObject)
-                        {
-                            MinecraftGuild guild = new MinecraftGuild();
-                            if (guild.FromJSON(guild_json.Container))
-                            {
-                                Guilds.Add(guild);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        public static readonly EmbedBuilder GuildHelpEmbed;
+        #endregion
+        #region Constructor
 
         static MinecraftGuildModel()
         {
@@ -132,12 +191,37 @@ namespace YNBBot.MinecraftGuildSystem
                 "`/guild leave` - Leave this guild (deleting it), after all other members have left");
         }
 
+        #endregion
+        #region Save/Load
+
+        public static async Task Load()
+        {
+            var fileOperation = await ResourcesModel.LoadToJSONObject(ResourcesModel.GuildsFilePath);
+            if (fileOperation.Success)
+            {
+                if (fileOperation.Result.IsArray)
+                {
+                    foreach (JSONField guild_json in fileOperation.Result.Array)
+                    {
+                        if (guild_json.IsObject)
+                        {
+                            MinecraftGuild guild = new MinecraftGuild();
+                            if (guild.FromJSON(guild_json.Container))
+                            {
+                                guilds.Add(guild);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         public static async Task SaveAll()
         {
             JSONContainer json = JSONContainer.NewArray();
-            foreach (MinecraftGuild guild in Guilds)
+            foreach (MinecraftGuild guild in guilds)
             {
-                if (guild.TryRetrieveNameAndColor())
+                if (guild.NameAndColorFound)
                 {
                     json.Add(guild.ToJSON());
                 }
@@ -145,15 +229,24 @@ namespace YNBBot.MinecraftGuildSystem
             await ResourcesModel.WriteJSONObjectToFile(ResourcesModel.GuildsFilePath, json);
         }
 
-        private static readonly OverwritePermissions GuildRoleChannelPerms = new OverwritePermissions(addReactions: PermValue.Allow, viewChannel: PermValue.Allow, sendMessages: PermValue.Allow, readMessageHistory: PermValue.Allow);
-        private static readonly OverwritePermissions CaptainChannelPerms = new OverwritePermissions(addReactions: PermValue.Allow, viewChannel: PermValue.Allow, sendMessages: PermValue.Allow, readMessageHistory: PermValue.Allow, manageMessages: PermValue.Allow);
+        #endregion
+        #region Creating/Modifying/Deleting Guilds
 
+        /// <summary>
+        /// Creates a new guild (includes role, channel, etc)
+        /// </summary>
+        /// <param name="guild">Discord Server Guild to create channel and role on</param>
+        /// <param name="name">Guild Name</param>
+        /// <param name="color">Guild Display Color</param>
+        /// <param name="captain">Guild Captain</param>
+        /// <param name="members">Guild Users</param>
+        /// <returns>true, if operation succeeds</returns>
         public static async Task<bool> CreateGuildAsync(SocketGuild guild, string name, GuildColor color, SocketGuildUser captain, List<SocketGuildUser> members)
         {
             string errorhint = "Failed to create Guild Role!";
             try
             {
-                RestRole guildRole = await guild.CreateRoleAsync(name, color: new Discord.Color((uint)color), isHoisted: true);
+                RestRole guildRole = await guild.CreateRoleAsync(name, color:MinecraftGuild.ToDiscordColor(color), isHoisted: true);
                 errorhint = "Move role into position";
                 await guildRole.ModifyAsync(RoleProperties =>
                 {
@@ -196,7 +289,7 @@ namespace YNBBot.MinecraftGuildSystem
                 MinecraftGuild minecraftGuild = new MinecraftGuild(guildChannel.Id, guildRole.Id, color, name, captain.Id);
                 for (int i = 0; i < members.Count; i++)
                 {
-                    SocketGuildUser member = (SocketGuildUser)members[i];
+                    SocketGuildUser member = members[i];
                     minecraftGuild.MemberIds.Add(member.Id);
                     memberPingString.Append(member.Mention);
                     if (i < members.Count - 1)
@@ -204,7 +297,7 @@ namespace YNBBot.MinecraftGuildSystem
                         memberPingString.Append(", ");
                     }
                 }
-                Guilds.Add(minecraftGuild);
+                guilds.Add(minecraftGuild);
                 errorhint = "Failed to save MinecraftGuild!";
                 await SaveAll();
                 errorhint = "Failed to send or pin guild info embed";
@@ -221,6 +314,12 @@ namespace YNBBot.MinecraftGuildSystem
             }
         }
 
+        /// <summary>
+        /// Adds a member to a guild
+        /// </summary>
+        /// <param name="guild">Guild the new member joins</param>
+        /// <param name="newMember">New member that joins the guild</param>
+        /// <returns>true, if operation succeeds</returns>
         public static async Task<bool> MemberJoinGuildAsync(MinecraftGuild guild, SocketGuildUser newMember)
         {
             string errorhint = "Adding Guild Role";
@@ -248,6 +347,12 @@ namespace YNBBot.MinecraftGuildSystem
             }
         }
 
+        /// <summary>
+        /// Removes a member from a guild
+        /// </summary>
+        /// <param name="guild">Guild the member leaves</param>
+        /// <param name="leavingMember">Member that leaves</param>
+        /// <returns>true, if operation succeeds</returns>
         public static async Task<bool> MemberLeaveGuildAsync(MinecraftGuild guild, SocketGuildUser leavingMember)
         {
             string errorhint = "Removing Guild Role";
@@ -282,6 +387,12 @@ namespace YNBBot.MinecraftGuildSystem
             }
         }
 
+        /// <summary>
+        /// Changes a guilds name
+        /// </summary>
+        /// <param name="guild">Guild to modify</param>
+        /// <param name="newName">New name for the guild</param>
+        /// <returns>true, if operation succeeds</returns>
         public static async Task<bool> UpdateGuildNameAsync(MinecraftGuild guild, string newName)
         {
             string errorhint = "Modifying Guild Channel";
@@ -318,6 +429,12 @@ namespace YNBBot.MinecraftGuildSystem
             }
         }
 
+        /// <summary>
+        /// Changes a guilds color
+        /// </summary>
+        /// <param name="guild">Guild to update</param>
+        /// <param name="newColor">New color to apply</param>
+        /// <returns>true, if operation succeeds</returns>
         public static async Task<bool> UpdateGuildColorAsync(MinecraftGuild guild, GuildColor newColor)
         {
             string errorhint = "Modifying Guild Role";
@@ -327,7 +444,7 @@ namespace YNBBot.MinecraftGuildSystem
                 {
                     await guildRole.ModifyAsync(RoleProperties =>
                     {
-                        RoleProperties.Color = new Color((uint)newColor);
+                        RoleProperties.Color = MinecraftGuild.ToDiscordColor(newColor);
                     });
                     errorhint = "Setting Guild Color";
                     guild.Color = newColor;
@@ -347,6 +464,13 @@ namespace YNBBot.MinecraftGuildSystem
             }
         }
 
+        /// <summary>
+        /// Appoints a new guild captain to a guild
+        /// </summary>
+        /// <param name="guild">Guild to set the captain for</param>
+        /// <param name="newCaptain">New captain to appoint to the guild</param>
+        /// <param name="oldCaptain">Old captain (can be null)</param>
+        /// <returns>true, if operation succeeds</returns>
         public static async Task<bool> SetGuildCaptain(MinecraftGuild guild, SocketGuildUser newCaptain, SocketGuildUser oldCaptain)
         {
             string errorhint = "Modify channel perms";
@@ -377,6 +501,11 @@ namespace YNBBot.MinecraftGuildSystem
             }
         }
 
+        /// <summary>
+        /// Deletes a guild both on server and in data
+        /// </summary>
+        /// <param name="guild">Guild to remove</param>
+        /// <returns>True, if operation completed</returns>
         public static async Task<bool> DeleteGuildAsync(MinecraftGuild guild)
         {
             string errorhint = "Removing Guild Role";
@@ -404,10 +533,16 @@ namespace YNBBot.MinecraftGuildSystem
             }
         }
 
+        /// <summary>
+        /// Removes the guild represantation in the guilds list and saves
+        /// </summary>
+        /// <param name="guild">Guild to remove</param>
         public static async Task DeleteGuildDatasetAsync(MinecraftGuild guild)
         {
-            Guilds.Remove(guild);
+            guilds.Remove(guild);
             await SaveAll();
         }
+
+        #endregion
     }
 }
