@@ -6,13 +6,12 @@ namespace YNBBot.NestedCommands
 {
     internal class HelpCommand : Command
     {
-        public override string Identifier => "help";
         public override OverriddenMethod CommandHandlerMethod => OverriddenMethod.BasicAsync;
         public override OverriddenMethod ArgumentParserMethod => OverriddenMethod.BasicSynchronous;
 
         private IndexArray<string> CommandKeys;
 
-        public HelpCommand()
+        public HelpCommand(string identifier) : base(identifier)
         {
             List<CommandArgument> arguments = new List<CommandArgument>();
             arguments.Add(new CommandArgument("Command Identifier", "A list of all keywords that identify the command(s) you want the help text for.", true, true));

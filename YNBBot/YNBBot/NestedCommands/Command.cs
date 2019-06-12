@@ -25,7 +25,7 @@ namespace YNBBot.NestedCommands
         /// <summary>
         /// String id key used for message->command parsing
         /// </summary>
-        public abstract string Identifier { get; }
+        public string Identifier { get; private set; }
 
         /// <summary>
         /// The maximum amount of non-identifier arguments the command can handle
@@ -84,8 +84,10 @@ namespace YNBBot.NestedCommands
         #endregion
         #region Constructors
 
-        public Command()
+        public Command(string identifier, AccessLevel requireAccessLevel = AccessLevel.Basic)
         {
+            Identifier = identifier;
+            RequireAccessLevel = requireAccessLevel;
             RequireGuild = CommandHandlerMethod == OverriddenMethod.GuildAsync || CommandHandlerMethod == OverriddenMethod.GuildSynchronous || ArgumentParserMethod == OverriddenMethod.GuildAsync || ArgumentParserMethod == OverriddenMethod.GuildSynchronous;
         }
 

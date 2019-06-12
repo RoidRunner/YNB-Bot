@@ -9,13 +9,12 @@ namespace YNBBot.NestedCommands
 {
     class UserInfoCommand : Command
     {
-        public override string Identifier => "userinfo";
         public override OverriddenMethod CommandHandlerMethod => OverriddenMethod.BasicAsync;
         public override OverriddenMethod ArgumentParserMethod => OverriddenMethod.BasicAsync;
 
         private SocketUser User;
 
-        public UserInfoCommand()
+        public UserInfoCommand(string identifier) : base(identifier)
         {
             List<CommandArgument> arguments = new List<CommandArgument>();
             arguments.Add(new CommandArgument("User", ArgumentParsingHelper.GENERIC_PARSED_USER, true));
@@ -100,13 +99,12 @@ namespace YNBBot.NestedCommands
 
     class AvatarCommand : Command
     {
-        public override string Identifier => "avatar";
         public override OverriddenMethod CommandHandlerMethod => OverriddenMethod.BasicAsync;
         public override OverriddenMethod ArgumentParserMethod => OverriddenMethod.BasicAsync;
 
         private SocketUser User;
 
-        public AvatarCommand()
+        public AvatarCommand(string identifier) : base(identifier)
         {
             List<CommandArgument> arguments = new List<CommandArgument>();
             arguments.Add(new CommandArgument("User", ArgumentParsingHelper.GENERIC_PARSED_USER, true));

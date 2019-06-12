@@ -12,7 +12,6 @@ namespace YNBBot.NestedCommands
 
     class SendEmbedCommand : Command
     {
-        public override string Identifier => "send";
         public override OverriddenMethod CommandHandlerMethod => OverriddenMethod.BasicAsync;
         public override OverriddenMethod ArgumentParserMethod => OverriddenMethod.BasicSynchronous;
 
@@ -20,10 +19,8 @@ namespace YNBBot.NestedCommands
         string messageContent = string.Empty;
         private EmbedBuilder embed;
 
-        public SendEmbedCommand()
+        public SendEmbedCommand(string identifier) : base(identifier, AccessLevel.Admin)
         {
-            RequireAccessLevel = AccessLevel.Admin;
-
             CommandArgument[] arguments = new CommandArgument[2];
             arguments[0] = new CommandArgument("Channel", ArgumentParsingHelper.GENERIC_PARSED_CHANNEL);
             arguments[1] = new CommandArgument("EmbedJSON", "The embed, formatted as a JSON", multiple: true);
@@ -85,14 +82,13 @@ namespace YNBBot.NestedCommands
 
     class PreviewEmbedCommand : Command
     {
-        public override string Identifier => "preview";
         public override OverriddenMethod CommandHandlerMethod => OverriddenMethod.BasicAsync;
         public override OverriddenMethod ArgumentParserMethod => OverriddenMethod.BasicSynchronous;
 
         string messageContent = string.Empty;
         private EmbedBuilder embed;
 
-        public PreviewEmbedCommand()
+        public PreviewEmbedCommand(string identifier) : base(identifier, AccessLevel.Admin)
         {
             RequireAccessLevel = AccessLevel.Admin;
 
@@ -149,14 +145,11 @@ namespace YNBBot.NestedCommands
 
     class GetEmbedCommand : Command
     {
-        public override string Identifier => "get";
         public override OverriddenMethod CommandHandlerMethod => OverriddenMethod.BasicAsync;
         public override OverriddenMethod ArgumentParserMethod => OverriddenMethod.BasicAsync;
 
-        public GetEmbedCommand()
+        public GetEmbedCommand(string identifier) : base(identifier, AccessLevel.Admin)
         {
-            RequireAccessLevel = AccessLevel.Admin;
-
             CommandArgument[] arguments = new CommandArgument[2];
             arguments[0] = new CommandArgument("MessageLink", "A discord message link to select the source");
             arguments[1] = new CommandArgument("Options", $"Command execution options. Available are:\n`{ExecutionOptions.pretty}` = Include some nice formatting in the embed JSON\n" +
@@ -323,7 +316,6 @@ namespace YNBBot.NestedCommands
 
     class ReplaceEmbedCommand : Command
     {
-        public override string Identifier => "replace";
         public override OverriddenMethod CommandHandlerMethod => OverriddenMethod.BasicAsync;
         public override OverriddenMethod ArgumentParserMethod => OverriddenMethod.BasicAsync;
 
@@ -331,10 +323,8 @@ namespace YNBBot.NestedCommands
         private string messageContent;
         private EmbedBuilder embed;
 
-        public ReplaceEmbedCommand()
+        public ReplaceEmbedCommand(string identifier) : base(identifier, AccessLevel.Admin)
         {
-            RequireAccessLevel = AccessLevel.Admin;
-
             CommandArgument[] arguments = new CommandArgument[2];
             arguments[0] = new CommandArgument("MessageLink", "A discord message link to select the source");
             arguments[1] = new CommandArgument("EmbedJSON", "The embed, formatted as a JSON", multiple: true);
@@ -845,18 +835,6 @@ namespace YNBBot.NestedCommands
 
                 json.TryAddField(EMBED, embedJSON);
             }
-        }
-
-        [Obsolete]
-        public static string MakeMagicBotJSONParserSafe(string input)
-        {
-            return JSONObject.GetSafelyFormattedString(input);
-        }
-
-        [Obsolete]
-        public static string RemoveJSONCompatibilitySymbols(string input)
-        {
-            return JSONObject.GetOriginalFormat(input);
         }
     }
 

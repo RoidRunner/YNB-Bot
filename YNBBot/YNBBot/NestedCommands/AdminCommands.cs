@@ -13,14 +13,11 @@ namespace YNBBot.NestedCommands
 
     class DetectConfigCommand : Command
     {
-        public override string Identifier => "detect";
         public override OverriddenMethod CommandHandlerMethod => OverriddenMethod.BasicAsync;
         public override OverriddenMethod ArgumentParserMethod => OverriddenMethod.BasicSynchronous;
 
-        public DetectConfigCommand()
+        public DetectConfigCommand(string identifier) : base(identifier, AccessLevel.Admin)
         {
-            RequireAccessLevel = AccessLevel.Admin;
-
             InitializeHelp("Lists current configuration", new CommandArgument[0]);
         }
 
@@ -85,17 +82,14 @@ namespace YNBBot.NestedCommands
 
     class SetRoleCommand : Command
     {
-        public override string Identifier => "role";
         public override OverriddenMethod CommandHandlerMethod => OverriddenMethod.GuildAsync;
         public override OverriddenMethod ArgumentParserMethod => OverriddenMethod.GuildSynchronous;
 
         private SettingRoles RoleIdentifier;
         private SocketRole Role;
 
-        public SetRoleCommand()
+        public SetRoleCommand(string identifier) : base(identifier, AccessLevel.Admin)
         {
-            RequireAccessLevel = AccessLevel.Admin;
-
             List<CommandArgument> arguments = new List<CommandArgument>();
             arguments.Add(new CommandArgument("RoleIdentifier", $"String identifier for the role you want to get or set. Available are: `{string.Join(", ", Enum.GetNames(typeof(SettingRoles)))}`"));
             arguments.Add(new CommandArgument("Role", ArgumentParsingHelper.GENERIC_PARSED_ROLE, true));
@@ -182,13 +176,11 @@ namespace YNBBot.NestedCommands
 
     class SetOutputChannelCommand : Command
     {
-        public override string Identifier => "output";
         public override OverriddenMethod CommandHandlerMethod => OverriddenMethod.GuildAsync;
         public override OverriddenMethod ArgumentParserMethod => OverriddenMethod.GuildSynchronous;
 
-        public SetOutputChannelCommand()
+        public SetOutputChannelCommand(string identifier) : base(identifier, AccessLevel.Admin)
         {
-            RequireAccessLevel = AccessLevel.Admin;
             CommandArgument[] arguments = new CommandArgument[2];
             arguments[0] = new CommandArgument("OutputChannelType", $"The type of output channel you want to set. Available are: `{Macros.GetEnumNames<OutputChannelType>()}`");
             arguments[1] = new CommandArgument("Channel", ArgumentParsingHelper.GENERIC_PARSED_CHANNEL, true);
@@ -298,14 +290,11 @@ namespace YNBBot.NestedCommands
 
     class EditChannelInfoCommand : Command
     {
-        public override string Identifier => "channel";
         public override OverriddenMethod CommandHandlerMethod => OverriddenMethod.GuildAsync;
         public override OverriddenMethod ArgumentParserMethod => OverriddenMethod.GuildSynchronous;
 
-        public EditChannelInfoCommand()
+        public EditChannelInfoCommand(string identifier) : base(identifier, AccessLevel.Admin)
         {
-            RequireAccessLevel = AccessLevel.Admin;
-
             CommandArgument[] arguments = new CommandArgument[2];
             arguments[0] = new CommandArgument("Channel", ArgumentParsingHelper.GENERIC_PARSED_CHANNEL);
             arguments[1] = new CommandArgument("Configuration",
@@ -415,17 +404,14 @@ namespace YNBBot.NestedCommands
 
     class SetTemplateCommand : Command
     {
-        public override string Identifier => "template";
         public override OverriddenMethod CommandHandlerMethod => OverriddenMethod.BasicAsync;
         public override OverriddenMethod ArgumentParserMethod => OverriddenMethod.BasicSynchronous;
 
         private Templates template;
         private string newText;
 
-        public SetTemplateCommand()
+        public SetTemplateCommand(string identifier) : base(identifier, AccessLevel.Admin)
         {
-            RequireAccessLevel = AccessLevel.Admin;
-
             List<CommandArgument> arguments = new List<CommandArgument>(2);
             arguments.Add(new CommandArgument("TemplateIdentifier", $"String identifier for the template you want to get or set. Available are: `{string.Join(", ", Enum.GetNames(typeof(Templates)))}`"));
             arguments.Add(new CommandArgument("Text", "These arguments combined represent the new text for the template", true, true));
@@ -499,16 +485,13 @@ namespace YNBBot.NestedCommands
 
     class PrefixCommand : Command
     {
-        public override string Identifier => "prefix";
         public override OverriddenMethod CommandHandlerMethod => OverriddenMethod.BasicAsync;
         public override OverriddenMethod ArgumentParserMethod => OverriddenMethod.BasicSynchronous;
 
         char Prefix;
 
-        public PrefixCommand()
+        public PrefixCommand(string identifier) : base(identifier, AccessLevel.Admin)
         {
-            RequireAccessLevel = AccessLevel.Admin;
-
             List<CommandArgument> arguments = new List<CommandArgument>();
             arguments.Add(new CommandArgument("PrefixCharacter", "A character to set as the new command prefix"));
             InitializeHelp("Sets the command prefix the bot should use", arguments.ToArray());
@@ -533,17 +516,14 @@ namespace YNBBot.NestedCommands
 
     class ToggleLoggingCommand : Command
     {
-        public override string Identifier => "logging";
         public override OverriddenMethod CommandHandlerMethod => OverriddenMethod.BasicAsync;
         public override OverriddenMethod ArgumentParserMethod => OverriddenMethod.BasicSynchronous;
 
         private DebugCategories category;
         private bool? newSetting;
 
-        public ToggleLoggingCommand()
+        public ToggleLoggingCommand(string identifier) : base(identifier, AccessLevel.Admin)
         {
-            RequireAccessLevel = AccessLevel.Admin;
-
             List<CommandArgument> arguments = new List<CommandArgument>(2);
             arguments.Add(new CommandArgument("MessageCategory", $"Specifies the logging message category that you want to get or set. Available are: `{Macros.GetEnumNames<DebugCategories>()}`"));
             arguments.Add(new CommandArgument("Enabled", "Specify the new setting for the given MessageType. Use `true`, `false`, `enable` or `disable`", true));
@@ -609,14 +589,11 @@ namespace YNBBot.NestedCommands
 
     class StopCommand : Command
     {
-        public override string Identifier => "stop";
         public override OverriddenMethod CommandHandlerMethod => OverriddenMethod.BasicSynchronous;
         public override OverriddenMethod ArgumentParserMethod => OverriddenMethod.BasicSynchronous;
 
-        public StopCommand()
+        public StopCommand(string identifier) : base(identifier, AccessLevel.Admin)
         {
-            RequireAccessLevel = AccessLevel.Admin;
-
             InitializeHelp("Stops the bot application. Requires manual restart", new CommandArgument[0]);
         }
 
@@ -636,14 +613,11 @@ namespace YNBBot.NestedCommands
 
     class RestartCommand : Command
     {
-        public override string Identifier => "restart";
         public override OverriddenMethod CommandHandlerMethod => OverriddenMethod.BasicSynchronous;
         public override OverriddenMethod ArgumentParserMethod => OverriddenMethod.BasicSynchronous;
 
-        public RestartCommand()
+        public RestartCommand(string identifier) : base(identifier, AccessLevel.Admin)
         {
-            RequireAccessLevel = AccessLevel.Admin;
-
             InitializeHelp("Restarts the bot application", new CommandArgument[0]);
         }
 

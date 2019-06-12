@@ -14,14 +14,11 @@ namespace YNBBot.NestedCommands
     #region found
     class CreateGuildCommand : Command
     {
-        public override string Identifier => "found";
         public override OverriddenMethod CommandHandlerMethod => OverriddenMethod.BasicAsync;
         public override OverriddenMethod ArgumentParserMethod => OverriddenMethod.GuildSynchronous;
 
-        public CreateGuildCommand()
+        public CreateGuildCommand(string identifier) : base(identifier, AccessLevel.Minecraft)
         {
-            RequireAccessLevel = AccessLevel.Minecraft;
-
             CommandArgument[] arguments = new CommandArgument[3];
             arguments[0] = new CommandArgument("Name", "The name of the guild. Will be the name of the channel and role created. Also applies to ingame naming");
             arguments[1] = new CommandArgument("Color", $"The color of the guild. Will be the color of the role created. Also applies to ingame color. Available are `{string.Join(", ", MinecraftGuildSystem.MinecraftGuildModel.AvailableColors)}`");
@@ -59,13 +56,13 @@ namespace YNBBot.NestedCommands
                 context.Args.Index++;
             }
 
-            if (GuildName.Length < 5)
+            if (GuildName.Length < 3)
             {
-                return new ArgumentParseResult(Arguments[0], "Too short! Minimum of 5 Characters");
+                return new ArgumentParseResult(Arguments[0], "Too short! Minimum of 3 Characters");
             }
-            if (GuildName.Length > 25)
+            if (GuildName.Length > 30)
             {
-                return new ArgumentParseResult(Arguments[0], "Too long! Maximum of 25 Characters");
+                return new ArgumentParseResult(Arguments[0], "Too long! Maximum of 30 Characters");
             }
             if (!MinecraftGuildSystem.MinecraftGuildModel.NameIsAvailable(GuildName))
             {
@@ -146,13 +143,11 @@ namespace YNBBot.NestedCommands
 
     class ModifyGuildCommand : Command
     {
-        public override string Identifier => "modify";
         public override OverriddenMethod CommandHandlerMethod => OverriddenMethod.BasicAsync;
         public override OverriddenMethod ArgumentParserMethod => OverriddenMethod.BasicSynchronous;
 
-        public ModifyGuildCommand()
+        public ModifyGuildCommand(string identifier) : base(identifier, AccessLevel.Admin)
         {
-            RequireAccessLevel = AccessLevel.Admin;
             CommandArgument[] arguments = new CommandArgument[]
             {
                 new CommandArgument("Name", "Name of the guild to delete"),
@@ -627,14 +622,11 @@ namespace YNBBot.NestedCommands
 
     class GuildInfoCommand : Command
     {
-        public override string Identifier => "info";
         public override OverriddenMethod CommandHandlerMethod => OverriddenMethod.BasicAsync;
         public override OverriddenMethod ArgumentParserMethod => OverriddenMethod.BasicSynchronous;
 
-        public GuildInfoCommand()
+        public GuildInfoCommand(string identifier) : base(identifier, AccessLevel.Minecraft)
         {
-            RequireAccessLevel = AccessLevel.Minecraft;
-
             CommandArgument[] arguments = new CommandArgument[]
             {
                 new CommandArgument("Name", "Name of the guild to get info on", true, true)
@@ -776,7 +768,19 @@ namespace YNBBot.NestedCommands
                     embeds.Add(Macros.EmbedField(name, $"{color}, Captain: {captain}, {guild.MemberIds.Count} Members"));
                 }
 
-                await context.Channel.SendSafeEmbedList(title, embeds);
+                if (embeds.Count == 0)
+                {
+                    embed = new EmbedBuilder()
+                    {
+                        Title = "Guild List - 0",
+                        Description = "No guilds found!"
+                    };
+                    await context.Channel.SendEmbedAsync(embed);
+                }
+                else
+                {
+                    await context.Channel.SendSafeEmbedList(title, embeds);
+                }
             }
 
         }
@@ -787,14 +791,11 @@ namespace YNBBot.NestedCommands
 
     class InviteMemberCommand : Command
     {
-        public override string Identifier => "invite";
         public override OverriddenMethod CommandHandlerMethod => OverriddenMethod.GuildAsync;
         public override OverriddenMethod ArgumentParserMethod => OverriddenMethod.GuildSynchronous;
 
-        public InviteMemberCommand()
+        public InviteMemberCommand(string identifier) : base(identifier, AccessLevel.Minecraft)
         {
-            RequireAccessLevel = AccessLevel.Minecraft;
-
             CommandArgument[] arguments = new CommandArgument[]
             {
                 new CommandArgument("Member", "Users you want to invite to join your guild", multiple:true)
@@ -897,6 +898,111 @@ namespace YNBBot.NestedCommands
                 await context.Channel.SendEmbedAsync($"Invitation sent to: {string.Join(", ", newMembers)}");
             }
         }
+    }
+
+    #endregion
+    #region kick
+
+    class KickGuildMemberCommand : Command
+    {
+        public override OverriddenMethod CommandHandlerMethod => OverriddenMethod.GuildAsync;
+        public override OverriddenMethod ArgumentParserMethod => OverriddenMethod.GuildSynchronous;
+
+        public KickGuildMemberCommand(string identifier) : base(identifier, AccessLevel.Minecraft)
+        {
+            CommandArgument[] arguments = new CommandArgument[]
+            {
+                new CommandArgument("Member", "All members you want to have kicked from the guild. They can rejoin with a new invitation.", multiple:true)
+            };
+            InitializeHelp("Kick members from your guild as a captain", arguments);
+        }
+
+        private MinecraftGuild TargetGuild;
+        private List<SocketGuildUser> kickedMembers = new List<SocketGuildUser>();
+        private List<string> parseErrors = new List<string>();
+
+        protected override ArgumentParseResult TryParseArgumentsGuildSynchronous(GuildCommandContext context)
+        {
+            bool ownsGuild = false;
+            if (MinecraftGuildModel.TryGetGuildOfUser(context.User.Id, out TargetGuild))
+            {
+                ownsGuild = TargetGuild.CaptainId == context.User.Id;
+            }
+
+            if (!ownsGuild)
+            {
+                return new ArgumentParseResult("You are not a captain of a guild!");
+            }
+
+            kickedMembers.Clear();
+            parseErrors.Clear();
+            for (; context.Args.Count > 0; context.Args.Index++)
+            {
+                if (ArgumentParsingHelper.TryParseGuildUser(context, context.Args.First, out SocketGuildUser kickedMember, allowSelf: false))
+                {
+                    if (kickedMember.Id == context.User.Id)
+                    {
+                        parseErrors.Add("Can not kick yourself!");
+                    }
+                    else
+                    {
+                        bool foundGuild = false;
+                        if (MinecraftGuildModel.TryGetGuildOfUser(kickedMember.Id, out MinecraftGuild existingGuild, true))
+                        {
+                            if (existingGuild == TargetGuild)
+                            {
+                                foundGuild = true;
+                                kickedMembers.Add(kickedMember);
+                            }
+                        }
+
+                        if (!foundGuild)
+                        {
+                            parseErrors.Add($"User {kickedMember.Mention} is not in a guild you manage!");
+                        }
+
+                    }
+                }
+                else
+                {
+                    parseErrors.Add($"Unable to parse `{context.Args.First}` to a guild user!");
+                }
+            }
+            if (kickedMembers.Count == 0)
+            {
+                return new ArgumentParseResult(Arguments[0], "Could not parse any of your arguments to members!\n" + string.Join('\n', parseErrors));
+            }
+            else
+            {
+                return ArgumentParseResult.SuccessfullParse;
+            }
+        }
+
+        protected override async Task HandleCommandGuildAsync(GuildCommandContext context)
+        {
+            StringBuilder kicked = new StringBuilder();
+            for (int i = 0; i < kickedMembers.Count; i++)
+            {
+                SocketGuildUser kickedMember = kickedMembers[i];
+                await MinecraftGuildModel.MemberLeaveGuildAsync(TargetGuild, kickedMember);
+
+                kicked.Append(kickedMember.Mention);
+                if (i < kickedMembers.Count - 1)
+                {
+                    kicked.Append(", ");
+                }
+            }
+
+            if (parseErrors.Count > 0)
+            {
+                await context.Channel.SendEmbedAsync($"Kicked members: {kicked}\n\nFailed to parse some of the members:\n{string.Join('\n', parseErrors)}");
+            }
+            else
+            {
+                await context.Channel.SendEmbedAsync($"Kicked members: {kicked}");
+            }
+        }
+
     }
 
     #endregion

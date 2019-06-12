@@ -86,30 +86,31 @@ namespace YNBBot.NestedCommands
 
         static CommandHandler()
         {
-            BaseFamily.TryAddCommand(new HelpCommand());
-            BaseFamily.TryAddCommand(new UserInfoCommand());
-            BaseFamily.TryAddCommand(new AvatarCommand());
-            BaseFamily.TryAddCommand(new StopCommand());
-            BaseFamily.TryAddCommand(new RestartCommand());
+            BaseFamily.TryAddCommand(new HelpCommand("help"));
+            BaseFamily.TryAddCommand(new UserInfoCommand("userinfo"));
+            BaseFamily.TryAddCommand(new AvatarCommand("avatar"));
+            BaseFamily.TryAddCommand(new StopCommand("stop"));
+            BaseFamily.TryAddCommand(new RestartCommand("restart"));
             CommandFamily SettingsFamily = new CommandFamily("config", BaseFamily);
             CommandFamily SettingsChannelFamily = new CommandFamily("channel", SettingsFamily);
-            SettingsChannelFamily.TryAddCommand(new SetOutputChannelCommand());
-            SettingsFamily.TryAddCommand(new EditChannelInfoCommand());
-            SettingsFamily.TryAddCommand(new DetectConfigCommand());
-            SettingsFamily.TryAddCommand(new PrefixCommand());
-            SettingsFamily.TryAddCommand(new SetRoleCommand());
-            SettingsFamily.TryAddCommand(new SetTemplateCommand());
-            SettingsFamily.TryAddCommand(new ToggleLoggingCommand());
+            SettingsChannelFamily.TryAddCommand(new SetOutputChannelCommand("output"));
+            SettingsFamily.TryAddCommand(new EditChannelInfoCommand("channel"));
+            SettingsFamily.TryAddCommand(new DetectConfigCommand("detect"));
+            SettingsFamily.TryAddCommand(new PrefixCommand("prefix"));
+            SettingsFamily.TryAddCommand(new SetRoleCommand("role"));
+            SettingsFamily.TryAddCommand(new SetTemplateCommand("template"));
+            SettingsFamily.TryAddCommand(new ToggleLoggingCommand("logging"));
             CommandFamily EmbedFamily = new CommandFamily("embed", BaseFamily);
-            EmbedFamily.TryAddCommand(new SendEmbedCommand());
-            EmbedFamily.TryAddCommand(new PreviewEmbedCommand());
-            EmbedFamily.TryAddCommand(new GetEmbedCommand());
-            EmbedFamily.TryAddCommand(new ReplaceEmbedCommand());
+            EmbedFamily.TryAddCommand(new SendEmbedCommand("send"));
+            EmbedFamily.TryAddCommand(new PreviewEmbedCommand("preview"));
+            EmbedFamily.TryAddCommand(new GetEmbedCommand("get"));
+            EmbedFamily.TryAddCommand(new ReplaceEmbedCommand("replace"));
             CommandFamily GuildFamily = new CommandFamily("guild", BaseFamily);
-            GuildFamily.TryAddCommand(new CreateGuildCommand());
-            GuildFamily.TryAddCommand(new ModifyGuildCommand());
-            GuildFamily.TryAddCommand(new GuildInfoCommand());
-            GuildFamily.TryAddCommand(new InviteMemberCommand());
+            GuildFamily.TryAddCommand(new CreateGuildCommand("found"));
+            GuildFamily.TryAddCommand(new ModifyGuildCommand("modify"));
+            GuildFamily.TryAddCommand(new GuildInfoCommand("info"));
+            GuildFamily.TryAddCommand(new InviteMemberCommand("invite"));
+            GuildFamily.TryAddCommand(new KickGuildMemberCommand("kick"));
         }
     }
 }
