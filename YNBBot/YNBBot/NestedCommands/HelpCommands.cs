@@ -75,7 +75,15 @@ namespace YNBBot.NestedCommands
                 channelInformation = "Anywhere";
             }
 
-            string embedTitle = $"Matching Commands for \"{CommandHandler.Prefix + string.Join(" ", context.Args)}\"";
+            string embedTitle;
+            if (matchedFamily == CommandHandler.BaseFamily)
+            {
+                embedTitle = $"List of all Commands";
+            }
+            else
+            {
+                embedTitle = $"Matching Commands for \"{CommandHandler.Prefix + string.Join(" ", context.Args)}\"";
+            }
             string embedDescription = $"This list is generated based on your AccessLevel (`{context.UserAccessLevel}`), and the current channel context (`{channelInformation}`)";
 
             List<EmbedFieldBuilder> commandFields = new List<EmbedFieldBuilder>();

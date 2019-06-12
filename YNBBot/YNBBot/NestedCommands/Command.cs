@@ -51,9 +51,13 @@ namespace YNBBot.NestedCommands
                 MinArgCnt = value.Length;
                 if (value.Length > 0)
                 {
-                    if (value[value.Length - 1].Multiple)
+                    for (int i = 0; i < value.Length; i++)
                     {
-                        MaxArgCnt = 1000;
+                        if (value[i].Multiple)
+                        {
+                            MaxArgCnt = 1000;
+                            break;
+                        }
                     }
                     for (int i = value.Length - 1; i >= 0; i--)
                     {

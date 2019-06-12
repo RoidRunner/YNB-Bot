@@ -406,38 +406,29 @@ namespace YNBBot.NestedCommands
                         break;
                     case GuildModifyActions.rename:
                         {
-                            TargetGuild.Name = action.Argument;
-                            if (Var.client.TryGetRole(TargetGuild.RoleId, out SocketRole guildRole))
+                            if (await MinecraftGuildModel.UpdateGuildNameAsync(TargetGuild, action.Argument))
                             {
-                                await guildRole.ModifyAsync(RoleProperties =>
-                                {
-                                    RoleProperties.Name = TargetGuild.Name;
-                                });
+                                successful.Add(action);
+                                saveChanges = true;
                             }
-                            if (GuildChannelHelper.TryGetChannel(TargetGuild.ChannelId, out SocketTextChannel guildChannel))
+                            else
                             {
-                                await guildChannel.ModifyAsync(GuildChannelProperties =>
-                                {
-                                    GuildChannelProperties.Name = TargetGuild.Name;
-                                });
+                                errors.Add($"`{action}` - Internal error changing guild name");
                             }
-                            successful.Add(action);
-                            saveChanges = true;
                         }
                         break;
                     case GuildModifyActions.recolor:
                         if (Enum.TryParse(action.Argument, out GuildColor newColor))
                         {
-                            TargetGuild.Color = newColor;
-                            if (Var.client.TryGetRole(TargetGuild.RoleId, out SocketRole guildRole))
+                            if (await MinecraftGuildModel.UpdateGuildColorAsync(TargetGuild, newColor))
                             {
-                                await guildRole.ModifyAsync(RoleProperties =>
-                                {
-                                    RoleProperties.Color = new Color((uint)TargetGuild.Color);
-                                });
+                                successful.Add(action);
+                                saveChanges = true;
                             }
-                            saveChanges = true;
-                            successful.Add(action);
+                            else
+                            {
+                                errors.Add($"`{action}` - Internal error changing guild color");
+                            }
                         }
                         else
                         {
@@ -451,7 +442,7 @@ namespace YNBBot.NestedCommands
                             {
                                 if (TargetGuild.CaptainId == newCaptain.Id)
                                 {
-                                    errors.Add($"`{action}` - The new captain is already captain of this guild!3");
+                                    errors.Add($"`{action}` - The new captain is already captain of this guild!");
                                 }
                                 else if (!TargetGuild.MemberIds.Contains(newCaptain.Id))
                                 {
@@ -459,11 +450,16 @@ namespace YNBBot.NestedCommands
                                 }
                                 else
                                 {
-                                    TargetGuild.MemberIds.Add(TargetGuild.CaptainId);
-                                    TargetGuild.MemberIds.Remove(newCaptain.Id);
-                                    TargetGuild.CaptainId = newCaptain.Id;
-                                    saveChanges = true;
-                                    successful.Add(action);
+                                    SocketGuildUser oldCaptain = guildContext.Guild.GetUser(TargetGuild.CaptainId);
+                                    if (await MinecraftGuildModel.SetGuildCaptain(TargetGuild, newCaptain, oldCaptain))
+                                    {
+                                        saveChanges = true;
+                                        successful.Add(action);
+                                    }
+                                    else
+                                    {
+                                        errors.Add($"`{action}` - Internal Error changing captain");
+                                    }
                                 }
                             }
                             else
@@ -474,7 +470,6 @@ namespace YNBBot.NestedCommands
                         else
                         {
                             errors.Add($"`{action}` - This action can only be executed in a guild context");
-                            errors.Add($"`{action}` - ");
                         }
                         break;
                     case GuildModifyActions.addmember:
@@ -515,7 +510,6 @@ namespace YNBBot.NestedCommands
                         else
                         {
                             errors.Add($"`{action}` - This action can only be executed in a guild context");
-                            errors.Add($"`{action}` - ");
                         }
                         break;
                     case GuildModifyActions.removemember:
@@ -1003,6 +997,129 @@ namespace YNBBot.NestedCommands
             }
         }
 
+    }
+
+    #endregion
+    #region leave
+
+    class LeaveGuildCommand : Command
+    {
+        public override OverriddenMethod CommandHandlerMethod => OverriddenMethod.GuildAsync;
+        public override OverriddenMethod ArgumentParserMethod => OverriddenMethod.GuildSynchronous;
+
+        public LeaveGuildCommand(string identifier) : base(identifier, AccessLevel.Minecraft)
+        {
+            InitializeHelp("Leave a guild", new CommandArgument[0], "A captain can only leave his guild if no members are left, deleting it in the progress");
+        }
+
+        protected override ArgumentParseResult TryParseArgumentsGuildSynchronous(GuildCommandContext context)
+        {
+            return ArgumentParseResult.DefaultNoArguments;
+        }
+
+        protected override async Task HandleCommandGuildAsync(GuildCommandContext context)
+        {
+            bool sendmessage = true;
+            bool error = false;
+            string message = string.Empty;
+            if (MinecraftGuildModel.TryGetGuildOfUser(context.User.Id, out MinecraftGuild targetGuild, true))
+            {
+                if (targetGuild.MemberIds.Contains(context.User.Id))
+                {
+                    await MinecraftGuildModel.MemberLeaveGuildAsync(targetGuild, context.GuildUser);
+                    message = "Success!";
+                }
+                else if (targetGuild.MemberIds.Count == 0)
+                {
+                    await MinecraftGuildModel.DeleteGuildAsync(targetGuild);
+                    message = "Guild Deleted!";
+                    if (context.Channel.Id == targetGuild.ChannelId)
+                    {
+                        sendmessage = false;
+                    }
+                }
+                else
+                {
+                    error = true;
+                    message = "A captain can only leave a guild when no members are in it anymore. Pass the captain status or kick all members before attempting again";
+                }
+            }
+            else
+            {
+                error = true;
+                message = "You are not in a guild!";
+            }
+
+            if (sendmessage)
+            {
+                await context.Channel.SendEmbedAsync(message, error);
+            }
+        }
+    }
+
+    #endregion
+    #region passcaptain
+
+    class PassCaptainRightsCommand : Command
+    {
+        public override OverriddenMethod CommandHandlerMethod => OverriddenMethod.GuildAsync;
+        public override OverriddenMethod ArgumentParserMethod => OverriddenMethod.GuildSynchronous;
+
+        private MinecraftGuild TargetGuild;
+        private SocketGuildUser NewCaptain;
+
+        public PassCaptainRightsCommand(string identifier) : base(identifier, AccessLevel.Minecraft)
+        {
+            CommandArgument[] arguments = new CommandArgument[]
+            {
+                new CommandArgument("Member", "The member you want to pass your captain position to")
+            };
+            InitializeHelp("Pass your captain position to another user as a captain", arguments);
+        }
+
+        protected override ArgumentParseResult TryParseArgumentsGuildSynchronous(GuildCommandContext context)
+        {
+            bool ownsGuild = false;
+            if (MinecraftGuildModel.TryGetGuildOfUser(context.User.Id, out TargetGuild))
+            {
+                ownsGuild = TargetGuild.CaptainId == context.User.Id;
+            }
+
+            if (!ownsGuild)
+            {
+                return new ArgumentParseResult("You are not a captain of a guild!");
+            }
+
+            if (ArgumentParsingHelper.TryParseGuildUser(context, context.Args.First, out NewCaptain))
+            {
+                if (NewCaptain.Id == context.User.Id)
+                {
+                    return new ArgumentParseResult(Arguments[0], "Can not pass captain rights to yourself!");
+                }
+                else if (!TargetGuild.MemberIds.Contains(NewCaptain.Id))
+                {
+                    return new ArgumentParseResult(Arguments[0], "Can not pass captain rights to a user not in your guild!");
+                }
+            }
+            else
+            {
+                return new ArgumentParseResult(Arguments[0], "Could not parse to a valid user!");
+            }
+
+            return ArgumentParseResult.SuccessfullParse;
+        }
+
+        protected override async Task HandleCommandGuildAsync(GuildCommandContext context)
+        {
+            if (await MinecraftGuildModel.SetGuildCaptain(TargetGuild, NewCaptain, context.GuildUser))
+            {
+                await context.Channel.SendEmbedAsync($"{context.GuildUser.Mention} passed on captain rights to {NewCaptain.Mention}!");
+            }
+            else
+            {
+                await context.Channel.SendEmbedAsync("Internal error passing captain rights", true);
+            }
+        }
     }
 
     #endregion
