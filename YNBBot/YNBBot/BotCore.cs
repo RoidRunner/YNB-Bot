@@ -72,9 +72,10 @@ namespace YNBBot
                     LogLevel = LogSeverity.Info
                 });
 
-                InitTextCommands();
                 InitReactionsCommands();
 
+                Var.client.MessageReceived += CommandHandler.HandleMessage;
+                Var.client.MessageReceived += PingSpamDefenceService.HandleMessage;
                 Var.client.UserJoined += HandleUserJoined;
                 Var.client.UserLeft += HandleUserLeft;
                 Var.client.Log += Logger;
@@ -140,7 +141,7 @@ namespace YNBBot
 
             if (old_version != null && new_version != null)
             {
-                if (!old_version.Topic.Equals(new_version.Topic))
+                if (old_version.Topic != new_version.Topic)
                 {
                     await HandleTopicUpdated(new_version);
                 }
@@ -222,14 +223,6 @@ namespace YNBBot
             Console.ForegroundColor = ConsoleColor.White;
 
             return Task.CompletedTask;
-        }
-
-        /// <summary>
-        /// Initiates and registers commands
-        /// </summary>
-        private void InitTextCommands()
-        {
-            Var.client.MessageReceived += CommandHandler.HandleMessage;
         }
 
         private static void InitReactionsCommands()

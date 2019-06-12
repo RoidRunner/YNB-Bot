@@ -38,6 +38,10 @@ namespace YNBBot
         /// </summary>
         public static ulong BotDevRole = 0;
         /// <summary>
+        /// The ID of the mute role (assigned to users when the EM threshholds have been triggered)
+        /// </summary>
+        public static ulong MuteRole = 0;
+        /// <summary>
         /// The Formatting string for the Welcoming Message. {0} is replaced with the new users mention.
         /// </summary>
         public static string welcomingMessage = "Hi {0}";
@@ -71,6 +75,7 @@ namespace YNBBot
         private const string JSON_MODERATORROLE = "Adminrole";
         private const string JSON_BOTDEVROLE = "BotDevRole";
         private const string JSON_MINECRAFTBRANCHROLE = "MinecraftBranchRole";
+        private const string JSON_MUTEROLE = "MuteRole";
         private const string JSON_PREFIX = "Prefix";
         private const string JSON_CHANNELINFOS = "ChannelInfos";
 
@@ -110,6 +115,7 @@ namespace YNBBot
                     json.TryGetField(JSON_MODERATORROLE, out AdminRole);
                     json.TryGetField(JSON_BOTDEVROLE, out BotDevRole);
                     json.TryGetField(JSON_MINECRAFTBRANCHROLE, out MinecraftBranchRole);
+                    json.TryGetField(JSON_MUTEROLE, out MuteRole);
                     json.TryGetField(JSON_PREFIX, out CommandHandler.Prefix, CommandHandler.Prefix);
                     if (json.TryGetField(JSON_CHANNELINFOS, out JSONContainer guildChannelInfoContainer))
                     {
@@ -144,6 +150,7 @@ namespace YNBBot
             json.TryAddField(JSON_MODERATORROLE, AdminRole);
             json.TryAddField(JSON_BOTDEVROLE, BotDevRole);
             json.TryAddField(JSON_MINECRAFTBRANCHROLE, MinecraftBranchRole);
+            json.TryAddField(JSON_MUTEROLE, MuteRole);
             json.TryAddField(JSON_PREFIX, CommandHandler.Prefix);
             json.TryAddField(JSON_CHANNELINFOS, GuildChannelHelper.ToJSON());
 

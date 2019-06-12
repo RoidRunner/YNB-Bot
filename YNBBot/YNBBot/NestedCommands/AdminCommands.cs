@@ -36,12 +36,14 @@ namespace YNBBot.NestedCommands
             SocketRole adminRole = null;
             SocketRole botNotifications = null;
             SocketRole minecraftBranch = null;
+            SocketRole mute = null;
 
             if (GuildCommandContext.TryConvert(context, out GuildCommandContext guildContext))
             {
                 adminRole = guildContext.Guild.GetRole(SettingsModel.AdminRole);
                 botNotifications = guildContext.Guild.GetRole(SettingsModel.BotDevRole);
                 minecraftBranch = guildContext.Guild.GetRole(SettingsModel.MinecraftBranchRole);
+                mute = guildContext.Guild.GetRole(SettingsModel.MuteRole);
             }
 
             EmbedBuilder embed = new EmbedBuilder()
@@ -72,7 +74,8 @@ namespace YNBBot.NestedCommands
 
             embed.AddField("Roles", $"Admin Role: { (adminRole == null ? Macros.InlineCodeBlock(SettingsModel.AdminRole) : adminRole.Mention) }\n" +
                 $"Bot Notifications Role: { (botNotifications == null ? Macros.InlineCodeBlock(SettingsModel.BotDevRole) : botNotifications.Mention) }\n" +
-                $"Minecraft Branch Role: {(minecraftBranch == null ? Macros.InlineCodeBlock(SettingsModel.MinecraftBranchRole) : minecraftBranch.Mention)}");
+                $"Minecraft Branch Role: {(minecraftBranch == null ? Macros.InlineCodeBlock(SettingsModel.MinecraftBranchRole) : minecraftBranch.Mention)}\n" +
+                $"Mute Role: {(mute == null ? Macros.InlineCodeBlock(SettingsModel.MuteRole) : mute.Mention)}");
             await context.Channel.SendEmbedAsync(embed);
         }
     }
@@ -135,6 +138,9 @@ namespace YNBBot.NestedCommands
                     case SettingRoles.minecraftbranch:
                         roleId = SettingsModel.MinecraftBranchRole;
                         break;
+                    case SettingRoles.mute:
+                        roleId = SettingsModel.MuteRole;
+                        break;
                 }
 
                 SocketRole role = context.Guild.GetRole(roleId);
@@ -154,6 +160,9 @@ namespace YNBBot.NestedCommands
                     case SettingRoles.minecraftbranch:
                         SettingsModel.MinecraftBranchRole = Role.Id;
                         break;
+                    case SettingRoles.mute:
+                        SettingsModel.MuteRole = Role.Id;
+                        break;
                 }
                 await SettingsModel.SaveSettings();
 
@@ -165,7 +174,8 @@ namespace YNBBot.NestedCommands
         {
             admin,
             botnotifications,
-            minecraftbranch
+            minecraftbranch,
+            mute
         }
     }
 
