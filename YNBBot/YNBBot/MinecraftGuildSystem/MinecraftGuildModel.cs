@@ -29,7 +29,7 @@ namespace YNBBot.MinecraftGuildSystem
         /// <summary>
         /// Min amount of members required to found a guild
         /// </summary>
-        public const int MIN_GUILDFOUNDINGMEMBERS = 1;
+        public const int MIN_GUILDFOUNDINGMEMBERS = 2;
         private const int GUILD_ROLE_POSITION = 2;
 
         private static readonly OverwritePermissions GuildRoleChannelPerms = new OverwritePermissions(addReactions: PermValue.Allow, viewChannel: PermValue.Allow, sendMessages: PermValue.Allow, readMessageHistory: PermValue.Allow);
@@ -342,7 +342,7 @@ namespace YNBBot.MinecraftGuildSystem
             }
             catch (Exception e)
             {
-                await GuildChannelHelper.SendExceptionNotification(e, $"Error joining player {newMember?.Mention} to guild {guild.Name}. Hint: {errorhint}");
+                await GuildChannelHelper.SendExceptionNotification(e, $"Error joining player {newMember?.Mention} to guild {guild?.Name}. Hint: {errorhint}");
                 return false;
             }
         }

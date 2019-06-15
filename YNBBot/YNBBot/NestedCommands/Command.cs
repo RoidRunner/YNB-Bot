@@ -79,6 +79,7 @@ namespace YNBBot.NestedCommands
 
         public enum OverriddenMethod
         {
+            None,
             BasicAsync,
             GuildAsync,
             BasicSynchronous,
@@ -253,6 +254,8 @@ namespace YNBBot.NestedCommands
 
                 switch (ArgumentParserMethod)
                 {
+                    case OverriddenMethod.None:
+                        return ArgumentParseResult.DefaultNoArguments;
                     case OverriddenMethod.BasicAsync:
                         return await TryParseArgumentsAsync(context);
                     case OverriddenMethod.GuildAsync:

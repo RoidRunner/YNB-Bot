@@ -7,6 +7,8 @@ using System.Threading.Tasks;
 
 namespace YNBBot.NestedCommands
 {
+    #region userinfo
+
     class UserInfoCommand : Command
     {
         public override OverriddenMethod CommandHandlerMethod => OverriddenMethod.BasicAsync;
@@ -16,8 +18,10 @@ namespace YNBBot.NestedCommands
 
         public UserInfoCommand(string identifier) : base(identifier)
         {
-            List<CommandArgument> arguments = new List<CommandArgument>();
-            arguments.Add(new CommandArgument("User", ArgumentParsingHelper.GENERIC_PARSED_USER, true));
+            List<CommandArgument> arguments = new List<CommandArgument>
+            {
+                new CommandArgument("User", ArgumentParsing.GENERIC_PARSED_USER, true)
+            };
             InitializeHelp("Provides a collection of info for a given user", arguments.ToArray());
         }
 
@@ -31,14 +35,14 @@ namespace YNBBot.NestedCommands
             {
                 if (GuildCommandContext.TryConvert(context, out GuildCommandContext guildContext))
                 {
-                    if (ArgumentParsingHelper.TryParseGuildUser(guildContext, context.Args.First, out SocketGuildUser guildUser))
+                    if (ArgumentParsing.TryParseGuildUser(guildContext, context.Args.First, out SocketGuildUser guildUser))
                     {
                         User = guildUser;
                     }
                 }
                 else
                 {
-                    User = await ArgumentParsingHelper.ParseUser(context, context.Args.First);
+                    User = await ArgumentParsing.ParseUser(context, context.Args.First);
                 }
             }
 
@@ -97,6 +101,9 @@ namespace YNBBot.NestedCommands
         }
     }
 
+    #endregion
+    #region avatar
+
     class AvatarCommand : Command
     {
         public override OverriddenMethod CommandHandlerMethod => OverriddenMethod.BasicAsync;
@@ -107,7 +114,7 @@ namespace YNBBot.NestedCommands
         public AvatarCommand(string identifier) : base(identifier)
         {
             List<CommandArgument> arguments = new List<CommandArgument>();
-            arguments.Add(new CommandArgument("User", ArgumentParsingHelper.GENERIC_PARSED_USER, true));
+            arguments.Add(new CommandArgument("User", ArgumentParsing.GENERIC_PARSED_USER, true));
             InitializeHelp("Provides a users profile picture", arguments.ToArray());
         }
 
@@ -121,14 +128,14 @@ namespace YNBBot.NestedCommands
             {
                 if (GuildCommandContext.TryConvert(context, out GuildCommandContext guildContext))
                 {
-                    if (ArgumentParsingHelper.TryParseGuildUser(guildContext, context.Args.First, out SocketGuildUser guildUser))
+                    if (ArgumentParsing.TryParseGuildUser(guildContext, context.Args.First, out SocketGuildUser guildUser))
                     {
                         User = guildUser;
                     }
                 }
                 else
                 {
-                    User = await ArgumentParsingHelper.ParseUser(context, context.Args.First);
+                    User = await ArgumentParsing.ParseUser(context, context.Args.First);
                 }
             }
 
@@ -169,4 +176,43 @@ namespace YNBBot.NestedCommands
             await context.Channel.SendEmbedAsync(embed);
         }
     }
+
+    #endregion
+    #region about
+
+    class AboutCommand : Command
+    {
+        public override OverriddenMethod CommandHandlerMethod => OverriddenMethod.BasicAsync;
+
+        public override OverriddenMethod ArgumentParserMethod => OverriddenMethod.None;
+
+        public AboutCommand(string identifier) : base(identifier)
+        {
+            InitializeHelp("Lists information about the bot", new CommandArgument[0]);
+        }
+
+        private static readonly EmbedBuilder AboutEmbed;
+
+        static AboutCommand()
+        {
+            AboutEmbed = new EmbedBuilder()
+            {
+                Color = Var.BOTCOLOR,
+                Title = "You Need Bot"
+            };
+            AboutEmbed.AddField("Version", "v" + Var.VERSION.ToString());
+            AboutEmbed.AddField("Credits", "Programming: <@117260771200598019>");
+        }
+
+        protected override Task HandleCommandAsync(CommandContext context)
+        {
+            if (string.IsNullOrEmpty(AboutEmbed.ThumbnailUrl))
+            {
+                AboutEmbed.ThumbnailUrl = Var.client.CurrentUser.GetAvatarUrl();
+            }
+            return context.Channel.SendEmbedAsync(AboutEmbed);
+        }
+    }
+
+    #endregion
 }

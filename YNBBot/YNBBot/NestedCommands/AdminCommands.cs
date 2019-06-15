@@ -18,7 +18,7 @@ namespace YNBBot.NestedCommands
 
         public DetectConfigCommand(string identifier) : base(identifier, AccessLevel.Admin)
         {
-            InitializeHelp("Lists current configuration", new CommandArgument[0]);
+            InitializeHelp("Lists current configuration", new CommandArgument[0], helpLink: "https://docs.google.com/document/d/1VFWKTcdHxARXMvaSZCceFVCXZVqWpMQyBT8EZrLRoRA/edit#heading=h.xgjci6e0iq7a");
         }
 
         protected override ArgumentParseResult TryParseArgumentsSynchronous(CommandContext context)
@@ -95,9 +95,9 @@ namespace YNBBot.NestedCommands
         {
             List<CommandArgument> arguments = new List<CommandArgument>();
             arguments.Add(new CommandArgument("RoleIdentifier", $"String identifier for the role you want to get or set. Available are: `{string.Join(", ", Enum.GetNames(typeof(SettingRoles)))}`"));
-            arguments.Add(new CommandArgument("Role", ArgumentParsingHelper.GENERIC_PARSED_ROLE, true));
+            arguments.Add(new CommandArgument("Role", ArgumentParsing.GENERIC_PARSED_ROLE, true));
             InitializeHelp("Gets or sets roles for AccessLevel determination or notifications",
-                arguments.ToArray(), remarks: "If the argument `(Role)` is not provided, the current setting is returned instead of setting a new one");
+                arguments.ToArray(), remarks: "If the argument `(Role)` is not provided, the current setting is returned instead of setting a new one", "https://docs.google.com/document/d/1VFWKTcdHxARXMvaSZCceFVCXZVqWpMQyBT8EZrLRoRA/edit#heading=h.1l3vldkfbdlh");
         }
 
         protected override ArgumentParseResult TryParseArgumentsGuildSynchronous(GuildCommandContext context)
@@ -109,7 +109,7 @@ namespace YNBBot.NestedCommands
 
             if (context.Args.Count == 2)
             {
-                if (!ArgumentParsingHelper.TryParseRole(context, context.Args[1], out Role))
+                if (!ArgumentParsing.TryParseRole(context, context.Args[1], out Role))
                 {
                     return new ArgumentParseResult(Arguments[1], $"Could not parse to a role in this guild");
                 }
@@ -193,8 +193,8 @@ namespace YNBBot.NestedCommands
         {
             CommandArgument[] arguments = new CommandArgument[2];
             arguments[0] = new CommandArgument("OutputChannelType", $"The type of output channel you want to set. Available are: `{Macros.GetEnumNames<OutputChannelType>()}`");
-            arguments[1] = new CommandArgument("Channel", ArgumentParsingHelper.GENERIC_PARSED_CHANNEL, true);
-            InitializeHelp("Gets or sets output channels", arguments, "If no channel is provided will return current setting instead");
+            arguments[1] = new CommandArgument("Channel", ArgumentParsing.GENERIC_PARSED_CHANNEL, true);
+            InitializeHelp("Gets or sets output channels", arguments, "If no channel is provided will return current setting instead", "https://docs.google.com/document/d/1VFWKTcdHxARXMvaSZCceFVCXZVqWpMQyBT8EZrLRoRA/edit#heading=h.85wziman3nql");
         }
 
         private OutputChannelType channelType;
@@ -211,7 +211,7 @@ namespace YNBBot.NestedCommands
 
             if (context.Args.Count == 2)
             {
-                if (!ArgumentParsingHelper.TryParseGuildChannel(context, context.Args[1], out channel))
+                if (!ArgumentParsing.TryParseGuildChannel(context, context.Args[1], out channel))
                 {
                     return new ArgumentParseResult(Arguments[1], $"Could not parse to a channel in this guild");
                 }
@@ -306,14 +306,14 @@ namespace YNBBot.NestedCommands
         public EditChannelInfoCommand(string identifier) : base(identifier, AccessLevel.Admin)
         {
             CommandArgument[] arguments = new CommandArgument[2];
-            arguments[0] = new CommandArgument("Channel", ArgumentParsingHelper.GENERIC_PARSED_CHANNEL);
+            arguments[0] = new CommandArgument("Channel", ArgumentParsing.GENERIC_PARSED_CHANNEL);
             arguments[1] = new CommandArgument("Configuration",
                 $"Configuration arguments, formatted as `<ConfigIdentifier>:<boolean value>`. Available are:\n" +
                 $"`{ConfigIdentifier.allowcommands}` - Wether bot commands cna be used in this channel\n" +
                 $"`{ConfigIdentifier.allowshitposting}` - Wether shitposting commands are usable in this channel\n\n" +
                 $"Example Arguments: `#somechannel {ConfigIdentifier.allowcommands}:true {ConfigIdentifier.allowshitposting}:false` enables commands but disables shitposting in this channel.",
                 true, true);
-            InitializeHelp("Retrieve or update channel specific settings", arguments, "If no Configuration arguments are provided the current setting is printed out.");
+            InitializeHelp("Retrieve or update channel specific settings", arguments, "If no Configuration arguments are provided the current setting is printed out.", "https://docs.google.com/document/d/1VFWKTcdHxARXMvaSZCceFVCXZVqWpMQyBT8EZrLRoRA/edit#heading=h.9qit39gxe2bs");
         }
 
         private SocketGuildChannel Channel;
@@ -321,7 +321,7 @@ namespace YNBBot.NestedCommands
 
         protected override ArgumentParseResult TryParseArgumentsGuildSynchronous(GuildCommandContext context)
         {
-            if (!ArgumentParsingHelper.TryParseGuildChannel(context, context.Args[0], out Channel))
+            if (!ArgumentParsing.TryParseGuildChannel(context, context.Args[0], out Channel))
             {
                 return new ArgumentParseResult(Arguments[0], "Failed to parse to a guild channel!");
             }
@@ -425,7 +425,7 @@ namespace YNBBot.NestedCommands
             List<CommandArgument> arguments = new List<CommandArgument>(2);
             arguments.Add(new CommandArgument("TemplateIdentifier", $"String identifier for the template you want to get or set. Available are: `{string.Join(", ", Enum.GetNames(typeof(Templates)))}`"));
             arguments.Add(new CommandArgument("Text", "These arguments combined represent the new text for the template", true, true));
-            InitializeHelp("Gets or sets message templates for welcoming, etc.", arguments.ToArray(), "If the argument `([Text])` is not provided, the current template is returned instead of setting a new one");
+            InitializeHelp("Gets or sets message templates for welcoming, etc.", arguments.ToArray(), "If the argument `([Text])` is not provided, the current template is returned instead of setting a new one", "https://docs.google.com/document/d/1VFWKTcdHxARXMvaSZCceFVCXZVqWpMQyBT8EZrLRoRA/edit#heading=h.j9fbgsio3olf");
         }
 
         protected override ArgumentParseResult TryParseArgumentsSynchronous(CommandContext context)
@@ -504,7 +504,7 @@ namespace YNBBot.NestedCommands
         {
             List<CommandArgument> arguments = new List<CommandArgument>();
             arguments.Add(new CommandArgument("PrefixCharacter", "A character to set as the new command prefix"));
-            InitializeHelp("Sets the command prefix the bot should use", arguments.ToArray());
+            InitializeHelp("Sets the command prefix the bot should use", arguments.ToArray(), helpLink: "https://docs.google.com/document/d/1VFWKTcdHxARXMvaSZCceFVCXZVqWpMQyBT8EZrLRoRA/edit#heading=h.kw660g9sdfi5");
         }
 
         protected override ArgumentParseResult TryParseArgumentsSynchronous(CommandContext context)
@@ -537,7 +537,7 @@ namespace YNBBot.NestedCommands
             List<CommandArgument> arguments = new List<CommandArgument>(2);
             arguments.Add(new CommandArgument("MessageCategory", $"Specifies the logging message category that you want to get or set. Available are: `{Macros.GetEnumNames<DebugCategories>()}`"));
             arguments.Add(new CommandArgument("Enabled", "Specify the new setting for the given MessageType. Use `true`, `false`, `enable` or `disable`", true));
-            InitializeHelp("Toggles logging for specific message categories", arguments.ToArray(), $"If the argument `{arguments[1]}` is not provided, will display the current setting instead");
+            InitializeHelp("Toggles logging for specific message categories", arguments.ToArray(), $"If the argument `{arguments[1]}` is not provided, will display the current setting instead", "https://docs.google.com/document/d/1VFWKTcdHxARXMvaSZCceFVCXZVqWpMQyBT8EZrLRoRA/edit#heading=h.l2sb9l9seq78");
         }
 
         protected override ArgumentParseResult TryParseArgumentsSynchronous(CommandContext context)
@@ -628,7 +628,7 @@ namespace YNBBot.NestedCommands
 
         public RestartCommand(string identifier) : base(identifier, AccessLevel.Admin)
         {
-            InitializeHelp("Restarts the bot application", new CommandArgument[0]);
+            InitializeHelp("Restarts the bot application", new CommandArgument[0], helpLink: "https://docs.google.com/document/d/1VFWKTcdHxARXMvaSZCceFVCXZVqWpMQyBT8EZrLRoRA/edit#heading=h.d373hflw2kml");
         }
 
         protected override ArgumentParseResult TryParseArgumentsSynchronous(CommandContext context)

@@ -22,8 +22,8 @@ namespace YNBBot.NestedCommands
             CommandArgument[] arguments = new CommandArgument[3];
             arguments[0] = new CommandArgument("Name", "The name of the guild. Will be the name of the channel and role created. Also applies to ingame naming");
             arguments[1] = new CommandArgument("Color", $"The color of the guild. Will be the color of the role created. Also applies to ingame color. Available are `{string.Join(", ", MinecraftGuildSystem.MinecraftGuildModel.AvailableColors)}`");
-            arguments[2] = new CommandArgument("Members", "Minimum of two members, selected either by discord snowflake id or mention", multiple: true);
-            InitializeHelp("Requests creation of a new minecraft guild", arguments, $"{arguments[0]} and {arguments[1]} have to be free to take, all invited members ({arguments[2]}) have to accept the invitation, and an admin has to confirm the creation of the new guild");
+            arguments[2] = new CommandArgument("Members", "Minimum of two members, selected either by discord snowflake id, mention or Username#Discriminator", multiple: true);
+            InitializeHelp("Requests creation of a new minecraft guild", arguments, $"{arguments[0]} and {arguments[1]} have to be free to take, all invited members ({arguments[2]}) have to accept the invitation, and an admin has to confirm the creation of the new guild", "https://docs.google.com/document/d/1IdTQoq2l9YhF5Tlj5lBYz5Zcz56NQEgL3Hg5Dg2RyWs/edit#heading=h.h41js19sf4v4");
         }
 
         string GuildName;
@@ -92,7 +92,7 @@ namespace YNBBot.NestedCommands
 
             for (int i = 0; i < context.Args.Count; i++)
             {
-                if (ArgumentParsingHelper.TryParseGuildUser(context, context.Args[i], out SocketGuildUser member, allowSelf: false))
+                if (ArgumentParsing.TryParseGuildUser(context, context.Args[i], out SocketGuildUser member, allowSelf: false))
                 {
                     if (member.Id == context.User.Id)
                     {
@@ -169,7 +169,7 @@ namespace YNBBot.NestedCommands
                 $"`{GuildModifyActions.removemember}:<Member>` - Manually removes a member from the guild" +
                 $"`{GuildModifyActions.timestamp}:<Timestamp>` - Sets the founding timestamp for this guild. Format is a variant of ISO 8601: `YYYY-MM-DD hh:mm:ssZ`, example: `2019-06-11 17:55:35Z`"
                 //$"`{GuildModifyActions}` - " + 
-                );
+                , "https://docs.google.com/document/d/1VFWKTcdHxARXMvaSZCceFVCXZVqWpMQyBT8EZrLRoRA/edit#heading=h.z9qkxx7wamoo");
         }
 
         private enum GuildModifyActions
@@ -368,7 +368,7 @@ namespace YNBBot.NestedCommands
                         i = Actions.Count;
                         break;
                     case GuildModifyActions.setchannel:
-                        if (ArgumentParsingHelper.TryParseGuildTextChannel(context, action.Argument, out SocketTextChannel newGuildChannel))
+                        if (ArgumentParsing.TryParseGuildTextChannel(context, action.Argument, out SocketTextChannel newGuildChannel))
                         {
                             await newGuildChannel.ModifyAsync(GuildChannelProperties =>
                             {
@@ -387,7 +387,7 @@ namespace YNBBot.NestedCommands
                     case GuildModifyActions.setrole:
                         if (hasGuildContext)
                         {
-                            if (ArgumentParsingHelper.TryParseRole(guildContext, action.Argument, out SocketRole newGuildRole))
+                            if (ArgumentParsing.TryParseRole(guildContext, action.Argument, out SocketRole newGuildRole))
                             {
                                 await newGuildRole.ModifyAsync(RoleProperties =>
                                 {
@@ -442,7 +442,7 @@ namespace YNBBot.NestedCommands
                     case GuildModifyActions.setcaptain:
                         if (hasGuildContext)
                         {
-                            if (ArgumentParsingHelper.TryParseGuildUser(guildContext, action.Argument, out SocketGuildUser newCaptain))
+                            if (ArgumentParsing.TryParseGuildUser(guildContext, action.Argument, out SocketGuildUser newCaptain))
                             {
                                 if (TargetGuild.CaptainId == newCaptain.Id)
                                 {
@@ -479,7 +479,7 @@ namespace YNBBot.NestedCommands
                     case GuildModifyActions.addmember:
                         if (hasGuildContext)
                         {
-                            if (ArgumentParsingHelper.TryParseGuildUser(guildContext, action.Argument, out SocketGuildUser newMember))
+                            if (ArgumentParsing.TryParseGuildUser(guildContext, action.Argument, out SocketGuildUser newMember))
                             {
                                 if (TargetGuild.MemberIds.Contains(newMember.Id))
                                 {
@@ -519,7 +519,7 @@ namespace YNBBot.NestedCommands
                     case GuildModifyActions.removemember:
                         if (hasGuildContext)
                         {
-                            if (ArgumentParsingHelper.TryParseGuildUser(guildContext, action.Argument, out SocketGuildUser leavingMember))
+                            if (ArgumentParsing.TryParseGuildUser(guildContext, action.Argument, out SocketGuildUser leavingMember))
                             {
                                 if (TargetGuild.CaptainId == leavingMember.Id)
                                 {
@@ -629,7 +629,7 @@ namespace YNBBot.NestedCommands
             {
                 new CommandArgument("Name", "Name of the guild to get info on", true, true)
             };
-            InitializeHelp("Shows public info on all or one individual guild", arguments, "If no Name is supplied, will display a list of all guilds");
+            InitializeHelp("Shows public info on all or one individual guild", arguments, "If no Name is supplied, will display a list of all guilds", "https://docs.google.com/document/d/1IdTQoq2l9YhF5Tlj5lBYz5Zcz56NQEgL3Hg5Dg2RyWs/edit#heading=h.bz5kjsmanwmo");
         }
 
         private MinecraftGuild TargetGuild;
@@ -798,7 +798,7 @@ namespace YNBBot.NestedCommands
             {
                 new CommandArgument("Member", "Users you want to invite to join your guild", multiple:true)
             };
-            InitializeHelp("Invite members to join your guild as a guild captain", arguments, "Only users who are not already in a guild and are part of the minecraft branch can be invited");
+            InitializeHelp("Invite members to join your guild as a guild captain", arguments, "Only users who are not already in a guild and are part of the minecraft branch can be invited", "https://docs.google.com/document/d/1IdTQoq2l9YhF5Tlj5lBYz5Zcz56NQEgL3Hg5Dg2RyWs/edit#heading=h.od6ln2j4yudz");
         }
 
         private MinecraftGuild TargetGuild;
@@ -822,7 +822,7 @@ namespace YNBBot.NestedCommands
             parseErrors.Clear();
             for (; context.Args.Count > 0; context.Args.Index++)
             {
-                if (ArgumentParsingHelper.TryParseGuildUser(context, context.Args.First, out SocketGuildUser newMember, allowSelf: false))
+                if (ArgumentParsing.TryParseGuildUser(context, context.Args.First, out SocketGuildUser newMember, allowSelf: false))
                 {
                     if (MinecraftGuildModel.TryGetGuildOfUser(newMember.Id, out MinecraftGuild existingGuild, true))
                     {
@@ -868,7 +868,7 @@ namespace YNBBot.NestedCommands
                                 MessageProperties.Embed = failure.Build();
                             });
                         }
-                        else
+                        else if (TargetGuild != null)
                         {
                             await MinecraftGuildModel.MemberJoinGuildAsync(TargetGuild, newMember);
                             if (GuildChannelHelper.TryGetChannel(GuildChannelHelper.AdminNotificationChannelId, out SocketTextChannel notificationsChannel))
@@ -912,7 +912,7 @@ namespace YNBBot.NestedCommands
             {
                 new CommandArgument("Member", "All members you want to have kicked from the guild. They can rejoin with a new invitation.", multiple:true)
             };
-            InitializeHelp("Kick members from your guild as a captain", arguments);
+            InitializeHelp("Kick members from your guild as a captain", arguments, helpLink: "https://docs.google.com/document/d/1IdTQoq2l9YhF5Tlj5lBYz5Zcz56NQEgL3Hg5Dg2RyWs/edit#heading=h.lqccs9cye6i3");
         }
 
         private MinecraftGuild TargetGuild;
@@ -936,7 +936,7 @@ namespace YNBBot.NestedCommands
             parseErrors.Clear();
             for (; context.Args.Count > 0; context.Args.Index++)
             {
-                if (ArgumentParsingHelper.TryParseGuildUser(context, context.Args.First, out SocketGuildUser kickedMember, allowSelf: false))
+                if (ArgumentParsing.TryParseGuildUser(context, context.Args.First, out SocketGuildUser kickedMember, allowSelf: false))
                 {
                     if (kickedMember.Id == context.User.Id)
                     {
@@ -1013,7 +1013,7 @@ namespace YNBBot.NestedCommands
 
         public LeaveGuildCommand(string identifier) : base(identifier, AccessLevel.Minecraft)
         {
-            InitializeHelp("Leave a guild", new CommandArgument[0], "A captain can only leave his guild if no members are left, deleting it in the progress");
+            InitializeHelp("Leave a guild", new CommandArgument[0], "A captain can only leave their guild if no members are left, deleting it in the progress", "https://docs.google.com/document/d/1IdTQoq2l9YhF5Tlj5lBYz5Zcz56NQEgL3Hg5Dg2RyWs/edit#heading=h.94kph266h8s2");
         }
 
         protected override ArgumentParseResult TryParseArgumentsGuildSynchronous(GuildCommandContext context)
@@ -1078,7 +1078,7 @@ namespace YNBBot.NestedCommands
             {
                 new CommandArgument("Member", "The member you want to pass your captain position to")
             };
-            InitializeHelp("Pass your captain position to another user as a captain", arguments);
+            InitializeHelp("Pass your captain position to another user as a captain", arguments, helpLink: "https://docs.google.com/document/d/1IdTQoq2l9YhF5Tlj5lBYz5Zcz56NQEgL3Hg5Dg2RyWs/edit#heading=h.z9qkxx7wamoo");
         }
 
         protected override ArgumentParseResult TryParseArgumentsGuildSynchronous(GuildCommandContext context)
@@ -1094,7 +1094,7 @@ namespace YNBBot.NestedCommands
                 return new ArgumentParseResult("You are not a captain of a guild!");
             }
 
-            if (ArgumentParsingHelper.TryParseGuildUser(context, context.Args.First, out NewCaptain))
+            if (ArgumentParsing.TryParseGuildUser(context, context.Args.First, out NewCaptain))
             {
                 if (NewCaptain.Id == context.User.Id)
                 {

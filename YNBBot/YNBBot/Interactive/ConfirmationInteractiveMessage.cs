@@ -19,17 +19,14 @@ namespace YNBBot.Interactive
         /// <summary>
         /// Creates a new Message asking for confirmation by the user
         /// </summary>
-        /// <param name="messageContent"></param>
-        /// <param name="title"></param>
-        /// <param name="description"></param>
-        /// <param name="onConfirm"></param>
-        /// <param name="onDeny"></param>
-        /// <returns></returns>
         public static Task<ConfirmationInteractiveMessage> CreateConfirmationMessage(string messageContent, string title, string description, MessageInteractionDelegate onConfirm, MessageInteractionDelegate onDeny)
         {
             return CreateConfirmationMessage(messageContent, title, Var.BOTCOLOR, description, UnicodeEmoteService.Checkmark, UnicodeEmoteService.Cross, onConfirm, onDeny);
         }
 
+        /// <summary>
+        /// Creates a new Message asking for confirmation by the user
+        /// </summary>
         public static async Task<ConfirmationInteractiveMessage> CreateConfirmationMessage(string messageContent, string title, Color color, string description, IEmote confirmEmote, IEmote denyEmote, MessageInteractionDelegate onConfirm, MessageInteractionDelegate onDeny)
         {
             if (GuildChannelHelper.TryGetChannel(GuildChannelHelper.InteractiveMessagesChannelId, out SocketTextChannel channel))

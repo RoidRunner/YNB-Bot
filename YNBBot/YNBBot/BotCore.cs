@@ -13,7 +13,7 @@ using YNBBot.Interactive;
 
 public static class Var
 {
-    internal readonly static Version VERSION = new Version(0, 2);
+    internal readonly static Version VERSION = new Version(0, 3);
     /// <summary>
     /// When put to false will stop the program
     /// </summary>
@@ -51,7 +51,7 @@ namespace YNBBot
         /// <returns></returns>
         public async Task MainAsync()
         {
-            Console.Title = "Ciridium Wing Bot v" + Var.VERSION.ToString();
+            Console.Title = "YNB Bot v" + Var.VERSION.ToString();
             Thread.CurrentThread.CurrentCulture = Var.Culture;
 
             bool filesExist = false;

@@ -91,11 +91,11 @@ namespace YNBBot.NestedCommands
             BaseFamily.TryAddCommand(new AvatarCommand("avatar"));
             BaseFamily.TryAddCommand(new StopCommand("stop"));
             BaseFamily.TryAddCommand(new RestartCommand("restart"));
+            BaseFamily.TryAddCommand(new AboutCommand("about"));
             CommandFamily SettingsFamily = new CommandFamily("config", BaseFamily);
-            CommandFamily SettingsChannelFamily = new CommandFamily("channel", SettingsFamily);
-            SettingsChannelFamily.TryAddCommand(new SetOutputChannelCommand("output"));
-            SettingsFamily.TryAddCommand(new EditChannelInfoCommand("channel"));
             SettingsFamily.TryAddCommand(new DetectConfigCommand("detect"));
+            SettingsFamily.TryAddCommand(new EditChannelInfoCommand("channel"));
+            SettingsFamily.TryAddCommand(new SetOutputChannelCommand("output"));
             SettingsFamily.TryAddCommand(new PrefixCommand("prefix"));
             SettingsFamily.TryAddCommand(new SetRoleCommand("role"));
             SettingsFamily.TryAddCommand(new SetTemplateCommand("template"));

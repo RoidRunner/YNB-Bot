@@ -16,7 +16,7 @@ namespace YNBBot.NestedCommands
             List<CommandArgument> arguments = new List<CommandArgument>();
             arguments.Add(new CommandArgument("Command Identifier", "A list of all keywords that identify the command(s) you want the help text for.", true, true));
             InitializeHelp("Provides help for specific commands and lists all available commands.", arguments.ToArray(),
-                remarks: "Lists all available commands if no arguments are provided");
+                remarks: "Lists all available commands if no arguments are provided", "https://docs.google.com/document/d/1IdTQoq2l9YhF5Tlj5lBYz5Zcz56NQEgL3Hg5Dg2RyWs/edit#heading=h.7oz4bpjtg943");
         }
 
         protected override ArgumentParseResult TryParseArgumentsSynchronous(CommandContext context)
@@ -116,6 +116,10 @@ namespace YNBBot.NestedCommands
                 Color = Var.BOTCOLOR,
                 Description = command.Description,
             };
+            if (command.HasLink)
+            {
+                embed.AddField("Documentation", $"[Online Documentation for `{command.PrefixIdentifier}`]({command.Link})");
+            }
             if (command.HasRemarks)
             {
                 embed.AddField("Remarks", command.Remarks);
@@ -155,10 +159,6 @@ namespace YNBBot.NestedCommands
                 executionLocation = "Anywhere";
             }
             embed.AddField("Execution Requirements", $"Required Access Level: `{command.RequireAccessLevel}`\nRequired Execution Location `{executionLocation}`");
-            if (command.HasLink)
-            {
-                embed.AddField("Documentation", $"[Online Documentation for `{command.PrefixIdentifier}`]({command.Link})");
-            }
             await context.Channel.SendEmbedAsync(embed);
         }
     }

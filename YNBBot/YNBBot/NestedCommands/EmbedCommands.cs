@@ -22,14 +22,14 @@ namespace YNBBot.NestedCommands
         public SendEmbedCommand(string identifier) : base(identifier, AccessLevel.Admin)
         {
             CommandArgument[] arguments = new CommandArgument[2];
-            arguments[0] = new CommandArgument("Channel", ArgumentParsingHelper.GENERIC_PARSED_CHANNEL);
+            arguments[0] = new CommandArgument("Channel", ArgumentParsing.GENERIC_PARSED_CHANNEL);
             arguments[1] = new CommandArgument("EmbedJSON", "The embed, formatted as a JSON", multiple: true);
-            InitializeHelp("Sends a fully featured embed to a guild text channel", arguments, "Good tool for creating JSON formatted embeds: [MagicBots](https://discord.club/embedg/)");
+            InitializeHelp("Sends a fully featured embed to a guild text channel", arguments, "Good tool for creating JSON formatted embeds: [MagicBots](https://discord.club/embedg/)", "https://docs.google.com/document/d/1VFWKTcdHxARXMvaSZCceFVCXZVqWpMQyBT8EZrLRoRA/edit#heading=h.mny46gohtu1e");
         }
 
         protected override ArgumentParseResult TryParseArgumentsSynchronous(CommandContext context)
         {
-            if (!ArgumentParsingHelper.TryParseGuildTextChannel(context, context.Args[0], out channel))
+            if (!ArgumentParsing.TryParseGuildTextChannel(context, context.Args[0], out channel))
             {
                 return new ArgumentParseResult(Arguments[0], "Failed to parse to a guild text channel!");
             }
@@ -94,7 +94,7 @@ namespace YNBBot.NestedCommands
 
             CommandArgument[] arguments = new CommandArgument[1];
             arguments[0] = new CommandArgument("EmbedJSON", "The embed, formatted as a JSON", multiple: true);
-            InitializeHelp("Previews an embed in the channel the command is issued from", arguments, "Good tool for creating JSON formatted embeds: [MagicBots](https://discord.club/embedg/)");
+            InitializeHelp("Previews an embed in the channel the command is issued from", arguments, "Good tool for creating JSON formatted embeds: [MagicBots](https://discord.club/embedg/)", "https://docs.google.com/document/d/1VFWKTcdHxARXMvaSZCceFVCXZVqWpMQyBT8EZrLRoRA/edit#heading=h.yzc4ios44r6");
         }
 
         protected override ArgumentParseResult TryParseArgumentsSynchronous(CommandContext context)
@@ -154,7 +154,7 @@ namespace YNBBot.NestedCommands
             arguments[0] = new CommandArgument("MessageLink", "A discord message link to select the source");
             arguments[1] = new CommandArgument("Options", $"Command execution options. Available are:\n`{ExecutionOptions.pretty}` = Include some nice formatting in the embed JSON\n" +
                 $"`{ExecutionOptions.remove}` = Remove the source message after retrieving the embed", true, true);
-            InitializeHelp("Formats a JSON from a given message, including embeds", arguments);
+            InitializeHelp("Formats a JSON from a given message, including embeds", arguments, helpLink: "https://docs.google.com/document/d/1VFWKTcdHxARXMvaSZCceFVCXZVqWpMQyBT8EZrLRoRA/edit#heading=h.au90cahsqtfp");
         }
 
         private SocketGuild guild;
@@ -328,7 +328,7 @@ namespace YNBBot.NestedCommands
             CommandArgument[] arguments = new CommandArgument[2];
             arguments[0] = new CommandArgument("MessageLink", "A discord message link to select the source");
             arguments[1] = new CommandArgument("EmbedJSON", "The embed, formatted as a JSON", multiple: true);
-            InitializeHelp("Edits a message to follow a new embedjson", arguments, "The message author has to be the bot used to modify!");
+            InitializeHelp("Edits a message to follow a new embedjson", arguments, "The message author has to be the bot used to modify!", "https://docs.google.com/document/d/1VFWKTcdHxARXMvaSZCceFVCXZVqWpMQyBT8EZrLRoRA/edit#heading=h.9t1eqpeq952a");
         }
 
         protected override async Task<ArgumentParseResult> TryParseArgumentsAsync(CommandContext context)

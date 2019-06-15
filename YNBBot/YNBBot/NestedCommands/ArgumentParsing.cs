@@ -7,11 +7,14 @@ using Discord.WebSocket;
 
 namespace YNBBot.NestedCommands
 {
-    public static class ArgumentParsingHelper
+    /// <summary>
+    /// Collection of methods useful for parsing string command arguments to discord objects
+    /// </summary>
+    public static class ArgumentParsing
     {
-        public const string GENERIC_PARSED_USER = "A Discord User, specified either by a mention, the Discord Snowflake Id or the keyword \"self\"";
-        public const string GENERIC_PARSED_ROLE = "A Guild Role, specified either by a mention or the Discord Snowflake Id";
-        public const string GENERIC_PARSED_CHANNEL = "A Guild Channel, specified either by a mention, the Discord Snowflake Id or the keyword \"this\"";
+        public const string GENERIC_PARSED_USER = "A Discord User, specified either by a mention, the Discord Snowflake Id, the keyword \"self\" or Username#Discriminator";
+        public const string GENERIC_PARSED_ROLE = "A Guild Role, specified either by a mention, the Discord Snowflake Id or role name";
+        public const string GENERIC_PARSED_CHANNEL = "A Guild Channel, specified either by a mention, the Discord Snowflake Id, the keyword \"this\" or channel name";
 
         /// <summary>
         /// Parses a user given a commandcontext. Because it works without guild context it needs to be asynchronous
@@ -61,7 +64,7 @@ namespace YNBBot.NestedCommands
         /// <param name="allowSelf">Wether pointing to self is allowed</param>
         /// <param name="allowId">Wether the ulong id is enabled for parsing user</param>
         /// <returns>True if parsing was successful</returns>
-        public static bool TryParseGuildUser(GuildCommandContext context, string argument, out SocketGuildUser result, bool allowMention = true, bool allowSelf = true, bool allowId = true)
+        public static bool TryParseGuildUser(GuildCommandContext context, string argument, out SocketGuildUser result, bool allowMention = true, bool allowSelf = true, bool allowId = true, bool allowName = true)
         {
             result = null;
             if (allowSelf && argument.Equals("self"))
@@ -90,6 +93,17 @@ namespace YNBBot.NestedCommands
                 result = context.Guild.GetUser(userId);
                 return result != null;
             }
+            else if (allowName)
+            {
+                foreach (SocketGuildUser user in context.Guild.Users)
+                {
+                    if (user.ToString() == argument)
+                    {
+                        result = user;
+                        return true;
+                    }
+                }
+            }
 
             return false;
         }
@@ -103,7 +117,7 @@ namespace YNBBot.NestedCommands
         /// <param name="allowMention">Wether mentioning is enabled for parsing role</param>
         /// <param name="allowId">Wether the ulong id is enabled for parsing role</param>
         /// <returns>True if parsing was successful</returns>
-        public static bool TryParseRole(GuildCommandContext context, string argument, out SocketRole result, bool allowMention = true, bool allowId = true)
+        public static bool TryParseRole(GuildCommandContext context, string argument, out SocketRole result, bool allowMention = true, bool allowId = true, bool allowName = true)
         {
             result = null;
 
@@ -120,6 +134,17 @@ namespace YNBBot.NestedCommands
                 result = context.Guild.GetRole(roleId);
                 return result != null;
             }
+            else if (allowName)
+            {
+                foreach (SocketRole role in context.Guild.Roles)
+                {
+                    if (role.Name == argument)
+                    {
+                        result = role;
+                        return true;
+                    }
+                }
+            }
 
             return false;
         }
@@ -134,7 +159,7 @@ namespace YNBBot.NestedCommands
         /// <param name="allowThis">Wether pointing to current channel is enabled</param>
         /// <param name="allowId">Wether the ulong id is enabled for parsing role</param>
         /// <returns>True, if parsing was successful</returns>
-        public static bool TryParseGuildChannel(GuildCommandContext context, string argument, out SocketGuildChannel result, bool allowMention = true, bool allowThis = true, bool allowId = true)
+        public static bool TryParseGuildChannel(GuildCommandContext context, string argument, out SocketGuildChannel result, bool allowMention = true, bool allowThis = true, bool allowId = true, bool allowName = true)
         {
             result = null;
             if (allowId && ulong.TryParse(argument, out ulong Id))
@@ -154,6 +179,17 @@ namespace YNBBot.NestedCommands
             {
                 result = context.GuildChannel;
                 return true;
+            }
+            if (allowName)
+            {
+                foreach (SocketGuildChannel channel in context.Guild.Channels)
+                {
+                    if (channel.Name == argument)
+                    {
+                        result = channel;
+                        return true;
+                    }
+                }
             }
             return false;
         }
