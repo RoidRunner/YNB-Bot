@@ -42,6 +42,10 @@ namespace YNBBot
         /// </summary>
         public static ulong MuteRole = 0;
         /// <summary>
+        /// The ID of the role everybody gets to have basic access
+        /// </summary>
+        public static ulong GuestRole = 0;
+        /// <summary>
         /// The Formatting string for the Welcoming Message. {0} is replaced with the new users mention.
         /// </summary>
         public static string welcomingMessage = "Hi {0}";

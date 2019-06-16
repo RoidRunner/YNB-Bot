@@ -89,7 +89,21 @@ namespace YNBBot
                     if (Millis >= schedule.executeAt && schedule.callback != null)
                     {
                         await SettingsModel.SendDebugMessage("Firing Callback: " + schedule.callback.Method.ToString(), DebugCategories.timing);
-                        await schedule.callback();
+                        try
+                        {
+                            await schedule.callback();
+                        }
+                        catch (Exception e)
+                        {
+                            if (schedule.callback != null)
+                            {
+                                await GuildChannelHelper.SendExceptionNotification(e, $"Error executing callback `{schedule.callback.Method.ToString()}`");
+                            }
+                            else
+                            {
+                                await GuildChannelHelper.SendExceptionNotification(e, $"Error executing callback!");
+                            }
+                        }
                         markedForRemoval.Add(schedule);
                     }
                 }
@@ -131,7 +145,7 @@ namespace YNBBot
                 {
                     newScheduledCallbacks = new List<ScheduledCallback>();
                 }
-                newScheduledCallbacks.Add(new ScheduledCallback { callback = call, executeAt = Millis + delay});
+                newScheduledCallbacks.Add(new ScheduledCallback { callback = call, executeAt = Millis + delay });
             }
         }
 
@@ -148,7 +162,7 @@ namespace YNBBot
                 now.Hour.ToString().PadLeft(2, '0'), now.Minute.ToString().PadLeft(2, '0'));
             await Var.client.SetActivityAsync(activity);
             await SettingsModel.SendDebugMessage("Updated Time Activity to " + activity.Time + "!", DebugCategories.timing);
-            
+
             AddScheduleDelegate(UpdateTimeActivity, (61 - now.Second) * 1000);
         }
 
@@ -176,7 +190,8 @@ namespace YNBBot
     class TimeActivity : IActivity
     {
         public string Time;
-        public string Name {
+        public string Name
+        {
             get
             {
                 return Time;

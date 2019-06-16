@@ -74,6 +74,14 @@ namespace YNBBot.NestedCommands
             }
             else if (allowMention && argument.StartsWith("<@") && argument.EndsWith('>') && argument.Length > 3)
             {
+                if (argument.StartsWith("<@!") && argument.Length > 4)
+                {
+                    if (ulong.TryParse(argument.Substring(3, argument.Length - 4), out ulong userId2))
+                    {
+                        result = context.Guild.GetUser(userId2);
+                        return result != null;
+                    }
+                }
                 if (ulong.TryParse(argument.Substring(2, argument.Length - 3), out ulong userId))
                 {
                     result = context.Guild.GetUser(userId);

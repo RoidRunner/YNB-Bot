@@ -138,10 +138,17 @@ namespace YNBBot.Interactive
             }
 
             RestUserMessage message = await GuildChannelHelper.SendMessage(GuildChannelHelper.InteractiveMessagesChannelId, guild.DiscordColor, content: $"{mentionString}Please confirm ({UnicodeEmoteService.Checkmark}) or deny ({UnicodeEmoteService.Cross}) founding Membership in Guild `{guild.Name}` by reacting to this message! {Macros.Mention_Role(SettingsModel.AdminRole)} Please choose to confirm ({UnicodeEmoteService.Checkmark}) or deny ({UnicodeEmoteService.Cross}) founding of this guild!", embedTitle: "Setting up Interactive Message - Stand By");
-            GuildCreationInteractiveMessage result = new GuildCreationInteractiveMessage(message as IUserMessage, guild);
-            await message.AddReactionsAsync(new IEmote[] { UnicodeEmoteService.Checkmark, UnicodeEmoteService.Cross });
-            await result.UpdateMessage(message as IUserMessage, Members[0].Guild);
-            return result;
+            if (message != null)
+            {
+                GuildCreationInteractiveMessage result = new GuildCreationInteractiveMessage(message as IUserMessage, guild);
+                await message.AddReactionsAsync(new IEmote[] { UnicodeEmoteService.Checkmark, UnicodeEmoteService.Cross });
+                await result.UpdateMessage(message as IUserMessage, Members[0].Guild);
+                return result;
+            }
+            else
+            {
+                return null;
+            }
         }
 
         public static EmbedBuilder UnconfirmedEmbed(bool adminConfirmed, MinecraftGuild minecraftGuild, ulong guildId, List<bool> confirmedMembers)

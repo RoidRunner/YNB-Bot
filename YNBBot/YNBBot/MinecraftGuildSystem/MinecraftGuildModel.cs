@@ -30,7 +30,7 @@ namespace YNBBot.MinecraftGuildSystem
         /// Min amount of members required to found a guild
         /// </summary>
         public const int MIN_GUILDFOUNDINGMEMBERS = 2;
-        private const int GUILD_ROLE_POSITION = 2;
+        private const int GUILD_ROLE_POSITION = 14;
 
         private static readonly OverwritePermissions GuildRoleChannelPerms = new OverwritePermissions(addReactions: PermValue.Allow, viewChannel: PermValue.Allow, sendMessages: PermValue.Allow, readMessageHistory: PermValue.Allow);
         private static readonly OverwritePermissions CaptainChannelPerms = new OverwritePermissions(addReactions: PermValue.Allow, viewChannel: PermValue.Allow, sendMessages: PermValue.Allow, readMessageHistory: PermValue.Allow, manageMessages: PermValue.Allow);
@@ -309,7 +309,7 @@ namespace YNBBot.MinecraftGuildSystem
             }
             catch (Exception e)
             {
-                await GuildChannelHelper.SendExceptionNotification(e, $"Error creating guild {guild.Name}. Hint: {errorhint}");
+                await GuildChannelHelper.SendExceptionNotification(e, $"Error creating guild {name}. Hint: {errorhint}");
                 return false;
             }
         }

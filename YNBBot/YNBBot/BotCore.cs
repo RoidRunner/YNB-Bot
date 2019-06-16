@@ -13,7 +13,7 @@ using YNBBot.Interactive;
 
 public static class Var
 {
-    internal readonly static Version VERSION = new Version(0, 3);
+    internal readonly static Version VERSION = new Version(1, 0);
     /// <summary>
     /// When put to false will stop the program
     /// </summary>
@@ -82,7 +82,7 @@ namespace YNBBot
                 SettingsModel.DebugMessage += Logger;
                 Var.client.ReactionAdded += ReactionAddedHandler;
                 Var.client.ReactionAdded += InteractiveMessageService.ReactionAddedHandler;
-                Var.client.ChannelUpdated += ChannelUpdatedHandler;
+                //Var.client.ChannelUpdated += ChannelUpdatedHandler;
 
                 await Var.client.LoginAsync(TokenType.Bot, SettingsModel.token);
                 await Var.client.StartAsync();

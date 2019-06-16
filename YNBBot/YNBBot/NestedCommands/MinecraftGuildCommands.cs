@@ -761,7 +761,7 @@ namespace YNBBot.NestedCommands
                     }
                     else
                     {
-                        captain = Macros.InlineCodeBlock(TargetGuild.CaptainId);
+                        captain = Macros.InlineCodeBlock(guild.CaptainId);
                     }
                     embeds.Add(Macros.EmbedField(name, $"{color}, Captain: {captain}, {guild.MemberIds.Count} Members"));
                 }
@@ -852,39 +852,7 @@ namespace YNBBot.NestedCommands
         {
             foreach (SocketGuildUser newMember in newMembers)
             {
-                MessageInteractionDelegate onConfirm = async messageInteractionContext =>
-                {
-                    if (messageInteractionContext.User.Id == newMember.Id)
-                    {
-                        if (MinecraftGuildModel.TryGetGuildOfUser(newMember.Id, out MinecraftGuild existingGuild, true))
-                        {
-                            EmbedBuilder failure = new EmbedBuilder()
-                            {
-                                Title = "Failed",
-                                Description = $"Already in guild \"{(existingGuild.NameAndColorFound ? existingGuild.Name : existingGuild.ChannelId.ToString())}\""
-                            };
-                            await messageInteractionContext.Message.ModifyAsync(MessageProperties =>
-                            {
-                                MessageProperties.Embed = failure.Build();
-                            });
-                        }
-                        else if (TargetGuild != null)
-                        {
-                            await MinecraftGuildModel.MemberJoinGuildAsync(TargetGuild, newMember);
-                            if (GuildChannelHelper.TryGetChannel(GuildChannelHelper.AdminNotificationChannelId, out SocketTextChannel notificationsChannel))
-                            {
-                                await notificationsChannel.SendEmbedAsync($"{newMember} joined Guild \"{TargetGuild.Name}\"");
-                            }
-                        }
-                        return true;
-                    }
-                    else
-                    {
-                        return false;
-                    }
-                };
-
-                await ConfirmationInteractiveMessage.CreateConfirmationMessage($"{newMember.Mention} Invitation to join Guild \"{TargetGuild.Name}\"", $"Confirm you want to join \"{TargetGuild.Name}\"", TargetGuild.DiscordColor, "", UnicodeEmoteService.Checkmark, UnicodeEmoteService.Cross, onConfirm, async x => { await InteractiveMessage.GenericInteractionEnd(x.Message, "Invitation Dismissed"); return true; });
+                await GuildInvitationInteractiveMessage.CreateConfirmationMessage(TargetGuild, newMember, TargetGuild.DiscordColor);
             }
 
             if (parseErrors.Count > 0)

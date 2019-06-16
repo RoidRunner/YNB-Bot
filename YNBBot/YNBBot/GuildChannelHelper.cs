@@ -261,7 +261,7 @@ namespace YNBBot
     {
         #region Constants, Fields, Properties
 
-        public const bool DEFAULT_ALLOWCOMMANDS = true;
+        public const bool DEFAULT_ALLOWCOMMANDS = false;
         public const bool DEFAULT_ALLOWSHITPOSTING = false;
 
         /// <summary>
