@@ -85,7 +85,7 @@ namespace YNBBot.Interactive
             if (ExpirationTime < TimingThread.Millis && ExpirationTime >= 0)
             {
                 InteractiveMessageService.RemoveInteractiveMessage(MessageId);
-                await OnMessageExpire();
+                await OnMessageExpire(context);
             }
             else
             {
@@ -96,7 +96,10 @@ namespace YNBBot.Interactive
             }
         }
 
-        public virtual Task OnMessageExpire() { return Task.CompletedTask; }
+        public virtual Task OnMessageExpire(MessageInteractionContext context)
+        {
+            return context.Message.ModifyAsync(MessageProperties => { MessageProperties.Embed = GenericExpired.Build(); });
+        }
 
         internal static readonly EmbedBuilder GenericSuccess = new EmbedBuilder() { Title = "Success", Color = Var.BOTCOLOR };
         internal static readonly EmbedBuilder GenericExpired = new EmbedBuilder() { Title = "Expired", Color = Var.ERRORCOLOR };

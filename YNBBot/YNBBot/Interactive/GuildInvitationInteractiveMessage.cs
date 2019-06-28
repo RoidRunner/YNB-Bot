@@ -43,10 +43,6 @@ namespace YNBBot.Interactive
                 else if (Guild != null)
                 {
                     await MinecraftGuildModel.MemberJoinGuildAsync(Guild, NewMember);
-                    if (GuildChannelHelper.TryGetChannel(GuildChannelHelper.AdminNotificationChannelId, out SocketTextChannel notificationsChannel))
-                    {
-                        await notificationsChannel.SendEmbedAsync($"{NewMember} joined Guild \"{Guild.Name}\"");
-                    }
                     EmbedBuilder success = new EmbedBuilder()
                     {
                         Title = "Success",

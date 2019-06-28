@@ -13,7 +13,7 @@ using YNBBot.Interactive;
 
 public static class Var
 {
-    internal readonly static Version VERSION = new Version(1, 0);
+    internal readonly static Version VERSION = new Version(1, 1);
     /// <summary>
     /// When put to false will stop the program
     /// </summary>

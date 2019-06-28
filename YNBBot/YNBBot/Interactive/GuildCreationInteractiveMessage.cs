@@ -177,22 +177,18 @@ namespace YNBBot.Interactive
             return embed;
         }
 
-        public override async Task OnMessageExpire()
+        public override async Task OnMessageExpire(MessageInteractionContext context)
         {
-            SocketUserMessage message = await Var.client.GetMessage(GuildId, ChannelId, MessageId);
-            if (message != null)
-            {
                 EmbedBuilder embed = new EmbedBuilder()
                 {
                     Title = $"Founding of Guild \"{Guild.Name}\" - Failed due to Timeout!",
                     Color = Var.ERRORCOLOR
                 };
 
-                await message.ModifyAsync(MessageProperties =>
+                await context.Message.ModifyAsync(MessageProperties =>
                 {
                     MessageProperties.Embed = embed.Build();
                 });
-            }
         }
 
         public async Task<bool> CrossEmoteUsed(MessageInteractionContext context)

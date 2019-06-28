@@ -48,12 +48,12 @@ namespace YNBBot.NestedCommands
                     GuildName += " " + context.Args.First;
                     if (context.Args.First.EndsWith('\"'))
                     {
-                        GuildName = GuildName.Trim('\"');
+                        context.Args.Index++;
                         break;
                     }
                 }
 
-                context.Args.Index++;
+                GuildName = GuildName.Trim('\"');
             }
 
             if (GuildName.Length < 3)
@@ -234,28 +234,9 @@ namespace YNBBot.NestedCommands
 
         protected override ArgumentParseResult TryParseArgumentsSynchronous(CommandContext context)
         {
-            string guildName = context.Args[0];
-
-            context.Args.Index++;
-
-            if (guildName.StartsWith('\"'))
+            if (!ArgumentParsing.TryParseMinecraftGuild(context.Args, out string parsedName, out TargetGuild))
             {
-                for (; context.Args.Index < context.Args.TotalCount; context.Args.Index++)
-                {
-                    guildName += " " + context.Args.First;
-                    if (context.Args.First.EndsWith('\"'))
-                    {
-                        guildName = guildName.Trim('\"');
-                        break;
-                    }
-                }
-
-                context.Args.Index++;
-            }
-
-            if (!MinecraftGuildModel.TryGetGuild(guildName, out TargetGuild, true))
-            {
-                return new ArgumentParseResult(Arguments[0], "Unable to find a guild of this name!");
+                return new ArgumentParseResult(Arguments[0], $"Unable to find a guild named `{parsedName}`");
             }
 
             Actions.Clear();
@@ -487,23 +468,14 @@ namespace YNBBot.NestedCommands
                                 }
                                 else
                                 {
-                                    TargetGuild.MemberIds.Add(newMember.Id);
-                                    SocketRole guildRole = guildContext.Guild.GetRole(TargetGuild.RoleId);
-                                    bool hasRole = false;
-                                    foreach (SocketRole role in newMember.Roles)
+                                    if (await MinecraftGuildModel.MemberJoinGuildAsync(TargetGuild, newMember))
                                     {
-                                        if (role.Id == TargetGuild.RoleId)
-                                        {
-                                            hasRole = true;
-                                            break;
-                                        }
+                                        successful.Add(action);
                                     }
-                                    if (guildRole != null && !hasRole)
+                                    else
                                     {
-                                        await newMember.AddRoleAsync(guildRole);
+                                        errors.Add($"`{action}` - An internal error occured while adding {newMember.Mention} to guild \"{TargetGuild.Name}\"!");
                                     }
-                                    saveChanges = true;
-                                    successful.Add(action);
                                 }
                             }
                             else
@@ -531,23 +503,14 @@ namespace YNBBot.NestedCommands
                                 }
                                 else
                                 {
-                                    TargetGuild.MemberIds.Remove(leavingMember.Id);
-                                    SocketRole guildRole = guildContext.Guild.GetRole(TargetGuild.RoleId);
-                                    bool hasRole = false;
-                                    foreach (SocketRole role in leavingMember.Roles)
+                                    if (await MinecraftGuildModel.MemberLeaveGuildAsync(TargetGuild, leavingMember))
                                     {
-                                        if (role.Id == TargetGuild.RoleId)
-                                        {
-                                            hasRole = true;
-                                            break;
-                                        }
+                                        successful.Add(action);
                                     }
-                                    if (hasRole && guildRole != null)
+                                    else
                                     {
-                                        await leavingMember.RemoveRoleAsync(guildRole);
+                                        errors.Add($"`{action}` - An internal error occured while removing {leavingMember.Mention} from guild \"{TargetGuild.Name}\"!");
                                     }
-                                    saveChanges = true;
-                                    successful.Add(action);
                                 }
                             }
                             else
@@ -640,31 +603,9 @@ namespace YNBBot.NestedCommands
             {
                 TargetGuild = null;
             }
-            else
+            else if (!ArgumentParsing.TryParseMinecraftGuild(context.Args, out string parsedName, out TargetGuild))
             {
-                string guildName = context.Args[0];
-
-                context.Args.Index++;
-
-                if (guildName.StartsWith('\"'))
-                {
-                    for (; context.Args.Index < context.Args.TotalCount; context.Args.Index++)
-                    {
-                        guildName += " " + context.Args.First;
-                        if (context.Args.First.EndsWith('\"'))
-                        {
-                            guildName = guildName.Trim('\"');
-                            break;
-                        }
-                    }
-
-                    context.Args.Index++;
-                }
-
-                if (!MinecraftGuildModel.TryGetGuild(guildName, out TargetGuild, true))
-                {
-                    return new ArgumentParseResult(Arguments[0], "Unable to find a guild of this name!");
-                }
+                return new ArgumentParseResult(Arguments[0], $"Unable to find a guild named `{parsedName}`");
             }
 
             return ArgumentParseResult.SuccessfullParse;

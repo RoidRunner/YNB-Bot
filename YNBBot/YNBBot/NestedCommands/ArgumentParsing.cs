@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Discord;
 using Discord.WebSocket;
+using YNBBot.MinecraftGuildSystem;
 
 namespace YNBBot.NestedCommands
 {
@@ -234,6 +235,37 @@ namespace YNBBot.NestedCommands
                 return result != null;
             }
             return false;
+        }
+
+        internal static bool TryParseMinecraftGuild(IndexArray<string> arguments, out string parsedName, out MinecraftGuild guild)
+        {
+            parsedName = arguments.First;
+
+            arguments.Index++;
+
+            if (parsedName.StartsWith('\"'))
+            {
+                for (; arguments.Count >= 1; arguments.Index++)
+                {
+                    parsedName += " " + arguments.First;
+                    if (arguments.First.EndsWith('\"'))
+                    {
+                        arguments.Index++;
+                        break;
+                    }
+                }
+                parsedName = parsedName.Trim('\"');
+            }
+
+            if (MinecraftGuildModel.TryGetGuild(parsedName, out guild, true))
+            {
+                return true;
+            }
+            else
+            {
+                guild = null;
+                return false;
+            }
         }
     }
 }

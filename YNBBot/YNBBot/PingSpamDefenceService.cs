@@ -77,7 +77,7 @@ namespace YNBBot
                         effectiveMentionCount += guild.MemberCount;
                     }
 
-                    if (effectiveMentionCount > 0 && userAccessLevel != AccessLevel.Admin && user.Id != Var.client.CurrentUser.Id)
+                    if (effectiveMentionCount > 0 && userAccessLevel < AccessLevel.Admin && user.Id != Var.client.CurrentUser.Id)
                     {
                         await HandleMention(user, effectiveMentionCount);
                     }
