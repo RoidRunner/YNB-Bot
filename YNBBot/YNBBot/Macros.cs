@@ -60,6 +60,11 @@ namespace YNBBot
             return $"<@&{roleId}>";
         }
 
+        internal static string Mention_User(ulong userId)
+        {
+            return $"<@{userId}>";
+        }
+
         #endregion
         #region Embed Sending Extension Methods
 

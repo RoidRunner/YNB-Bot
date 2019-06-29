@@ -49,7 +49,7 @@ namespace YNBBot.Interactive
                         Color = Guild.DiscordColor,
                         Description = $"{NewMember.Mention} joined \"{Guild.Name}\""
                     };
-                    await context.Message.ModifyAsync(MessageProperties => 
+                    await context.Message.ModifyAsync(MessageProperties =>
                     {
                         MessageProperties.Embed = success.Build();
                     });
@@ -66,8 +66,16 @@ namespace YNBBot.Interactive
         {
             if (context.User.Id == NewMember.Id)
             {
-                await InteractiveMessage.GenericInteractionEnd(context.Message, "Invitation Dismissed");
+                await GenericInteractionEnd(context.Message, "Invitation Dismissed");
                 return true;
+            }
+            else if (MinecraftGuildModel.TryGetGuildOfUser(context.User.Id, out MinecraftGuild UserGuild))
+            {
+                if (Guild.CaptainId == context.User.Id || Guild.MateIds.Contains(context.User.Id))
+                {
+                    await GenericInteractionEnd(context.Message, "Invitation Retracted");
+                    return true;
+                }
             }
             return false;
         }

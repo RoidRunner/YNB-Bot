@@ -89,7 +89,11 @@ namespace YNBBot.Interactive
             }
             else
             {
-                if (Interactions.TryGetValue(context.Emote.Name, out EmoteInteraction interaction))
+                if (await OnAnyEmoteAdded(context))
+                {
+                    InteractiveMessageService.RemoveInteractiveMessage(MessageId);
+                }
+                else if (Interactions.TryGetValue(context.Emote.Name, out EmoteInteraction interaction))
                 {
                     await interaction.HandleAction(context);
                 }
@@ -99,6 +103,11 @@ namespace YNBBot.Interactive
         public virtual Task OnMessageExpire(MessageInteractionContext context)
         {
             return context.Message.ModifyAsync(MessageProperties => { MessageProperties.Embed = GenericExpired.Build(); });
+        }
+
+        protected virtual Task<bool> OnAnyEmoteAdded(MessageInteractionContext context)
+        {
+            return Task.FromResult(true);
         }
 
         internal static readonly EmbedBuilder GenericSuccess = new EmbedBuilder() { Title = "Success", Color = Var.BOTCOLOR };

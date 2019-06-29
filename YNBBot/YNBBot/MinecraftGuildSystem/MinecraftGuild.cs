@@ -41,11 +41,29 @@ namespace YNBBot.MinecraftGuildSystem
         /// <summary>
         /// Name of the Guild
         /// </summary>
-        public string Name;
+        public string Name = "Name Not Found";
+        public string Name_CommandSafe
+        {
+            get
+            {
+                if (Name.Contains(' '))
+                {
+                    return $"\"{Name}\"";
+                }
+                else
+                {
+                    return Name;
+                }
+            }
+        }
         /// <summary>
         /// User Id of the Captain
         /// </summary>
         public ulong CaptainId;
+        /// <summary>
+        /// User Ids of the mates
+        /// </summary>
+        public List<ulong> MateIds = new List<ulong>();
         /// <summary>
         /// User Ids of the members
         /// </summary>
@@ -56,7 +74,7 @@ namespace YNBBot.MinecraftGuildSystem
         public DateTimeOffset FoundingTimestamp = DateTimeOffset.MinValue;
 
         #endregion
-        #region Properties
+        #region Constructors
 
         public MinecraftGuild()
         {
@@ -127,9 +145,18 @@ namespace YNBBot.MinecraftGuildSystem
         }
 
         #endregion
+        #region Misc
+
+        public bool UserIsInGuild(ulong userId)
+        {
+            return CaptainId == userId || MateIds.Contains(userId) || MemberIds.Contains(userId);
+        }
+
+        #endregion
         #region JSON
 
         private const string JSON_MEMBERIDS = "MemberIds";
+        private const string JSON_MATEIDS = "MateIds";
         private const string JSON_CHANNELIDS = "ChannelId";
         private const string JSON_ROLEID = "RoleId";
         private const string JSON_CAPTAINID = "CaptainId";
@@ -144,9 +171,23 @@ namespace YNBBot.MinecraftGuildSystem
             {
                 foreach (JSONField memberIdJson in memberIdList)
                 {
-                    if (memberIdJson.IsNumber && !memberIdJson.IsSigned && !memberIdJson.IsFloat)
+                    if (memberIdJson.IsNumber && !memberIdJson.IsSigned && !memberIdJson.IsFloat && !MemberIds.Contains(memberIdJson.Unsigned_Int64) && memberIdJson.Unsigned_Int64 != CaptainId)
                     {
                         MemberIds.Add(memberIdJson.Unsigned_Int64);
+                    }
+                }
+                if (json.TryGetField(JSON_MATEIDS, out IReadOnlyList<JSONField> mateIdList))
+                {
+                    foreach (JSONField mateIdJson in mateIdList)
+                    {
+                        if (mateIdJson.IsNumber && !mateIdJson.IsSigned && !mateIdJson.IsFloat && !MateIds.Contains(mateIdJson.Unsigned_Int64))
+                        {
+                            MateIds.Add(mateIdJson.Unsigned_Int64);
+                            if (MemberIds.Contains(mateIdJson.Unsigned_Int64))
+                            {
+                                MemberIds.Remove(mateIdJson.Unsigned_Int64);
+                            }
+                        }
                     }
                 }
                 if (json.TryGetField(JSON_FOUNDINGTIMESTAMP, out string timestamp_str))
@@ -178,6 +219,12 @@ namespace YNBBot.MinecraftGuildSystem
                 memberIdList.Add(id);
             }
             result.TryAddField(JSON_MEMBERIDS, memberIdList);
+            JSONContainer mateIdList = JSONContainer.NewArray();
+            foreach (ulong id in MateIds)
+            {
+                mateIdList.Add(id);
+            }
+            result.TryAddField(JSON_MATEIDS, mateIdList);
             return result;
         }
 

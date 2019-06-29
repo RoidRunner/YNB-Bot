@@ -113,6 +113,9 @@ namespace YNBBot.NestedCommands
             GuildFamily.TryAddCommand(new KickGuildMemberCommand("kick"));
             GuildFamily.TryAddCommand(new LeaveGuildCommand("leave"));
             GuildFamily.TryAddCommand(new PassCaptainRightsCommand("passcaptain"));
+            GuildFamily.TryAddCommand(new PromoteMateCommand("promote"));
+            GuildFamily.TryAddCommand(new DemoteMateCommand("demote"));
+            GuildFamily.TryAddCommand(new SyncGuildsCommand("sync"));
         }
     }
 }

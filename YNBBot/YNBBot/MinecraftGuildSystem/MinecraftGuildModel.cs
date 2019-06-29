@@ -112,7 +112,7 @@ namespace YNBBot.MinecraftGuildSystem
         /// <returns>true, if the name passed the test</returns>
         public static bool NameIsLegal(string name)
         {
-            if (name[0] == ' ' || name[name.Length-1] == ' ')
+            if (name[0] == ' ' || name[name.Length - 1] == ' ')
             {
                 return false;
             }
@@ -160,7 +160,7 @@ namespace YNBBot.MinecraftGuildSystem
         {
             foreach (MinecraftGuild item in guilds)
             {
-                if (item.CaptainId == id || item.MemberIds.Contains(id))
+                if (item.CaptainId == id || item.MemberIds.Contains(id) || item.MateIds.Contains(id))
                 {
                     guild = item;
                     return guild.NameAndColorFound || invalidDatasets;
@@ -246,7 +246,7 @@ namespace YNBBot.MinecraftGuildSystem
             string errorhint = "Failed to create Guild Role!";
             try
             {
-                RestRole guildRole = await guild.CreateRoleAsync(name, color:MinecraftGuild.ToDiscordColor(color), isHoisted: true);
+                RestRole guildRole = await guild.CreateRoleAsync(name, color: MinecraftGuild.ToDiscordColor(color), isHoisted: true);
                 errorhint = "Move role into position";
                 await guildRole.ModifyAsync(RoleProperties =>
                 {
@@ -358,7 +358,7 @@ namespace YNBBot.MinecraftGuildSystem
             string errorhint = "Removing Guild Role";
             try
             {
-                if (guild.MemberIds.Contains(leavingMember.Id))
+                if (guild.MemberIds.Contains(leavingMember.Id) || guild.MateIds.Contains(leavingMember.Id))
                 {
                     foreach (SocketRole role in leavingMember.Roles)
                     {
@@ -370,6 +370,7 @@ namespace YNBBot.MinecraftGuildSystem
                     }
                     errorhint = "Removing Member from Guild and Saving";
                     guild.MemberIds.Remove(leavingMember.Id);
+                    guild.MateIds.Remove(leavingMember.Id);
                     await SaveAll();
                     errorhint = "Notify Admins";
                     await AdminTaskInteractiveMessage.CreateAdminTaskMessage($"Remove user \"{leavingMember}\" from guild \"{guild.Name}\" ingame", "Leaving User: " + leavingMember.Mention);
@@ -490,6 +491,7 @@ namespace YNBBot.MinecraftGuildSystem
                     guild.MemberIds.Add(guild.CaptainId);
                 }
                 guild.MemberIds.Remove(newCaptain.Id);
+                guild.MateIds.Remove(newCaptain.Id);
                 guild.CaptainId = newCaptain.Id;
                 await SaveAll();
                 return true;
@@ -497,6 +499,43 @@ namespace YNBBot.MinecraftGuildSystem
             catch (Exception e)
             {
                 await GuildChannelHelper.SendExceptionNotification(e, $"Error setting captain for {guild.Name} to {newCaptain.Mention}. Hint: {errorhint}");
+                return false;
+            }
+        }
+
+        public static async Task<bool> PromoteGuildMember(MinecraftGuild guild, SocketGuildUser newMate)
+        {
+            try
+            {
+                guild.MemberIds.RemoveAll((ulong Id) =>
+                    {
+                        return Id == newMate.Id;
+                    });
+                guild.MateIds.Add(newMate.Id);
+                await SaveAll();
+                return true;
+            }
+            catch (Exception e)
+            {
+                await GuildChannelHelper.SendExceptionNotification(e, $"Error promoting {newMate.Mention} to mate rank in guild \"{guild.Name}\".");
+                return false;
+            }
+        }
+        public static async Task<bool> DemoteGuildMember(MinecraftGuild guild, SocketGuildUser newMate)
+        {
+            try
+            {
+                guild.MateIds.RemoveAll((ulong Id) =>
+                    {
+                        return Id == newMate.Id;
+                    });
+                guild.MemberIds.Add(newMate.Id);
+                await SaveAll();
+                return true;
+            }
+            catch (Exception e)
+            {
+                await GuildChannelHelper.SendExceptionNotification(e, $"Error promoting {newMate.Mention} to mate rank in guild \"{guild.Name}\".");
                 return false;
             }
         }

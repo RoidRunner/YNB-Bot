@@ -3,6 +3,7 @@ using Discord.WebSocket;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using YNBBot.Interactive;
@@ -429,7 +430,7 @@ namespace YNBBot.NestedCommands
                                 {
                                     errors.Add($"`{action}` - The new captain is already captain of this guild!");
                                 }
-                                else if (!TargetGuild.MemberIds.Contains(newCaptain.Id))
+                                else if (!TargetGuild.MemberIds.Contains(newCaptain.Id) && !TargetGuild.MateIds.Contains(newCaptain.Id))
                                 {
                                     errors.Add($"`{action}` - The new captain has to be a member of this guild!");
                                 }
@@ -644,6 +645,20 @@ namespace YNBBot.NestedCommands
                     members.AppendLine(Macros.InlineCodeBlock(TargetGuild.CaptainId));
                 }
                 members.AppendLine();
+                members.AppendFormat("**Mates - {0}**\n", TargetGuild.MateIds.Count);
+                foreach (ulong mateId in TargetGuild.MateIds)
+                {
+                    SocketUser mate = Var.client.GetUser(mateId);
+                    if (mate != null)
+                    {
+                        members.AppendLine(mate.Mention);
+                    }
+                    else
+                    {
+                        members.AppendLine(Macros.InlineCodeBlock(mateId));
+                    }
+                }
+                members.AppendLine();
                 members.AppendFormat("**Members - {0}**\n", TargetGuild.MemberIds.Count);
                 foreach (ulong memberId in TargetGuild.MemberIds)
                 {
@@ -704,7 +719,7 @@ namespace YNBBot.NestedCommands
                     {
                         captain = Macros.InlineCodeBlock(guild.CaptainId);
                     }
-                    embeds.Add(Macros.EmbedField(name, $"{color}, Captain: {captain}, {guild.MemberIds.Count} Members"));
+                    embeds.Add(Macros.EmbedField(name, $"{color}, Captain: {captain}, {guild.MemberIds.Count + 1} Members"));
                 }
 
                 if (embeds.Count == 0)
@@ -748,15 +763,15 @@ namespace YNBBot.NestedCommands
 
         protected override ArgumentParseResult TryParseArgumentsGuildSynchronous(GuildCommandContext context)
         {
-            bool ownsGuild = false;
+            bool captainOrMate = false;
             if (MinecraftGuildModel.TryGetGuildOfUser(context.User.Id, out TargetGuild))
             {
-                ownsGuild = TargetGuild.CaptainId == context.User.Id;
+                captainOrMate = TargetGuild.CaptainId == context.User.Id || TargetGuild.MateIds.Contains(context.User.Id);
             }
 
-            if (!ownsGuild)
+            if (!captainOrMate)
             {
-                return new ArgumentParseResult("You are not a captain of a guild!");
+                return new ArgumentParseResult("This command requires you to be a captain or mate in a guild!");
             }
 
             newMembers.Clear();
@@ -830,15 +845,15 @@ namespace YNBBot.NestedCommands
 
         protected override ArgumentParseResult TryParseArgumentsGuildSynchronous(GuildCommandContext context)
         {
-            bool ownsGuild = false;
+            bool captainOrMate = false;
             if (MinecraftGuildModel.TryGetGuildOfUser(context.User.Id, out TargetGuild))
             {
-                ownsGuild = TargetGuild.CaptainId == context.User.Id;
+                captainOrMate = TargetGuild.CaptainId == context.User.Id || TargetGuild.MateIds.Contains(context.User.Id);
             }
 
-            if (!ownsGuild)
+            if (!captainOrMate)
             {
-                return new ArgumentParseResult("You are not a captain of a guild!");
+                return new ArgumentParseResult("This command requires you to be a captain or mate in a guild!");
             }
 
             kickedMembers.Clear();
@@ -858,8 +873,11 @@ namespace YNBBot.NestedCommands
                         {
                             if (existingGuild == TargetGuild)
                             {
-                                foundGuild = true;
-                                kickedMembers.Add(kickedMember);
+                                if (TargetGuild.MemberIds.Contains(kickedMember.Id) || (TargetGuild.MateIds.Contains(kickedMember.Id) && TargetGuild.CaptainId == context.User.Id))
+                                {
+                                    foundGuild = true;
+                                    kickedMembers.Add(kickedMember);
+                                }
                             }
                         }
 
@@ -1009,7 +1027,7 @@ namespace YNBBot.NestedCommands
                 {
                     return new ArgumentParseResult(Arguments[0], "Can not pass captain rights to yourself!");
                 }
-                else if (!TargetGuild.MemberIds.Contains(NewCaptain.Id))
+                else if (!TargetGuild.MemberIds.Contains(NewCaptain.Id) && !TargetGuild.MateIds.Contains(NewCaptain.Id))
                 {
                     return new ArgumentParseResult(Arguments[0], "Can not pass captain rights to a user not in your guild!");
                 }
@@ -1031,6 +1049,309 @@ namespace YNBBot.NestedCommands
             else
             {
                 await context.Channel.SendEmbedAsync("Internal error passing captain rights", true);
+            }
+        }
+    }
+
+    #endregion
+    #region promote
+
+    class PromoteMateCommand : Command
+    {
+        public override OverriddenMethod CommandHandlerMethod => OverriddenMethod.GuildAsync;
+        public override OverriddenMethod ArgumentParserMethod => OverriddenMethod.GuildSynchronous;
+
+        public PromoteMateCommand(string identifier) : base(identifier, AccessLevel.Minecraft)
+        {
+            CommandArgument[] arguments = new CommandArgument[]
+            {
+                new CommandArgument("Mate", "The member if your guild you want to promote to mate rank")
+            };
+            InitializeHelp("Promote a member of your guild to mate", arguments, "Mates are able to invite and kick members of your guild");
+        }
+
+        private MinecraftGuild TargetGuild;
+        private SocketGuildUser NewMate;
+
+        protected override ArgumentParseResult TryParseArgumentsGuildSynchronous(GuildCommandContext context)
+        {
+            bool ownsGuild = false;
+            if (MinecraftGuildModel.TryGetGuildOfUser(context.User.Id, out TargetGuild))
+            {
+                ownsGuild = TargetGuild.CaptainId == context.User.Id;
+            }
+
+            if (!ownsGuild)
+            {
+                return new ArgumentParseResult("You are not a captain of a guild!");
+            }
+
+            if (ArgumentParsing.TryParseGuildUser(context, context.Args.First, out NewMate, allowSelf: false))
+            {
+                if (MinecraftGuildModel.TryGetGuildOfUser(NewMate.Id, out MinecraftGuild MateGuild))
+                {
+                    if (MateGuild == TargetGuild)
+                    {
+                        if (!MateGuild.MemberIds.Contains(NewMate.Id))
+                        {
+                            return new ArgumentParseResult(Arguments[0], "The user promoted to mate must be a regular guild member!");
+                        }
+                    }
+                    else
+                    {
+                        return new ArgumentParseResult(Arguments[0], "The user you want to promote is not your guild");
+                    }
+                }
+                else
+                {
+                    return new ArgumentParseResult(Arguments[0], "The user you want to promote is not your guild");
+                }
+            }
+            else
+            {
+                return new ArgumentParseResult(Arguments[0], $"Could not parse {context.Args.First} to a user in this guild!");
+            }
+
+            return ArgumentParseResult.SuccessfullParse;
+        }
+
+        protected override async Task HandleCommandGuildAsync(GuildCommandContext context)
+        {
+            if (await MinecraftGuildModel.PromoteGuildMember(TargetGuild, NewMate))
+            {
+                await context.Channel.SendEmbedAsync($"Successfully promoted {NewMate.Mention} to `Mate` rank!");
+            }
+            else
+            {
+                await context.Channel.SendEmbedAsync($"Failed to promote {NewMate.Mention} to `Mate` rank!", true);
+            }
+        }
+    }
+
+    #endregion
+    #region demote
+
+    class DemoteMateCommand : Command
+    {
+        public override OverriddenMethod CommandHandlerMethod => OverriddenMethod.GuildAsync;
+        public override OverriddenMethod ArgumentParserMethod => OverriddenMethod.GuildSynchronous;
+
+        public DemoteMateCommand(string identifier) : base(identifier, AccessLevel.Minecraft)
+        {
+            CommandArgument[] arguments = new CommandArgument[]
+            {
+                new CommandArgument("Mate", "The mate in your guild you want to demote to a regular member")
+            };
+            InitializeHelp("Demote a user in your guild to a regular member", arguments);
+        }
+
+        private MinecraftGuild TargetGuild;
+        private SocketGuildUser DemotedMate;
+
+        protected override ArgumentParseResult TryParseArgumentsGuildSynchronous(GuildCommandContext context)
+        {
+            bool ownsGuild = false;
+            if (MinecraftGuildModel.TryGetGuildOfUser(context.User.Id, out TargetGuild))
+            {
+                ownsGuild = TargetGuild.CaptainId == context.User.Id;
+            }
+
+            if (!ownsGuild)
+            {
+                return new ArgumentParseResult("You are not a captain of a guild!");
+            }
+
+            if (ArgumentParsing.TryParseGuildUser(context, context.Args.First, out DemotedMate, allowSelf: false))
+            {
+                if (MinecraftGuildModel.TryGetGuildOfUser(DemotedMate.Id, out MinecraftGuild MateGuild))
+                {
+                    if (MateGuild == TargetGuild)
+                    {
+                        if (!MateGuild.MateIds.Contains(DemotedMate.Id))
+                        {
+                            return new ArgumentParseResult(Arguments[0], "The user demoted to regular member must be a mate!");
+                        }
+                    }
+                    else
+                    {
+                        return new ArgumentParseResult(Arguments[0], "The user you want to demote is not your guild");
+                    }
+                }
+                else
+                {
+                    return new ArgumentParseResult(Arguments[0], "The user you want to demote is not your guild");
+                }
+            }
+            else
+            {
+                return new ArgumentParseResult(Arguments[0], $"Could not parse {context.Args.First} to a user in this guild!");
+            }
+
+            return ArgumentParseResult.SuccessfullParse;
+        }
+
+        protected override async Task HandleCommandGuildAsync(GuildCommandContext context)
+        {
+            if (await MinecraftGuildModel.DemoteGuildMember(TargetGuild, DemotedMate))
+            {
+                await context.Channel.SendEmbedAsync($"Successfully demote {DemotedMate.Mention} to `Regular Member` rank!");
+            }
+            else
+            {
+                await context.Channel.SendEmbedAsync($"Failed to demote {DemotedMate.Mention} to `Mate` rank!", true);
+            }
+        }
+    }
+
+    #endregion
+    #region sync
+
+    class SyncGuildsCommand : Command
+    {
+        public override OverriddenMethod CommandHandlerMethod => OverriddenMethod.BasicAsync;
+        public override OverriddenMethod ArgumentParserMethod => OverriddenMethod.BasicSynchronous;
+
+        public SyncGuildsCommand(string identifier) : base(identifier, AccessLevel.Admin)
+        {
+            CommandArgument[] arguments = new CommandArgument[]
+            {
+                new CommandArgument("GuildId", "Discord Id of the guild (Discord Server) you want to sync against", true)
+            };
+            InitializeHelp("Start the guild info syncing process", arguments, "This command is used to sync data internally stored with discord data (leaving members only for now)");
+        }
+
+        private SocketGuild DiscordGuild;
+
+        protected override ArgumentParseResult TryParseArgumentsSynchronous(CommandContext context)
+        {
+            if (context.Args.Count == 0)
+            {
+                if (GuildCommandContext.TryConvert(context, out GuildCommandContext guildContext))
+                {
+                    DiscordGuild = guildContext.Guild;
+                }
+                else
+                {
+                    return new ArgumentParseResult(Arguments[0], "This command can not be used without arguments in PMs");
+                }
+            }
+            else
+            {
+                if (ulong.TryParse(context.Args.First, out ulong guildId))
+                {
+                    DiscordGuild = Var.client.GetGuild(guildId);
+                    if (DiscordGuild == null)
+                    {
+                        return new ArgumentParseResult(Arguments[0], $"Could not find a guild with id `{guildId}`");
+                    }
+                }
+                else
+                {
+                    return new ArgumentParseResult(Arguments[0], $"Could not parse {context.Args.First} to a valid discord Id");
+                }
+            }
+
+            return ArgumentParseResult.SuccessfullParse;
+        }
+
+        protected override async Task HandleCommandAsync(CommandContext context)
+        {
+            List<DesyncItem> problems = new List<DesyncItem>();
+
+            await DiscordGuild.DownloadUsersAsync();
+            List<ulong> userIds = new List<ulong>(DiscordGuild.Users.Select(user => { return user.Id; }));
+            List<Tuple<SocketRole, MinecraftGuild>> roles = new List<Tuple<SocketRole, MinecraftGuild>>();
+
+            // Missing Guild Channels and Roles
+
+            foreach (MinecraftGuild guild in MinecraftGuildModel.Guilds)
+            {
+                bool channelFound = DiscordGuild.GetTextChannel(guild.ChannelId) != null;
+                SocketRole guildRole = DiscordGuild.GetRole(guild.RoleId);
+                bool roleFound = guildRole != null;
+
+                if (!channelFound)
+                {
+                    // Channel missing
+                    problems.Add(new DesyncItem("Channel Not Found", $"The channel of guild \"{guild.Name}\" couldn't be located. Suggested action: Assign new channel with `/guild modify {guild.Name_CommandSafe} setchannel:<NewChannel>`", new DeleteGuildDatasetOption(guild)));
+                }
+                if (!roleFound)
+                {
+                    // role missing
+                    problems.Add(new DesyncItem("Role Not Found", $"The role of guild \"{guild.Name}\" couldn't be located (guild names can not be loaded without roles!). Suggested action: Assign new role with `/guild modify {guild.Name_CommandSafe} setrole:<NewRole>`", new DeleteGuildDatasetOption(guild)));
+                }
+                else
+                {
+                    roles.Add(new Tuple<SocketRole, MinecraftGuild>(guildRole, guild));
+                }
+            }
+
+            // Missing Users
+
+            foreach (MinecraftGuild guild in MinecraftGuildModel.Guilds)
+            {
+                SocketRole guildRole = roles.Find((Tuple<SocketRole, MinecraftGuild> tuple) => { return tuple.Item2 == guild; })?.Item1;
+
+                if (!userIds.Contains(guild.CaptainId))
+                {
+                    // Captain Missing!
+                    problems.Add(new DesyncItem("Captain Not Found", $"Captain (ID: `{guild.CaptainId}`, DebugMention: {Macros.Mention_User(guild.CaptainId)}) of Guild \"{guild.Name}\" missing! Recommended action: Reassign new captain with command `/guild modify {guild.Name_CommandSafe} setcaptain:<NewCaptain>`"));
+                }
+                else if ((guildRole != null) && !guildRole.Members.Any((SocketGuildUser user) => { return user.Id == guild.CaptainId; }))
+                {
+                    // Captain does not have guild role
+                    // TODO
+                }
+                foreach (ulong mateId in guild.MateIds)
+                {
+                    if (!userIds.Contains(mateId))
+                    {
+                        // Mate Missing!
+                        problems.Add(new DesyncItem("Mate Member Not Found", $"Mate (ID: `{mateId}`, DebugMention: {Macros.Mention_User(mateId)}) of Guild \"{guild.Name}\" missing!",
+                            new RemoveMemberDatasetDesyncOption(guild, mateId)));
+                    }
+                    else if ((guildRole != null) && !guildRole.Members.Any((SocketGuildUser user) => { return user.Id == mateId; }))
+                    {
+                        // Mate does not have guild role
+                    }
+                }
+                foreach (ulong memberId in guild.MemberIds)
+                {
+                    if (!userIds.Contains(memberId))
+                    {
+                        // Member Missing!
+                        problems.Add(new DesyncItem("Member Not Found", $"Member (ID: `{memberId}`, DebugMention: {Macros.Mention_User(memberId)}) of Guild \"{guild.Name}\" missing!",
+                            new RemoveMemberDatasetDesyncOption(guild, memberId)));
+                    }
+                    else if ((guildRole != null) && !guildRole.Members.Any((SocketGuildUser user) => { return user.Id == memberId; }))
+                    {
+                        // Mate does not have guild role
+                    }
+                }
+            }
+
+            // People wearing roles but not part of a guild
+
+            foreach (Tuple<SocketRole, MinecraftGuild> roleguildtuple in roles)
+            {
+                foreach (var user in roleguildtuple.Item1.Members)
+                {
+                    if (!roleguildtuple.Item2.UserIsInGuild(user.Id))
+                    {
+                        // User has guild role but is not in guild!
+                        problems.Add(new DesyncItem("User with Guild role is not in guild", $"User {user.Mention} has role {roleguildtuple.Item1.Mention}, but is not listed as a member", new AddUserToDatasetOption(roleguildtuple.Item2, user.Id)));
+                    }
+                }
+            }
+
+            if (problems.Count == 0)
+            {
+                await context.Channel.SendEmbedAsync("No desync problems found!");
+            }
+            else
+            {
+                await context.Channel.SendEmbedAsync($"Found {problems.Count} desync problems!");
+                await GuildDesyncInteractiveMessage.Create(context.Channel, problems);
             }
         }
     }
