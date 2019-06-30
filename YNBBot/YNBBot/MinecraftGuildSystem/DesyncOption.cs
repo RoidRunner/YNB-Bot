@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Discord.WebSocket;
+using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
@@ -76,6 +77,43 @@ namespace YNBBot.MinecraftGuildSystem
         {
             Guild.MemberIds.Add(UserId);
             return MinecraftGuildModel.SaveAll();
+        }
+    }
+
+    class AddRoleOption : DesyncOption
+    {
+        public string Description { get; private set; }
+        public SocketGuildUser User { get; private set; }
+        public SocketRole Role { get; private set; }
+
+        public AddRoleOption(SocketGuildUser user, SocketRole role)
+        {
+            User = user;
+            Role = role;
+            Description = $"Give User {user.Mention} the role {role.Mention}";
+        }
+
+        public Task ExecuteAsync()
+        {
+            return User.AddRoleAsync(Role);
+        }
+    }
+    class RemoveRoleOption : DesyncOption
+    {
+        public string Description { get; private set; }
+        public SocketGuildUser User { get; private set; }
+        public SocketRole Role { get; private set; }
+
+        public RemoveRoleOption(SocketGuildUser user, SocketRole role)
+        {
+            User = user;
+            Role = role;
+            Description = $"Remove the role {role.Mention} from user {user.Mention}";
+        }
+
+        public Task ExecuteAsync()
+        {
+            return User.RemoveRoleAsync(Role);
         }
     }
 }

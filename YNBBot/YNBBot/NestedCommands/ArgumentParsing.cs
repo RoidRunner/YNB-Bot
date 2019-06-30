@@ -267,5 +267,28 @@ namespace YNBBot.NestedCommands
                 return false;
             }
         }
+
+        internal static string ParseMultiBlockArgument(IndexArray<string> arguments)
+        {
+            string argument = arguments.First;
+
+            arguments.Index++;
+
+            if (argument.StartsWith('\"'))
+            {
+                for (; arguments.Count >= 1; arguments.Index++)
+                {
+                    argument += " " + arguments.First;
+                    if (arguments.First.EndsWith('\"'))
+                    {
+                        arguments.Index++;
+                        break;
+                    }
+                }
+                argument = argument.Trim('\"');
+            }
+
+            return argument;
+        }
     }
 }

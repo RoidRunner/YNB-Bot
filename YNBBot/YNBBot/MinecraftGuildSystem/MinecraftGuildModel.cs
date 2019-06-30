@@ -9,6 +9,7 @@ using Discord.Rest;
 using Discord;
 using JSON;
 using YNBBot.Interactive;
+using System.Linq;
 
 namespace YNBBot.MinecraftGuildSystem
 {
@@ -243,9 +244,39 @@ namespace YNBBot.MinecraftGuildSystem
         /// <returns>true, if operation succeeds</returns>
         public static async Task<bool> CreateGuildAsync(SocketGuild guild, string name, GuildColor color, SocketGuildUser captain, List<SocketGuildUser> members)
         {
-            string errorhint = "Failed to create Guild Role!";
+            string errorhint = "Failed a precheck";
             try
             {
+                if (TryGetGuildOfUser(captain.Id, out MinecraftGuild existingCaptainGuild))
+                {
+                    if (existingCaptainGuild.Active || captain.Id == existingCaptainGuild.CaptainId)
+                    {
+                        errorhint = "Precheck failed on " + captain.Mention;
+                        return false;
+                    }
+                    else
+                    {
+                        existingCaptainGuild.MateIds.Remove(captain.Id);
+                        existingCaptainGuild.MemberIds.Remove(captain.Id);
+                    }
+                }
+                foreach (SocketGuildUser member in members)
+                {
+                    if (TryGetGuildOfUser(member.Id, out MinecraftGuild existingMemberGuild))
+                    {
+                        if (existingCaptainGuild.Active || member.Id == existingCaptainGuild.CaptainId)
+                        {
+                            return false;
+                        }
+                        else
+                        {
+                            errorhint = "Precheck failed on " + member.Mention;
+                            existingCaptainGuild.MateIds.Remove(member.Id);
+                            existingCaptainGuild.MemberIds.Remove(member.Id);
+                        }
+                    }
+                }
+                errorhint = "Failed to create Guild Role!";
                 RestRole guildRole = await guild.CreateRoleAsync(name, color: MinecraftGuild.ToDiscordColor(color), isHoisted: true);
                 errorhint = "Move role into position";
                 await guildRole.ModifyAsync(RoleProperties =>
@@ -277,6 +308,12 @@ namespace YNBBot.MinecraftGuildSystem
                 await guildChannel.AddPermissionOverwriteAsync(captain, CaptainChannelPerms);
                 errorhint = "Failed to add Guild Role to Captain!";
                 await captain.AddRoleAsync(guildRole);
+                errorhint = "Failed to add GuildCaptain Role to Captain!";
+                SocketRole captainRole = guild.GetRole(SettingsModel.GuildCaptainRole);
+                if (captainRole != null)
+                {
+                    await captain.AddRoleAsync(captainRole);
+                }
                 errorhint = "Failed to add Guild Role to a Member!";
                 foreach (SocketGuildUser member in members)
                 {
@@ -477,6 +514,7 @@ namespace YNBBot.MinecraftGuildSystem
             string errorhint = "Modify channel perms";
             try
             {
+                SocketRole captainRole = newCaptain.Guild.GetRole(SettingsModel.GuildCaptainRole);
                 if (GuildChannelHelper.TryGetChannel(guild.ChannelId, out SocketTextChannel guildChannel))
                 {
                     if (oldCaptain != null)
@@ -486,8 +524,16 @@ namespace YNBBot.MinecraftGuildSystem
                     await guildChannel.AddPermissionOverwriteAsync(newCaptain, CaptainChannelPerms);
                 }
                 errorhint = "Modify and save";
+                if (captainRole != null)
+                {
+                    await newCaptain.AddRoleAsync(captainRole);
+                }
                 if (oldCaptain != null)
                 {
+                    if (captainRole != null)
+                    {
+                        await oldCaptain.RemoveRoleAsync(captainRole);
+                    }
                     guild.MemberIds.Add(guild.CaptainId);
                 }
                 guild.MemberIds.Remove(newCaptain.Id);
@@ -540,34 +586,114 @@ namespace YNBBot.MinecraftGuildSystem
             }
         }
 
-        /// <summary>
-        /// Deletes a guild both on server and in data
-        /// </summary>
-        /// <param name="guild">Guild to remove</param>
-        /// <returns>True, if operation completed</returns>
-        public static async Task<bool> DeleteGuildAsync(MinecraftGuild guild)
+        public static async Task<bool> SetGuildActive(SocketGuild discordGuild, MinecraftGuild minecraftGuild, bool active)
         {
-            string errorhint = "Removing Guild Role";
+            string errorhint = string.Empty;
             try
             {
-                if (Var.client.TryGetRole(guild.RoleId, out SocketRole guildRole))
+                List<ulong> MemberIds = new List<ulong>();
+                MemberIds.Add(minecraftGuild.CaptainId);
+                MemberIds.AddRange(minecraftGuild.MateIds);
+                MemberIds.AddRange(minecraftGuild.MemberIds);
+
+                SocketRole guildRole = discordGuild.GetRole(minecraftGuild.RoleId);
+                SocketGuildUser captain = discordGuild.GetUser(minecraftGuild.CaptainId);
+                SocketRole captainRole = discordGuild.GetRole(SettingsModel.GuildCaptainRole);
+
+                if (active)
                 {
-                    await guildRole.DeleteAsync();
+                    errorhint = "Adding guild role to members";
+                    if (guildRole != null)
+                    {
+                        foreach (ulong memberId in MemberIds)
+                        {
+                            SocketGuildUser member = discordGuild.GetUser(memberId);
+                            if (member != null && !member.Roles.Any((role) => { return role.Id == guildRole.Id; }))
+                            {
+                                await member.AddRoleAsync(guildRole);
+                            }
+                        }
+                    }
+                    errorhint = "Adding Captain Role to Captain";
+                    if (captain != null && captainRole != null)
+                    {
+                        if (!captain.Roles.Any((role) => { return role.Id == captainRole.Id; }))
+                        {
+                            await captain.AddRoleAsync(captainRole);
+                        }
+                    }
                 }
-                errorhint = "Removing Guild Channel";
-                if (GuildChannelHelper.TryGetChannel(guild.ChannelId, out SocketTextChannel guildChannel))
+                else
                 {
-                    await guildChannel.DeleteAsync();
+                    errorhint = "Removing guild role from members";
+                    if (guildRole != null)
+                    {
+                        foreach (ulong memberId in MemberIds)
+                        {
+                            SocketGuildUser member = discordGuild.GetUser(memberId);
+                            if (member != null && member.Roles.Any((role) => { return role.Id == guildRole.Id; }))
+                            {
+                                await member.RemoveRoleAsync(guildRole);
+                            }
+                        }
+                    }
+                    errorhint = "Removing Captain Role from Captain";
+                    if (captain != null && captainRole != null)
+                    {
+                        if (captain.Roles.Any((role) => { return role.Id == captainRole.Id; }))
+                        {
+                            await captain.RemoveRoleAsync(captainRole);
+                        }
+                    }
                 }
-                errorhint = "Removing Guild and Saving";
-                await DeleteGuildDatasetAsync(guild);
-                errorhint = "Notify Admins";
-                await AdminTaskInteractiveMessage.CreateAdminTaskMessage($"Remove ingame represantation of guild\"{guild.Name}\"", string.Empty);
+                errorhint = "Updating Dataset";
+                minecraftGuild.Active = active;
+                await SaveAll();
                 return true;
             }
             catch (Exception e)
             {
-                await GuildChannelHelper.SendExceptionNotification(e, $"Error removing guild {guild.Name}. Hint: {errorhint}");
+                await GuildChannelHelper.SendExceptionNotification(e, $"Error setting guild \"{minecraftGuild.Name}\" {(active ? "active" : "inactive")}. Errorhint: {errorhint}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Deletes a guild both on server and in data
+        /// </summary>
+        /// <param name="minecraftGuild">Guild to remove</param>
+        /// <returns>True, if operation completed</returns>
+        public static async Task<bool> DeleteGuildAsync(SocketGuild discordGuild, MinecraftGuild minecraftGuild)
+        {
+            string errorhint = "Removing Guild Role";
+            try
+            {
+                SocketRole guildRole = discordGuild.GetRole(minecraftGuild.RoleId);
+                SocketRole captainRole = discordGuild.GetRole(SettingsModel.GuildCaptainRole);
+                if (guildRole != null)
+                {
+                    await guildRole.DeleteAsync();
+                }
+                errorhint = "Removing captain role from captain";
+                SocketGuildUser captain = discordGuild.GetUser(minecraftGuild.CaptainId);
+                if (captain != null && guildRole != null)
+                {
+                    await captain.RemoveRoleAsync(captainRole);
+                }
+                errorhint = "Removing Guild Channel";
+                if (GuildChannelHelper.TryGetChannel(minecraftGuild.ChannelId, out SocketTextChannel guildChannel))
+                {
+                    await guildChannel.DeleteAsync();
+                }
+                errorhint = "Removing Guild and Saving";
+                await DeleteGuildDatasetAsync(minecraftGuild);
+                errorhint = "Notify Admins";
+                await AdminTaskInteractiveMessage.CreateAdminTaskMessage($"Remove ingame represantation of guild\"{minecraftGuild.Name}\"", string.Empty);
+                return true;
+            }
+            catch (Exception e)
+            {
+                await GuildChannelHelper.SendExceptionNotification(e, $"Error removing guild {minecraftGuild.Name}. Hint: {errorhint}");
                 return false;
             }
         }
@@ -576,10 +702,10 @@ namespace YNBBot.MinecraftGuildSystem
         /// Removes the guild represantation in the guilds list and saves
         /// </summary>
         /// <param name="guild">Guild to remove</param>
-        public static async Task DeleteGuildDatasetAsync(MinecraftGuild guild)
+        public static Task DeleteGuildDatasetAsync(MinecraftGuild guild)
         {
             guilds.Remove(guild);
-            await SaveAll();
+            return SaveAll();
         }
 
         #endregion

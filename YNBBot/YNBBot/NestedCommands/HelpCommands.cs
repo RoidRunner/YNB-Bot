@@ -82,9 +82,9 @@ namespace YNBBot.NestedCommands
             }
             else
             {
-                embedTitle = $"Matching Commands for \"{CommandHandler.Prefix + string.Join(" ", context.Args)}\"";
+                embedTitle = $"Command Collection \"{CommandHandler.Prefix + string.Join(" ", context.Args)}\"";
             }
-            string embedDescription = $"This list is generated based on your AccessLevel (`{context.UserAccessLevel}`), and the current channel context (`{channelInformation}`)";
+            string embedDescription = $"This list is generated based on your AccessLevel (`{context.UserAccessLevel}`), and the current channel context (`{channelInformation}`)\n{matchedFamily.Description}";
 
             List<EmbedFieldBuilder> commandFields = new List<EmbedFieldBuilder>();
 
@@ -93,7 +93,7 @@ namespace YNBBot.NestedCommands
                 int availableCommands = family.CommandCount(context.IsGuildContext, context.UserAccessLevel);
                 if (availableCommands > 0)
                 {
-                    commandFields.Add(Macros.EmbedField($"(Command Family) {CommandHandler.Prefix + family.FullIdentifier}", $"{availableCommands} available commands. Use `{CommandHandler.Prefix}help {family.FullIdentifier}` to see a summary of commands in this command family!", true));
+                    commandFields.Add(Macros.EmbedField($"(Command Collection) {CommandHandler.Prefix + family.FullIdentifier}", $"{availableCommands} available commands.{(string.IsNullOrEmpty(family.Description) ? string.Empty : $" {family.Description}.")} Use `{CommandHandler.Prefix}help {family.FullIdentifier}` to see a summary of commands in this command family!", true));
                 }
             }
 

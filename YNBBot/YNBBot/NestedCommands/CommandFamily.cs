@@ -37,6 +37,8 @@ namespace YNBBot.NestedCommands
         /// </summary>
         public string Identifier { get; private set; }
 
+        public string Description { get; private set; } = "";
+
         /// <summary>
         /// Full identifier (includes parent families)
         /// </summary>
@@ -59,10 +61,11 @@ namespace YNBBot.NestedCommands
         /// </summary>
         /// <param name="identifier"></param>
         /// <param name="parent"></param>
-        public CommandFamily(string identifier, CommandFamily parent)
+        public CommandFamily(string identifier, CommandFamily parent, string description = "")
         {
             Identifier = identifier;
             parent.TryAddCommandFamily(this);
+            Description = description;
         }
 
         #endregion

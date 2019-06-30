@@ -89,23 +89,23 @@ namespace YNBBot.NestedCommands
             BaseFamily.TryAddCommand(new HelpCommand("help"));
             BaseFamily.TryAddCommand(new UserInfoCommand("userinfo"));
             BaseFamily.TryAddCommand(new AvatarCommand("avatar"));
-            BaseFamily.TryAddCommand(new StopCommand("stop"));
-            BaseFamily.TryAddCommand(new RestartCommand("restart"));
             BaseFamily.TryAddCommand(new AboutCommand("about"));
-            CommandFamily SettingsFamily = new CommandFamily("config", BaseFamily);
-            SettingsFamily.TryAddCommand(new DetectConfigCommand("detect"));
-            SettingsFamily.TryAddCommand(new EditChannelInfoCommand("channel"));
-            SettingsFamily.TryAddCommand(new SetOutputChannelCommand("output"));
-            SettingsFamily.TryAddCommand(new PrefixCommand("prefix"));
-            SettingsFamily.TryAddCommand(new SetRoleCommand("role"));
-            SettingsFamily.TryAddCommand(new SetTemplateCommand("template"));
-            SettingsFamily.TryAddCommand(new ToggleLoggingCommand("logging"));
-            CommandFamily EmbedFamily = new CommandFamily("embed", BaseFamily);
+            CommandFamily ConfigFamily = new CommandFamily("config", BaseFamily, "Collection of commands used for configuring the bot");
+            ConfigFamily.TryAddCommand(new DetectConfigCommand("detect"));
+            ConfigFamily.TryAddCommand(new EditChannelInfoCommand("channel"));
+            ConfigFamily.TryAddCommand(new SetOutputChannelCommand("output"));
+            ConfigFamily.TryAddCommand(new PrefixCommand("prefix"));
+            ConfigFamily.TryAddCommand(new SetRoleCommand("role"));
+            ConfigFamily.TryAddCommand(new SetTemplateCommand("template"));
+            ConfigFamily.TryAddCommand(new ToggleLoggingCommand("logging"));
+            ConfigFamily.TryAddCommand(new RestartCommand("restart"));
+            ConfigFamily.TryAddCommand(new StopCommand("stop"));
+            CommandFamily EmbedFamily = new CommandFamily("embed", BaseFamily, "Collection of commands used for analyzing, designing and sending fully custom embeds");
             EmbedFamily.TryAddCommand(new SendEmbedCommand("send"));
             EmbedFamily.TryAddCommand(new PreviewEmbedCommand("preview"));
             EmbedFamily.TryAddCommand(new GetEmbedCommand("get"));
             EmbedFamily.TryAddCommand(new ReplaceEmbedCommand("replace"));
-            CommandFamily GuildFamily = new CommandFamily("guild", BaseFamily);
+            CommandFamily GuildFamily = new CommandFamily("guild", BaseFamily, "Collection of commands used for founding and managing minecraft guilds");
             GuildFamily.TryAddCommand(new CreateGuildCommand("found"));
             GuildFamily.TryAddCommand(new ModifyGuildCommand("modify"));
             GuildFamily.TryAddCommand(new GuildInfoCommand("info"));
@@ -116,6 +116,8 @@ namespace YNBBot.NestedCommands
             GuildFamily.TryAddCommand(new PromoteMateCommand("promote"));
             GuildFamily.TryAddCommand(new DemoteMateCommand("demote"));
             GuildFamily.TryAddCommand(new SyncGuildsCommand("sync"));
+            CommandFamily ManagingFamily = new CommandFamily("manage", BaseFamily, "Collection of commands used for managing discord entity properties");
+            ManagingFamily.TryAddCommand(new SetUserNicknameCommand("setnick"));
         }
     }
 }

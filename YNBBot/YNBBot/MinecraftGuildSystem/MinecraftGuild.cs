@@ -15,6 +15,7 @@ namespace YNBBot.MinecraftGuildSystem
 
         private bool nameAndColorRetrieved = false;
 
+        public bool Active = true;
         /// <summary>
         /// Channel Id of the Guilds private channel
         /// </summary>
@@ -72,6 +73,8 @@ namespace YNBBot.MinecraftGuildSystem
         /// Timestamp when the guild was founded
         /// </summary>
         public DateTimeOffset FoundingTimestamp = DateTimeOffset.MinValue;
+
+        public int Count { get { return MateIds.Count + MemberIds.Count + 1; } }
 
         #endregion
         #region Constructors
@@ -155,6 +158,7 @@ namespace YNBBot.MinecraftGuildSystem
         #endregion
         #region JSON
 
+        private const string JSON_ACTIVE = "Active";
         private const string JSON_MEMBERIDS = "MemberIds";
         private const string JSON_MATEIDS = "MateIds";
         private const string JSON_CHANNELIDS = "ChannelId";
@@ -169,6 +173,7 @@ namespace YNBBot.MinecraftGuildSystem
 
             if (json.TryGetField(JSON_CHANNELIDS, out ChannelId) && json.TryGetField(JSON_ROLEID, out RoleId) && json.TryGetField(JSON_CAPTAINID, out CaptainId) && json.TryGetField(JSON_MEMBERIDS, out IReadOnlyList<JSONField> memberIdList))
             {
+                json.TryGetField(JSON_ACTIVE, out Active, Active);
                 foreach (JSONField memberIdJson in memberIdList)
                 {
                     if (memberIdJson.IsNumber && !memberIdJson.IsSigned && !memberIdJson.IsFloat && !MemberIds.Contains(memberIdJson.Unsigned_Int64) && memberIdJson.Unsigned_Int64 != CaptainId)
@@ -209,6 +214,7 @@ namespace YNBBot.MinecraftGuildSystem
         {
             JSONContainer result = JSONContainer.NewObject();
 
+            result.TryAddField(JSON_ACTIVE, Active);
             result.TryAddField(JSON_CHANNELIDS, ChannelId);
             result.TryAddField(JSON_ROLEID, RoleId);
             result.TryAddField(JSON_CAPTAINID, CaptainId);
@@ -252,5 +258,12 @@ namespace YNBBot.MinecraftGuildSystem
         light_purple = 0xFF55FF,
         yellow = 0xFFFF55,
         white = 0xFFFFFFF
+    }
+
+    enum GuildRank
+    {
+        Captain,
+        Mate,
+        Regular
     }
 }

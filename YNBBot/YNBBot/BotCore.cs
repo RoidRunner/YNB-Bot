@@ -13,7 +13,7 @@ using YNBBot.Interactive;
 
 public static class Var
 {
-    internal readonly static Version VERSION = new Version(1, 1);
+    internal readonly static Version VERSION = new Version(1, 2);
     /// <summary>
     /// When put to false will stop the program
     /// </summary>
@@ -59,7 +59,7 @@ namespace YNBBot
             if (ResourcesModel.CheckSettingsFilesExistence())
             {
                 filesExist = true;
-                if (await SettingsModel.LoadSettingsAndCheckToken(Var.client))
+                if (await SettingsModel.LoadSettingsAndCheckToken())
                 {
                     foundToken = true;
                 }
@@ -69,7 +69,8 @@ namespace YNBBot
             {
                 Var.client = new DiscordSocketClient(new DiscordSocketConfig
                 {
-                    LogLevel = LogSeverity.Info
+                    LogLevel = LogSeverity.Info,
+                    AlwaysDownloadUsers = true
                 });
 
                 InitReactionsCommands();

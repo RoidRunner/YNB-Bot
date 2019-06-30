@@ -141,6 +141,9 @@ namespace YNBBot.NestedCommands
                     case SettingRoles.mute:
                         roleId = SettingsModel.MuteRole;
                         break;
+                    case SettingRoles.guildcaptain:
+                        roleId = SettingsModel.GuildCaptainRole;
+                        break;
                 }
 
                 SocketRole role = context.Guild.GetRole(roleId);
@@ -163,6 +166,9 @@ namespace YNBBot.NestedCommands
                     case SettingRoles.mute:
                         SettingsModel.MuteRole = Role.Id;
                         break;
+                    case SettingRoles.guildcaptain:
+                        SettingsModel.GuildCaptainRole = Role.Id;
+                        break;
                 }
                 await SettingsModel.SaveSettings();
 
@@ -175,7 +181,8 @@ namespace YNBBot.NestedCommands
             admin,
             botnotifications,
             minecraftbranch,
-            mute
+            mute,
+            guildcaptain
         }
     }
 

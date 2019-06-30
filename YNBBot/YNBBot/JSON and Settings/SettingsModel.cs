@@ -41,6 +41,7 @@ namespace YNBBot
         /// The ID of the mute role (assigned to users when the EM threshholds have been triggered)
         /// </summary>
         public static ulong MuteRole = 0;
+        public static ulong GuildCaptainRole = 0;
         /// <summary>
         /// The ID of the role everybody gets to have basic access
         /// </summary>
@@ -63,7 +64,7 @@ namespace YNBBot
         /// </summary>
         /// <param name="nclient"></param>
         /// <returns>False if loading of the critical variables (bottoken, botadminIDs) fails</returns>
-        public static async Task<bool> LoadSettingsAndCheckToken(DiscordSocketClient nclient)
+        public static async Task<bool> LoadSettingsAndCheckToken()
         {
             await loadSettings();
             return token != null && botAdminIDs.Count > 0;

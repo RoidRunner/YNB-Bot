@@ -35,7 +35,14 @@ namespace YNBBot.NestedCommands
         {
             if (MinecraftGuildSystem.MinecraftGuildModel.TryGetGuildOfUser(context.User.Id, out MinecraftGuild contextUserGuild))
             {
-                return new ArgumentParseResult($"You can not found a new guild because you are still part of `{contextUserGuild.Name}`");
+                if (contextUserGuild.Active)
+                {
+                    return new ArgumentParseResult($"You can not found a new guild because you are still part of `{contextUserGuild.Name}`");
+                }
+                else if (contextUserGuild.CaptainId == context.User.Id)
+                {
+                    return new ArgumentParseResult($"You can not found a new guild because you captain of the inactivated guild `{contextUserGuild.Name}`. Please contact an admin!");
+                }
             }
 
             GuildName = context.Args[0];
@@ -101,7 +108,14 @@ namespace YNBBot.NestedCommands
                     }
                     if (MinecraftGuildSystem.MinecraftGuildModel.TryGetGuildOfUser(member.Id, out MinecraftGuild memberGuild))
                     {
-                        return new ArgumentParseResult(Arguments[2], $"Can not invite {member.Mention}, because he is already part of {memberGuild.Name}");
+                        if (memberGuild.Active)
+                        {
+                            return new ArgumentParseResult(Arguments[2], $"Can not invite {member.Mention}, because he is already part of \"{memberGuild.Name}\"");
+                        }
+                        else if (memberGuild.CaptainId == member.Id)
+                        {
+                            return new ArgumentParseResult(Arguments[2], $"Can not invite {member.Mention}, because he is captain of inactivated guild \"{memberGuild.Name}\". Please contact an admin!");
+                        }
                     }
                     bool hasMinecraftRole = false;
                     foreach (SocketRole role in member.Roles)
@@ -161,6 +175,7 @@ namespace YNBBot.NestedCommands
             InitializeHelp("Modifies guild attributes", arguments, "For a list of modifying actions see below. Some actions require an argument to be passed after them following this syntax: `<Action>:<Argument>`. Multiword arguments are to be encased with quotation marks '\"'.\n\n" +
                 $"`{GuildModifyActions.delete}` - Removes the guild dataset, channel and role\n" +
                 $"`{GuildModifyActions.deletedataset}` - Removes the guild dataset\n" +
+                $"`{GuildModifyActions.setactive}<Active>` - Sets the guild active/inactive (boolean value)\n" +
                 $"`{GuildModifyActions.setchannel}:<Channel>` - Sets the guild channel\n" +
                 $"`{GuildModifyActions.setrole}:<Role>` - Sets the guild role\n" +
                 $"`{GuildModifyActions.rename}:<Name>` - Renames the guild\n" +
@@ -177,6 +192,7 @@ namespace YNBBot.NestedCommands
         {
             delete,
             deletedataset,
+            setactive,
             rename,
             recolor,
             setchannel,
@@ -187,7 +203,7 @@ namespace YNBBot.NestedCommands
             timestamp
         }
 
-        private readonly bool[] ActionRequiresArg = new bool[] { false, false, true, true, true, true, true, true, true, true };
+        private readonly bool[] ActionRequiresArg = new bool[] { false, false, true, true, true, true, true, true, true, true, true };
 
         private struct GuildAction : IComparable
         {
@@ -341,12 +357,71 @@ namespace YNBBot.NestedCommands
                 switch (action.Action)
                 {
                     case GuildModifyActions.delete:
-                        await MinecraftGuildModel.DeleteGuildAsync(TargetGuild);
-                        i = Actions.Count;
-                        successful.Add(action);
+                        if (hasGuildContext)
+                        {
+                            await MinecraftGuildModel.DeleteGuildAsync(guildContext.Guild, TargetGuild);
+                            i = Actions.Count;
+                            successful.Add(action);
+                        }
+                        else
+                        {
+                            errors.Add($"`{action}` - Requires Guild Context!");
+                        }
                         break;
                     case GuildModifyActions.deletedataset:
                         await MinecraftGuildModel.DeleteGuildDatasetAsync(TargetGuild);
+                        i = Actions.Count;
+                        break;
+                    case GuildModifyActions.setactive:
+                        if (hasGuildContext)
+                        {
+                            switch (action.Argument.ToLower())
+                            {
+                                case "active":
+                                case "true":
+                                    if (!TargetGuild.Active)
+                                    {
+                                        if (await MinecraftGuildModel.SetGuildActive(guildContext.Guild, TargetGuild, true))
+                                        {
+                                            successful.Add(action);
+                                        }
+                                        else
+                                        {
+                                            errors.Add($"`{action}` - Internal error setting guild active!");
+                                        }
+                                    }
+                                    else
+                                    {
+                                        errors.Add($"`{action}` - Guild already active!");
+                                    }
+                                    break;
+                                case "inactive":
+                                case "false":
+                                    if (TargetGuild.Active)
+                                    {
+                                        if (await MinecraftGuildModel.SetGuildActive(guildContext.Guild, TargetGuild, false))
+                                        {
+                                            successful.Add(action);
+                                        }
+                                        else
+                                        {
+                                            errors.Add($"`{action}` - Internal error setting guild inactive!");
+                                        }
+                                    }
+                                    else
+                                    {
+                                        errors.Add($"`{action}` - Guild already inactive!");
+                                    }
+                                    break;
+                                default:
+                                    errors.Add($"`{action}` - Could not parse argument to a valid boolean value!");
+                                    break;
+                            }
+                        }
+                        else
+                        {
+                            errors.Add($"`{action}` - Requires Guild Context!");
+                        }
                         i = Actions.Count;
                         break;
                     case GuildModifyActions.setchannel:
@@ -608,6 +683,11 @@ namespace YNBBot.NestedCommands
             {
                 return new ArgumentParseResult(Arguments[0], $"Unable to find a guild named `{parsedName}`");
             }
+            else if (!TargetGuild.Active)
+            {
+                return new ArgumentParseResult(Arguments[0], "This guild is currently inactive");
+            }
+
 
             return ArgumentParseResult.SuccessfullParse;
         }
@@ -672,7 +752,7 @@ namespace YNBBot.NestedCommands
                         members.AppendLine(Macros.InlineCodeBlock(memberId));
                     }
                 }
-                embed.AddField("Members", members);
+                embed.AddField("Members - " + TargetGuild.Count, members);
                 StringBuilder info = new StringBuilder();
                 info.Append("Channel: ");
                 if (GuildChannelHelper.TryGetChannel(TargetGuild.ChannelId, out SocketTextChannel channel))
@@ -702,24 +782,27 @@ namespace YNBBot.NestedCommands
                 string title = "Guild List - " + MinecraftGuildModel.Guilds.Count;
                 foreach (MinecraftGuild guild in MinecraftGuildModel.Guilds)
                 {
-                    string name = "Guild Role Not Found!";
-                    string color = "Guild Role Not Found!";
-                    string captain;
-                    if (guild.NameAndColorFound)
+                    if (guild.Active)
                     {
-                        name = $"Guild \"{guild.Name}\"";
-                        color = guild.Color.ToString();
+                        string name = "Guild Role Not Found!";
+                        string color = "Guild Role Not Found!";
+                        string captain;
+                        if (guild.NameAndColorFound)
+                        {
+                            name = $"Guild \"{guild.Name}\"";
+                            color = guild.Color.ToString();
+                        }
+                        SocketUser guildCaptain = Var.client.GetUser(guild.CaptainId);
+                        if (guildCaptain != null)
+                        {
+                            captain = guildCaptain.Mention;
+                        }
+                        else
+                        {
+                            captain = Macros.InlineCodeBlock(guild.CaptainId);
+                        }
+                        embeds.Add(Macros.EmbedField(name, $"{color}, Captain: {captain}, {guild.MemberIds.Count + 1} Members"));
                     }
-                    SocketUser guildCaptain = Var.client.GetUser(guild.CaptainId);
-                    if (guildCaptain != null)
-                    {
-                        captain = guildCaptain.Mention;
-                    }
-                    else
-                    {
-                        captain = Macros.InlineCodeBlock(guild.CaptainId);
-                    }
-                    embeds.Add(Macros.EmbedField(name, $"{color}, Captain: {captain}, {guild.MemberIds.Count + 1} Members"));
                 }
 
                 if (embeds.Count == 0)
@@ -772,6 +855,11 @@ namespace YNBBot.NestedCommands
             if (!captainOrMate)
             {
                 return new ArgumentParseResult("This command requires you to be a captain or mate in a guild!");
+            }
+
+            if (!TargetGuild.Active)
+            {
+                return new ArgumentParseResult("Your guild is set to inactive! Contact an admin to reactivate it");
             }
 
             newMembers.Clear();
@@ -854,6 +942,11 @@ namespace YNBBot.NestedCommands
             if (!captainOrMate)
             {
                 return new ArgumentParseResult("This command requires you to be a captain or mate in a guild!");
+            }
+
+            if (!TargetGuild.Active)
+            {
+                return new ArgumentParseResult("Your guild is set to inactive! Contact an admin to reactivate it");
             }
 
             kickedMembers.Clear();
@@ -955,14 +1048,23 @@ namespace YNBBot.NestedCommands
             string message = string.Empty;
             if (MinecraftGuildModel.TryGetGuildOfUser(context.User.Id, out MinecraftGuild targetGuild, true))
             {
-                if (targetGuild.MemberIds.Contains(context.User.Id))
+                if (targetGuild.MemberIds.Contains(context.User.Id) || targetGuild.MateIds.Contains(context.User.Id))
                 {
-                    await MinecraftGuildModel.MemberLeaveGuildAsync(targetGuild, context.GuildUser);
+                    if (targetGuild.Active)
+                    {
+                        await MinecraftGuildModel.MemberLeaveGuildAsync(targetGuild, context.GuildUser);
+                    }
+                    else
+                    {
+                        targetGuild.MemberIds.Remove(context.User.Id);
+                        targetGuild.MateIds.Remove(context.User.Id);
+                        await MinecraftGuildModel.SaveAll();
+                    }
                     message = "Success!";
                 }
                 else if (targetGuild.MemberIds.Count == 0)
                 {
-                    await MinecraftGuildModel.DeleteGuildAsync(targetGuild);
+                    await MinecraftGuildModel.DeleteGuildAsync(context.Guild, targetGuild);
                     message = "Guild Deleted!";
                     if (context.Channel.Id == targetGuild.ChannelId)
                     {
@@ -1019,6 +1121,11 @@ namespace YNBBot.NestedCommands
             if (!ownsGuild)
             {
                 return new ArgumentParseResult("You are not a captain of a guild!");
+            }
+
+            if (!TargetGuild.Active)
+            {
+                return new ArgumentParseResult("Your guild is set to inactive! Contact an admin to reactivate it");
             }
 
             if (ArgumentParsing.TryParseGuildUser(context, context.Args.First, out NewCaptain))
@@ -1084,6 +1191,11 @@ namespace YNBBot.NestedCommands
             if (!ownsGuild)
             {
                 return new ArgumentParseResult("You are not a captain of a guild!");
+            }
+
+            if (!TargetGuild.Active)
+            {
+                return new ArgumentParseResult("Your guild is set to inactive! Contact an admin to reactivate it");
             }
 
             if (ArgumentParsing.TryParseGuildUser(context, context.Args.First, out NewMate, allowSelf: false))
@@ -1159,6 +1271,11 @@ namespace YNBBot.NestedCommands
             if (!ownsGuild)
             {
                 return new ArgumentParseResult("You are not a captain of a guild!");
+            }
+
+            if (!TargetGuild.Active)
+            {
+                return new ArgumentParseResult("Your guild is set to inactive! Contact an admin to reactivate it");
             }
 
             if (ArgumentParsing.TryParseGuildUser(context, context.Args.First, out DemotedMate, allowSelf: false))
@@ -1258,7 +1375,6 @@ namespace YNBBot.NestedCommands
         {
             List<DesyncItem> problems = new List<DesyncItem>();
 
-            await DiscordGuild.DownloadUsersAsync();
             List<ulong> userIds = new List<ulong>(DiscordGuild.Users.Select(user => { return user.Id; }));
             List<Tuple<SocketRole, MinecraftGuild>> roles = new List<Tuple<SocketRole, MinecraftGuild>>();
 
@@ -1266,6 +1382,7 @@ namespace YNBBot.NestedCommands
 
             foreach (MinecraftGuild guild in MinecraftGuildModel.Guilds)
             {
+                guild.TryFindNameAndColor();
                 bool channelFound = DiscordGuild.GetTextChannel(guild.ChannelId) != null;
                 SocketRole guildRole = DiscordGuild.GetRole(guild.RoleId);
                 bool roleFound = guildRole != null;
@@ -1300,7 +1417,7 @@ namespace YNBBot.NestedCommands
                 else if ((guildRole != null) && !guildRole.Members.Any((SocketGuildUser user) => { return user.Id == guild.CaptainId; }))
                 {
                     // Captain does not have guild role
-                    // TODO
+                    problems.Add(new DesyncItem("Captain without guild role", $"Captain {Macros.Mention_User(guild.CaptainId)} of Guild \"{guild.Name}\" does not have a guild role!", new AddRoleOption(DiscordGuild.GetUser(guild.CaptainId), guildRole), new DeleteGuildDatasetOption(guild)));
                 }
                 foreach (ulong mateId in guild.MateIds)
                 {
@@ -1313,6 +1430,7 @@ namespace YNBBot.NestedCommands
                     else if ((guildRole != null) && !guildRole.Members.Any((SocketGuildUser user) => { return user.Id == mateId; }))
                     {
                         // Mate does not have guild role
+                        problems.Add(new DesyncItem("Mate without guild role", $"Mate {Macros.Mention_User(mateId)} of Guild \"{guild.Name}\" does not have a guild role!", new AddRoleOption(DiscordGuild.GetUser(mateId), guildRole), new RemoveMemberDatasetDesyncOption(guild, mateId)));
                     }
                 }
                 foreach (ulong memberId in guild.MemberIds)
@@ -1325,6 +1443,7 @@ namespace YNBBot.NestedCommands
                     }
                     else if ((guildRole != null) && !guildRole.Members.Any((SocketGuildUser user) => { return user.Id == memberId; }))
                     {
+                        problems.Add(new DesyncItem("Mate without guild role", $"Mate {Macros.Mention_User(memberId)} of Guild \"{guild.Name}\" does not have a guild role!", new AddRoleOption(DiscordGuild.GetUser(memberId), guildRole), new RemoveMemberDatasetDesyncOption(guild, memberId)));
                         // Mate does not have guild role
                     }
                 }
@@ -1339,7 +1458,7 @@ namespace YNBBot.NestedCommands
                     if (!roleguildtuple.Item2.UserIsInGuild(user.Id))
                     {
                         // User has guild role but is not in guild!
-                        problems.Add(new DesyncItem("User with Guild role is not in guild", $"User {user.Mention} has role {roleguildtuple.Item1.Mention}, but is not listed as a member", new AddUserToDatasetOption(roleguildtuple.Item2, user.Id)));
+                        problems.Add(new DesyncItem("User with Guild role is not in guild", $"User {user.Mention} has role {roleguildtuple.Item1.Mention}, but is not listed as a member", new AddUserToDatasetOption(roleguildtuple.Item2, user.Id), new RemoveRoleOption(user, roleguildtuple.Item1)));
                     }
                 }
             }
