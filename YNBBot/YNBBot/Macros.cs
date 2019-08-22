@@ -343,6 +343,82 @@ namespace YNBBot
                                                 : span.TotalDays.ToString(format) + " days")));
         }
 
+        public static bool TryParseHumanTimeString(string str, out TimeSpan span)
+        {
+            if (string.IsNullOrEmpty(str))
+            {
+                span = default;
+                return false;
+            }
+            str.Trim();
+
+            for (int i = 0; i < str.Length; i++)
+            {
+                char current = str[i];
+                switch (current)
+                {
+                    case '0':
+                    case '1':
+                    case '2':
+                    case '3':
+                    case '4':
+                    case '5':
+                    case '6':
+                    case '7':
+                    case '8':
+                    case '9':
+                        continue;
+                    case 'h':
+                    case 'H':
+                        if (i == 0)
+                        {
+                            span = default;
+                            return false;
+                        }
+                        else
+                        {
+                            if (uint.TryParse(str.Substring(0, i), out uint hours))
+                            {
+                                span = TimeSpan.FromHours(hours);
+                                return true;
+                            }
+                            else
+                            {
+                                span = default;
+                                return false;
+                            }
+                        }
+
+                    case 'm':
+                    case 'M':
+                        if (i == 0)
+                        {
+                            span = default;
+                            return false;
+                        }
+                        else
+                        {
+                            if (uint.TryParse(str.Substring(0, i), out uint minutes))
+                            {
+                                span = TimeSpan.FromMinutes(minutes);
+                                return true;
+                            }
+                            else
+                            {
+                                span = default;
+                                return false;
+                            }
+                        }
+                    default:
+                        span = default;
+                        return false;
+                }
+            }
+
+            span = default;
+            return false;
+        }
+
         /// <summary>
         /// Checks for an index being inside array bounds
         /// </summary>
@@ -350,6 +426,54 @@ namespace YNBBot
         public static bool WithinBounds(this Array array, int index)
         {
             return index > 0 && index < array.Length;
+        }
+
+        /// <summary>
+        /// Functions similarly to string.Join(), but with the addition of performing an operation to select the object represantation string instead of calling object.ToString()
+        /// </summary>
+        /// <param name="separator">Separator string that separates items in the result</param>
+        /// <param name="operation">Operation taking TSource as input, returning a string</param>
+        /// <returns>Concatenated string of all results of calling operation once for each item, with separator string inbetween</returns>
+        public static string OperationJoin<TSource>(this ICollection<TSource> source, string separator, Func<TSource, string> operation)
+        {
+            StringBuilder builder = new StringBuilder();
+
+            IEnumerator<TSource> enumerator = source.GetEnumerator();
+            for (int i = 0; i < source.Count; i++)
+            {
+                if (!enumerator.MoveNext())
+                {
+                    throw new IndexOutOfRangeException("Collection did not contain expected count of items!");
+                }
+                builder.Append(operation(enumerator.Current));
+                if (i < source.Count - 1)
+                {
+                    builder.Append(separator);
+                }
+            }
+
+            return builder.ToString();
+        }
+
+        public static string Join<TSource>(this ICollection<TSource> source, string separator)
+        {
+            StringBuilder builder = new StringBuilder();
+
+            IEnumerator<TSource> enumerator = source.GetEnumerator();
+            for (int i = 0; i < source.Count; i++)
+            {
+                if (!enumerator.MoveNext())
+                {
+                    throw new IndexOutOfRangeException("Collection did not contain expected count of items!");
+                }
+                builder.Append(enumerator.Current.ToString());
+                if (i < source.Count - 1)
+                {
+                    builder.Append(separator);
+                }
+            }
+
+            return builder.ToString();
         }
 
         #endregion

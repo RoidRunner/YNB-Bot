@@ -12,26 +12,28 @@ namespace YNBBot.NestedCommands
 
     class SendEmbedCommand : Command
     {
-        public override OverriddenMethod CommandHandlerMethod => OverriddenMethod.BasicAsync;
-        public override OverriddenMethod ArgumentParserMethod => OverriddenMethod.BasicSynchronous;
+        public const string SUMMARY = "Sends a fully featured embed to a guild text channel";
+        public const string REMARKS = "Good tool for creating JSON formatted embeds: [MagicBots](https://discord.club/embedg/)";
+        public const string LINK = "https://docs.google.com/document/d/1VFWKTcdHxARXMvaSZCceFVCXZVqWpMQyBT8EZrLRoRA/edit#heading=h.mny46gohtu1e";
+        public static readonly Argument[] ARGS = new Argument[] {
+            new Argument("Channel", ArgumentParsing.GENERIC_PARSED_CHANNEL),
+            new Argument("EmbedJSON", "The embed, formatted as a JSON", multiple: true)
+        };
+        public static readonly Precondition[] PRECONDITIONS = new Precondition[] { AccessLevelAuthPrecondition.ADMIN };
 
         private SocketTextChannel channel;
         string messageContent = string.Empty;
         private EmbedBuilder embed;
 
-        public SendEmbedCommand(string identifier) : base(identifier, AccessLevel.Admin)
+        public SendEmbedCommand(string identifier) : base(identifier, OverriddenMethod.BasicSynchronous, OverriddenMethod.BasicAsync, false, ARGS, PRECONDITIONS, SUMMARY, REMARKS, LINK)
         {
-            CommandArgument[] arguments = new CommandArgument[2];
-            arguments[0] = new CommandArgument("Channel", ArgumentParsing.GENERIC_PARSED_CHANNEL);
-            arguments[1] = new CommandArgument("EmbedJSON", "The embed, formatted as a JSON", multiple: true);
-            InitializeHelp("Sends a fully featured embed to a guild text channel", arguments, "Good tool for creating JSON formatted embeds: [MagicBots](https://discord.club/embedg/)", "https://docs.google.com/document/d/1VFWKTcdHxARXMvaSZCceFVCXZVqWpMQyBT8EZrLRoRA/edit#heading=h.mny46gohtu1e");
         }
 
         protected override ArgumentParseResult TryParseArgumentsSynchronous(CommandContext context)
         {
             if (!ArgumentParsing.TryParseGuildTextChannel(context, context.Args[0], out channel))
             {
-                return new ArgumentParseResult(Arguments[0], "Failed to parse to a guild text channel!");
+                return new ArgumentParseResult(ARGS[0], "Failed to parse to a guild text channel!");
             }
 
             if (context.Message.Content.Length > FullIdentifier.Length + context.Args.First.Length + 2)
@@ -44,7 +46,7 @@ namespace YNBBot.NestedCommands
                 }
                 else
                 {
-                    return new ArgumentParseResult(Arguments[1], $"Unable to parse JSON text to a json data structure! Error: `{errormessage}`");
+                    return new ArgumentParseResult(ARGS[1], $"Unable to parse JSON text to a json data structure! Error: `{errormessage}`");
                 }
             }
             else
@@ -82,19 +84,19 @@ namespace YNBBot.NestedCommands
 
     class PreviewEmbedCommand : Command
     {
-        public override OverriddenMethod CommandHandlerMethod => OverriddenMethod.BasicAsync;
-        public override OverriddenMethod ArgumentParserMethod => OverriddenMethod.BasicSynchronous;
+        public const string SUMMARY = "Previews an embed in the channel the command is issued from";
+        public const string REMARKS = "Good tool for creating JSON formatted embeds: [MagicBots](https://discord.club/embedg/)";
+        public const string LINK = "https://docs.google.com/document/d/1VFWKTcdHxARXMvaSZCceFVCXZVqWpMQyBT8EZrLRoRA/edit#heading=h.yzc4ios44r6";
+        public static readonly Argument[] ARGS = new Argument[] {
+            new Argument("EmbedJSON", "The embed, formatted as a JSON", multiple: true)
+        };
+        public static readonly Precondition[] PRECONDITIONS = new Precondition[] { AccessLevelAuthPrecondition.ADMIN };
 
         string messageContent = string.Empty;
         private EmbedBuilder embed;
 
-        public PreviewEmbedCommand(string identifier) : base(identifier, AccessLevel.Admin)
+        public PreviewEmbedCommand(string identifier) : base(identifier, OverriddenMethod.BasicSynchronous, OverriddenMethod.BasicAsync, false, ARGS, PRECONDITIONS, SUMMARY, REMARKS, LINK)
         {
-            RequireAccessLevel = AccessLevel.Admin;
-
-            CommandArgument[] arguments = new CommandArgument[1];
-            arguments[0] = new CommandArgument("EmbedJSON", "The embed, formatted as a JSON", multiple: true);
-            InitializeHelp("Previews an embed in the channel the command is issued from", arguments, "Good tool for creating JSON formatted embeds: [MagicBots](https://discord.club/embedg/)", "https://docs.google.com/document/d/1VFWKTcdHxARXMvaSZCceFVCXZVqWpMQyBT8EZrLRoRA/edit#heading=h.yzc4ios44r6");
         }
 
         protected override ArgumentParseResult TryParseArgumentsSynchronous(CommandContext context)
@@ -109,7 +111,7 @@ namespace YNBBot.NestedCommands
                 }
                 else
                 {
-                    return new ArgumentParseResult(Arguments[0], $"Unable to parse JSON text to a json data structure! Error: `{errormessage}`");
+                    return new ArgumentParseResult(ARGS[0], $"Unable to parse JSON text to a json data structure! Error: `{errormessage}`");
                 }
             }
             else
@@ -145,16 +147,18 @@ namespace YNBBot.NestedCommands
 
     class GetEmbedCommand : Command
     {
-        public override OverriddenMethod CommandHandlerMethod => OverriddenMethod.BasicAsync;
-        public override OverriddenMethod ArgumentParserMethod => OverriddenMethod.BasicAsync;
+        public const string SUMMARY = "Formats a JSON from a given message, including embeds";
+        public const string REMARKS = "Good tool for creating JSON formatted embeds: [MagicBots](https://discord.club/embedg/)";
+        public const string LINK = "https://docs.google.com/document/d/1VFWKTcdHxARXMvaSZCceFVCXZVqWpMQyBT8EZrLRoRA/edit#heading=h.au90cahsqtfp";
+        public static readonly Argument[] ARGS = new Argument[] {
+            new Argument("MessageLink", "A discord message link to select the source"),
+            new Argument("Options", $"Command execution options. Available are:\n`{ExecutionOptions.pretty}` = Include some nice formatting in the embed JSON\n" +
+                $"`{ExecutionOptions.remove}` = Remove the source message after retrieving the embed", true, true)
+        };
+        public static readonly Precondition[] PRECONDITIONS = new Precondition[] { AccessLevelAuthPrecondition.ADMIN };
 
-        public GetEmbedCommand(string identifier) : base(identifier, AccessLevel.Admin)
+        public GetEmbedCommand(string identifier) : base(identifier, OverriddenMethod.BasicAsync, OverriddenMethod.BasicAsync, false, ARGS, PRECONDITIONS, SUMMARY, REMARKS, LINK)
         {
-            CommandArgument[] arguments = new CommandArgument[2];
-            arguments[0] = new CommandArgument("MessageLink", "A discord message link to select the source");
-            arguments[1] = new CommandArgument("Options", $"Command execution options. Available are:\n`{ExecutionOptions.pretty}` = Include some nice formatting in the embed JSON\n" +
-                $"`{ExecutionOptions.remove}` = Remove the source message after retrieving the embed", true, true);
-            InitializeHelp("Formats a JSON from a given message, including embeds", arguments, helpLink: "https://docs.google.com/document/d/1VFWKTcdHxARXMvaSZCceFVCXZVqWpMQyBT8EZrLRoRA/edit#heading=h.au90cahsqtfp");
         }
 
         private SocketGuild guild;
@@ -166,19 +170,19 @@ namespace YNBBot.NestedCommands
         {
             if (!context.Args[0].StartsWith("https://discordapp.com/channels/") || context.Args[0].Length < 40)
             {
-                return new ArgumentParseResult(Arguments[0], "Not a valid message link! Failed Startswith or length test");
+                return new ArgumentParseResult(ARGS[0], "Not a valid message link! Failed Startswith or length test");
             }
 
             string[] messageIdentifiers = context.Args[0].Substring(32).Split('/');
 
             if (messageIdentifiers.Length != 3)
             {
-                return new ArgumentParseResult(Arguments[0], "Not a valid message link! Failed split test");
+                return new ArgumentParseResult(ARGS[0], "Not a valid message link! Failed split test");
             }
 
             if (!ulong.TryParse(messageIdentifiers[0], out ulong guildId) || !ulong.TryParse(messageIdentifiers[1], out ulong channelId) || !ulong.TryParse(messageIdentifiers[2], out ulong messageId))
             {
-                return new ArgumentParseResult(Arguments[0], "Not a valid message link! Failed id parse test");
+                return new ArgumentParseResult(ARGS[0], "Not a valid message link! Failed id parse test");
             }
 
             guild = Var.client.GetGuild(guildId);
@@ -193,17 +197,17 @@ namespace YNBBot.NestedCommands
 
                     if (message == null)
                     {
-                        return new ArgumentParseResult(Arguments[0], "Found correct guild and correct channel, but not correct message! Has the message been deleted?");
+                        return new ArgumentParseResult(ARGS[0], "Found correct guild and correct channel, but not correct message! Has the message been deleted?");
                     }
                 }
                 else
                 {
-                    return new ArgumentParseResult(Arguments[0], "Found correct guild, but not the channel!");
+                    return new ArgumentParseResult(ARGS[0], "Found correct guild, but not the channel!");
                 }
             }
             else
             {
-                return new ArgumentParseResult(Arguments[0], "Could not find the correct guild!");
+                return new ArgumentParseResult(ARGS[0], "Could not find the correct guild!");
             }
 
             options.Clear();
@@ -232,7 +236,7 @@ namespace YNBBot.NestedCommands
 
                 if (parseError)
                 {
-                    return new ArgumentParseResult(Arguments[1], $"Not a valid execution option! Available are: `{ string.Join(", ", Enum.GetNames(typeof(ExecutionOptions))) }`");
+                    return new ArgumentParseResult(ARGS[1], $"Not a valid execution option! Available are: `{ string.Join(", ", Enum.GetNames(typeof(ExecutionOptions))) }`");
                 }
             }
             return ArgumentParseResult.SuccessfullParse;
@@ -316,38 +320,40 @@ namespace YNBBot.NestedCommands
 
     class ReplaceEmbedCommand : Command
     {
-        public override OverriddenMethod CommandHandlerMethod => OverriddenMethod.BasicAsync;
-        public override OverriddenMethod ArgumentParserMethod => OverriddenMethod.BasicAsync;
+        public const string SUMMARY = "Edits a message to follow a new embedjson";
+        public const string REMARKS = "The message author has to be by the bot used to modify!";
+        public const string LINK = "https://docs.google.com/document/d/1VFWKTcdHxARXMvaSZCceFVCXZVqWpMQyBT8EZrLRoRA/edit#heading=h.9t1eqpeq952a";
+        public static readonly Argument[] ARGS = new Argument[] {
+            new Argument("MessageLink", "A discord message link to select the source"),
+            new Argument("EmbedJSON", "The embed, formatted as a JSON", multiple: true)
+        };
+        public static readonly Precondition[] PRECONDITIONS = new Precondition[] { AccessLevelAuthPrecondition.ADMIN };
 
         private IUserMessage message;
         private string messageContent;
         private EmbedBuilder embed;
 
-        public ReplaceEmbedCommand(string identifier) : base(identifier, AccessLevel.Admin)
+        public ReplaceEmbedCommand(string identifier) : base(identifier, OverriddenMethod.BasicAsync, OverriddenMethod.BasicAsync, false, ARGS, PRECONDITIONS, SUMMARY, REMARKS, LINK)
         {
-            CommandArgument[] arguments = new CommandArgument[2];
-            arguments[0] = new CommandArgument("MessageLink", "A discord message link to select the source");
-            arguments[1] = new CommandArgument("EmbedJSON", "The embed, formatted as a JSON", multiple: true);
-            InitializeHelp("Edits a message to follow a new embedjson", arguments, "The message author has to be the bot used to modify!", "https://docs.google.com/document/d/1VFWKTcdHxARXMvaSZCceFVCXZVqWpMQyBT8EZrLRoRA/edit#heading=h.9t1eqpeq952a");
         }
 
         protected override async Task<ArgumentParseResult> TryParseArgumentsAsync(CommandContext context)
         {
             if (!context.Args[0].StartsWith("https://discordapp.com/channels/") || context.Args[0].Length < 40)
             {
-                return new ArgumentParseResult(Arguments[0], "Not a valid message link! Failed Startswith or length test");
+                return new ArgumentParseResult(ARGS[0], "Not a valid message link! Failed Startswith or length test");
             }
 
             string[] messageIdentifiers = context.Args[0].Substring(32).Split('/');
 
             if (messageIdentifiers.Length != 3)
             {
-                return new ArgumentParseResult(Arguments[0], "Not a valid message link! Failed split test");
+                return new ArgumentParseResult(ARGS[0], "Not a valid message link! Failed split test");
             }
 
             if (!ulong.TryParse(messageIdentifiers[0], out ulong guildId) || !ulong.TryParse(messageIdentifiers[1], out ulong channelId) || !ulong.TryParse(messageIdentifiers[2], out ulong messageId))
             {
-                return new ArgumentParseResult(Arguments[0], "Not a valid message link! Failed id parse test");
+                return new ArgumentParseResult(ARGS[0], "Not a valid message link! Failed id parse test");
             }
 
             SocketGuild guild = Var.client.GetGuild(guildId);
@@ -362,21 +368,21 @@ namespace YNBBot.NestedCommands
 
                     if (message == null)
                     {
-                        return new ArgumentParseResult(Arguments[0], "Found correct guild and correct channel, but not correct message! Has the message been deleted?");
+                        return new ArgumentParseResult(ARGS[0], "Found correct guild and correct channel, but not correct message! Has the message been deleted?");
                     }
                     else if (message.Author.Id != Var.client.CurrentUser.Id)
                     {
-                        return new ArgumentParseResult(Arguments[0], "Can not edit a message the bot didn't post itself");
+                        return new ArgumentParseResult(ARGS[0], "Can not edit a message the bot didn't post itself");
                     }
                 }
                 else
                 {
-                    return new ArgumentParseResult(Arguments[0], "Found correct guild, but not the channel!");
+                    return new ArgumentParseResult(ARGS[0], "Found correct guild, but not the channel!");
                 }
             }
             else
             {
-                return new ArgumentParseResult(Arguments[0], "Could not find the correct guild!");
+                return new ArgumentParseResult(ARGS[0], "Could not find the correct guild!");
             }
 
             if (context.Message.Content.Length > FullIdentifier.Length + context.Args.First.Length + 2)
@@ -389,7 +395,7 @@ namespace YNBBot.NestedCommands
                 }
                 else
                 {
-                    return new ArgumentParseResult(Arguments[1], $"Unable to parse JSON text to a json data structure! Error: `{errormessage}`");
+                    return new ArgumentParseResult(ARGS[1], $"Unable to parse JSON text to a json data structure! Error: `{errormessage}`");
                 }
             }
             else

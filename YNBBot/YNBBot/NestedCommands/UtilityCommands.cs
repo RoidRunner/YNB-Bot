@@ -4,6 +4,7 @@ using Discord;
 using Discord.WebSocket;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using YNBBot.MinecraftGuildSystem;
 
 namespace YNBBot.NestedCommands
 {
@@ -11,18 +12,16 @@ namespace YNBBot.NestedCommands
 
     class UserInfoCommand : Command
     {
-        public override OverriddenMethod CommandHandlerMethod => OverriddenMethod.BasicAsync;
-        public override OverriddenMethod ArgumentParserMethod => OverriddenMethod.BasicAsync;
+        public const string SUMMARY = "Provides a collection of info for a given user";
+        public const string REMARKS = default;
+        public const string LINK = default;
+        public static readonly Argument[] ARGS = new Argument[] { new Argument("User", ArgumentParsing.GENERIC_PARSED_USER, true) };
+        public static readonly Precondition[] AUTHCHECKS = new Precondition[] { };
 
         private SocketUser User;
 
-        public UserInfoCommand(string identifier) : base(identifier)
+        public UserInfoCommand(string identifier) : base(identifier, OverriddenMethod.BasicAsync, OverriddenMethod.BasicAsync, false, ARGS, AUTHCHECKS, SUMMARY, REMARKS, LINK)
         {
-            List<CommandArgument> arguments = new List<CommandArgument>
-            {
-                new CommandArgument("User", ArgumentParsing.GENERIC_PARSED_USER, true)
-            };
-            InitializeHelp("Provides a collection of info for a given user", arguments.ToArray());
         }
 
         protected override async Task<ArgumentParseResult> TryParseArgumentsAsync(CommandContext context)
@@ -52,7 +51,7 @@ namespace YNBBot.NestedCommands
             }
             else
             {
-                return new ArgumentParseResult(Arguments[0], "Failed to parse to a User!");
+                return new ArgumentParseResult(ARGS[0], "Failed to parse to a User!");
             }
         }
 
@@ -64,6 +63,10 @@ namespace YNBBot.NestedCommands
                 Title = "UserInfo"
             };
             embed.AddField("Command Access Level", Var.client.GetAccessLevel(User.Id), true);
+            if (MinecraftGuildModel.TryGetGuildOfUser(User.Id, out MinecraftGuild minecraftGuild))
+            {
+                embed.AddField("Minecraft Guild Membership", $"\"{minecraftGuild.Name}\", Rank `{minecraftGuild.GetMemberRank(User.Id)}`");
+            }
             embed.AddField("Discriminator", string.Format("{0}#{1}", User.Username, User.Discriminator), true);
             embed.AddField("Mention", '\\' + User.Mention, true);
             embed.AddField("Discord Snowflake Id", User.Id, true);
@@ -81,7 +84,7 @@ namespace YNBBot.NestedCommands
                 }
                 if (guildUser.JoinedAt != null)
                 {
-                    embed.AddField("Joined Guild", guildUser.JoinedAt?.ToString("r"), true);
+                    embed.AddField("Joined "+ guildUser.Guild.Name, guildUser.JoinedAt?.ToString("r"), true);
                 }
             }
 
@@ -106,16 +109,16 @@ namespace YNBBot.NestedCommands
 
     class AvatarCommand : Command
     {
-        public override OverriddenMethod CommandHandlerMethod => OverriddenMethod.BasicAsync;
-        public override OverriddenMethod ArgumentParserMethod => OverriddenMethod.BasicAsync;
+        public const string SUMMARY = "Provides a users profile picture";
+        public const string REMARKS = default;
+        public const string LINK = default;
+        public static readonly Argument[] ARGS = new Argument[] { new Argument("User", ArgumentParsing.GENERIC_PARSED_USER, true) };
+        public static readonly Precondition[] AUTHCHECKS = new Precondition[] { };
 
         private SocketUser User;
 
-        public AvatarCommand(string identifier) : base(identifier)
+        public AvatarCommand(string identifier) : base(identifier, OverriddenMethod.BasicAsync, OverriddenMethod.BasicAsync, false, ARGS, AUTHCHECKS, SUMMARY, REMARKS, LINK)
         {
-            List<CommandArgument> arguments = new List<CommandArgument>();
-            arguments.Add(new CommandArgument("User", ArgumentParsing.GENERIC_PARSED_USER, true));
-            InitializeHelp("Provides a users profile picture", arguments.ToArray());
         }
 
         protected override async Task<ArgumentParseResult> TryParseArgumentsAsync(CommandContext context)
@@ -145,7 +148,7 @@ namespace YNBBot.NestedCommands
             }
             else
             {
-                return new ArgumentParseResult(Arguments[0], "Failed to parse to a User!");
+                return new ArgumentParseResult(ARGS[0], "Failed to parse to a User!");
             }
         }
 
@@ -182,13 +185,14 @@ namespace YNBBot.NestedCommands
 
     class AboutCommand : Command
     {
-        public override OverriddenMethod CommandHandlerMethod => OverriddenMethod.BasicAsync;
+        public const string SUMMARY = "Lists information about the bot";
+        public const string REMARKS = default;
+        public const string LINK = default;
+        public static readonly Argument[] ARGS = new Argument[] { };
+        public static readonly Precondition[] AUTHCHECKS = new Precondition[] { };
 
-        public override OverriddenMethod ArgumentParserMethod => OverriddenMethod.None;
-
-        public AboutCommand(string identifier) : base(identifier)
+        public AboutCommand(string identifier) : base(identifier, OverriddenMethod.None, OverriddenMethod.BasicAsync, false, ARGS, AUTHCHECKS, SUMMARY, REMARKS, LINK)
         {
-            InitializeHelp("Lists information about the bot", new CommandArgument[0]);
         }
 
         private static readonly EmbedBuilder AboutEmbed;

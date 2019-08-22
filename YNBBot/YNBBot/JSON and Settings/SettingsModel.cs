@@ -83,6 +83,7 @@ namespace YNBBot
         private const string JSON_MUTEROLE = "MuteRole";
         private const string JSON_PREFIX = "Prefix";
         private const string JSON_CHANNELINFOS = "ChannelInfos";
+        private const string JSON_AUTOASSIGNROLEIDS = "AutoAssignRoleIds";
 
         /// <summary>
         /// Loads and applies Settings from appdata/locallow/Ciridium Wing Bot/Settings.json
@@ -126,6 +127,16 @@ namespace YNBBot
                     {
                         GuildChannelHelper.FromJSON(guildChannelInfoContainer);
                     }
+                    if (json.TryGetArrayField(JSON_AUTOASSIGNROLEIDS, out JSONContainer autoAssignRoles))
+                    {
+                        foreach (JSONField idField in autoAssignRoles.Array)
+                        {
+                            if (idField.IsNumber && !idField.IsFloat && !idField.IsSigned)
+                            {
+                                JoinLeaveHandler.AutoAssignRoleIds.Add(idField.Unsigned_Int64);
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -159,6 +170,13 @@ namespace YNBBot
             json.TryAddField(JSON_PREFIX, CommandHandler.Prefix);
             json.TryAddField(JSON_CHANNELINFOS, GuildChannelHelper.ToJSON());
 
+            JSONContainer autoAssignRoleIds = JSONContainer.NewArray();
+            foreach (var roleId in JoinLeaveHandler.AutoAssignRoleIds)
+            {
+                autoAssignRoleIds.Add(roleId);
+            }
+            json.TryAddField(JSON_AUTOASSIGNROLEIDS, autoAssignRoleIds);
+
             await ResourcesModel.WriteJSONObjectToFile(ResourcesModel.SettingsFilePath, json);
         }
 
@@ -169,13 +187,16 @@ namespace YNBBot
         {
             if (GuildChannelHelper.TryGetChannel(GuildChannelHelper.WelcomingChannelId, out SocketTextChannel channel))
             {
-                if (welcomingMessage.Contains("{0}"))
+                if (user.Guild.Id == channel.Guild.Id)
                 {
-                    await channel.SendEmbedAsync($"Welcome {user.Mention}!", string.Format(welcomingMessage, user.Mention));
-                }
-                else
-                {
-                    await channel.SendEmbedAsync($"Welcome {user.Mention}!", welcomingMessage);
+                    if (welcomingMessage.Contains("{0}"))
+                    {
+                        await channel.SendEmbedAsync($"Welcome {user.Mention}!", string.Format(welcomingMessage, user.Mention));
+                    }
+                    else
+                    {
+                        await channel.SendEmbedAsync($"Welcome {user.Mention}!", welcomingMessage);
+                    }
                 }
             }
         }
@@ -192,7 +213,7 @@ namespace YNBBot
         /// Sends a message into the Debug Message Channel if it is defined and Debug is true
         /// </summary>
         /// <param name="message">Message to send</param>
-        public static async Task SendDebugMessage(string message, DebugCategories category)
+        public static async Task SendDebugMessage(DebugCategories category, string message, string description = null)
         {
             if (DebugMessage != null)
             {
@@ -200,12 +221,25 @@ namespace YNBBot
             }
             if (debugLogging[(int)category] && GuildChannelHelper.TryGetChannel(GuildChannelHelper.DebugChannelId, out SocketTextChannel channel))
             {
-                EmbedBuilder debugembed = new EmbedBuilder
+                EmbedBuilder debugembed;
+                if (string.IsNullOrEmpty(description))
                 {
-                    Color = Var.BOTCOLOR,
-                    Title = string.Format("**__Debug: {0}__**", category.ToString().ToUpper()),
-                    Description = message
-                };
+                   debugembed = new EmbedBuilder
+                    {
+                        Color = Var.BOTCOLOR,
+                        Title = $"**[{category.ToString().ToUpper()}]**",
+                        Description = message
+                    };
+                }
+                else
+                {
+                    debugembed = new EmbedBuilder
+                    {
+                        Color = Var.BOTCOLOR,
+                        Title = $"**[{category.ToString().ToUpper()}]** {message}",
+                        Description = description
+                    };
+                }
                 await channel.SendEmbedAsync(debugembed);
             }
         }

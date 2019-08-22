@@ -155,6 +155,26 @@ namespace YNBBot.MinecraftGuildSystem
             return CaptainId == userId || MateIds.Contains(userId) || MemberIds.Contains(userId);
         }
 
+        public GuildRank GetMemberRank(ulong userId)
+        {
+            if (CaptainId == userId)
+            {
+                return GuildRank.Captain;
+            }
+            else if (MateIds.Contains(userId))
+            {
+                return GuildRank.Mate;
+            }
+            else if (MemberIds.Contains(userId))
+            {
+                return GuildRank.Regular;
+            }
+            else
+            {
+                throw new ArgumentException("The user requested is not a member of this guild!");
+            }
+        }
+
         #endregion
         #region JSON
 
@@ -262,8 +282,8 @@ namespace YNBBot.MinecraftGuildSystem
 
     enum GuildRank
     {
-        Captain,
-        Mate,
-        Regular
+        Regular = 0,
+        Mate = 5,
+        Captain = 10
     }
 }

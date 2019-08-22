@@ -2,6 +2,7 @@
 using Discord.WebSocket;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -13,17 +14,14 @@ namespace YNBBot.NestedCommands
 
     class DetectConfigCommand : Command
     {
-        public override OverriddenMethod CommandHandlerMethod => OverriddenMethod.BasicAsync;
-        public override OverriddenMethod ArgumentParserMethod => OverriddenMethod.BasicSynchronous;
+        public const string SUMMARY = "Lists current configuration";
+        public const string REMARKS = default;
+        public const string LINK = "https://docs.google.com/document/d/1VFWKTcdHxARXMvaSZCceFVCXZVqWpMQyBT8EZrLRoRA/edit#heading=h.xgjci6e0iq7a";
+        public static readonly Argument[] ARGS = new Argument[] { };
+        public static readonly Precondition[] AUTHCHECKS = new Precondition[] { AccessLevelAuthPrecondition.ADMIN };
 
-        public DetectConfigCommand(string identifier) : base(identifier, AccessLevel.Admin)
+        public DetectConfigCommand(string identifier) : base(identifier, OverriddenMethod.None, OverriddenMethod.BasicAsync, false, ARGS, AUTHCHECKS, SUMMARY, REMARKS, LINK)
         {
-            InitializeHelp("Lists current configuration", new CommandArgument[0], helpLink: "https://docs.google.com/document/d/1VFWKTcdHxARXMvaSZCceFVCXZVqWpMQyBT8EZrLRoRA/edit#heading=h.xgjci6e0iq7a");
-        }
-
-        protected override ArgumentParseResult TryParseArgumentsSynchronous(CommandContext context)
-        {
-            return ArgumentParseResult.DefaultNoArguments;
         }
 
         protected override async Task HandleCommandAsync(CommandContext context)
@@ -85,33 +83,34 @@ namespace YNBBot.NestedCommands
 
     class SetRoleCommand : Command
     {
-        public override OverriddenMethod CommandHandlerMethod => OverriddenMethod.GuildAsync;
-        public override OverriddenMethod ArgumentParserMethod => OverriddenMethod.GuildSynchronous;
+        public const string SUMMARY = "Gets or sets roles for AccessLevel determination or notifications";
+        public const string LINK = "https://docs.google.com/document/d/1VFWKTcdHxARXMvaSZCceFVCXZVqWpMQyBT8EZrLRoRA/edit#heading=h.1l3vldkfbdlh";
+        public static readonly Argument[] ARGS = new Argument[] {
+            new Argument("RoleIdentifier", $"String identifier for the role you want to get or set. Available are: `{string.Join(", ", Enum.GetNames(typeof(SettingRoles)))}`"),
+            new Argument("Role", ArgumentParsing.GENERIC_PARSED_ROLE, true)
+        };
+        public static readonly Precondition[] AUTHCHECKS = new Precondition[] { AccessLevelAuthPrecondition.ADMIN };
+        public static readonly string REMARKS = $"If the argument {ARGS[1]} is not provided, the current setting is returned instead of setting a new one";
 
         private SettingRoles RoleIdentifier;
         private SocketRole Role;
 
-        public SetRoleCommand(string identifier) : base(identifier, AccessLevel.Admin)
+        public SetRoleCommand(string identifier) : base(identifier, OverriddenMethod.GuildSynchronous, OverriddenMethod.GuildAsync, false, ARGS, AUTHCHECKS, SUMMARY, REMARKS, LINK)
         {
-            List<CommandArgument> arguments = new List<CommandArgument>();
-            arguments.Add(new CommandArgument("RoleIdentifier", $"String identifier for the role you want to get or set. Available are: `{string.Join(", ", Enum.GetNames(typeof(SettingRoles)))}`"));
-            arguments.Add(new CommandArgument("Role", ArgumentParsing.GENERIC_PARSED_ROLE, true));
-            InitializeHelp("Gets or sets roles for AccessLevel determination or notifications",
-                arguments.ToArray(), remarks: "If the argument `(Role)` is not provided, the current setting is returned instead of setting a new one", "https://docs.google.com/document/d/1VFWKTcdHxARXMvaSZCceFVCXZVqWpMQyBT8EZrLRoRA/edit#heading=h.1l3vldkfbdlh");
         }
 
         protected override ArgumentParseResult TryParseArgumentsGuildSynchronous(GuildCommandContext context)
         {
             if (!Enum.TryParse(context.Args[0], out RoleIdentifier))
             {
-                return new ArgumentParseResult(Arguments[0], $"Could not parse to a role identifier. Available are: `{string.Join(", ", Enum.GetNames(typeof(SettingRoles)))}`");
+                return new ArgumentParseResult(ARGS[0], $"Could not parse to a role identifier. Available are: `{string.Join(", ", Enum.GetNames(typeof(SettingRoles)))}`");
             }
 
             if (context.Args.Count == 2)
             {
                 if (!ArgumentParsing.TryParseRole(context, context.Args[1], out Role))
                 {
-                    return new ArgumentParseResult(Arguments[1], $"Could not parse to a role in this guild");
+                    return new ArgumentParseResult(ARGS[1], $"Could not parse to a role in this guild");
                 }
             }
             else
@@ -193,15 +192,17 @@ namespace YNBBot.NestedCommands
 
     class SetOutputChannelCommand : Command
     {
-        public override OverriddenMethod CommandHandlerMethod => OverriddenMethod.GuildAsync;
-        public override OverriddenMethod ArgumentParserMethod => OverriddenMethod.GuildSynchronous;
+        public const string SUMMARY = "Gets or sets output channels";
+        public const string REMARKS = "If no channel is provided will return current setting instead";
+        public const string LINK = "https://docs.google.com/document/d/1VFWKTcdHxARXMvaSZCceFVCXZVqWpMQyBT8EZrLRoRA/edit#heading=h.85wziman3nql";
+        public static readonly Argument[] ARGS = new Argument[] {
+            new Argument("OutputChannelType", $"The type of output channel you want to set. Available are: `{Macros.GetEnumNames<OutputChannelType>()}`"),
+            new Argument("Channel", ArgumentParsing.GENERIC_PARSED_CHANNEL, true)
+        };
+        public static readonly Precondition[] AUTHCHECKS = new Precondition[] { AccessLevelAuthPrecondition.ADMIN };
 
-        public SetOutputChannelCommand(string identifier) : base(identifier, AccessLevel.Admin)
+        public SetOutputChannelCommand(string identifier) : base(identifier, OverriddenMethod.GuildSynchronous, OverriddenMethod.GuildAsync, false, ARGS, AUTHCHECKS, SUMMARY, REMARKS, LINK)
         {
-            CommandArgument[] arguments = new CommandArgument[2];
-            arguments[0] = new CommandArgument("OutputChannelType", $"The type of output channel you want to set. Available are: `{Macros.GetEnumNames<OutputChannelType>()}`");
-            arguments[1] = new CommandArgument("Channel", ArgumentParsing.GENERIC_PARSED_CHANNEL, true);
-            InitializeHelp("Gets or sets output channels", arguments, "If no channel is provided will return current setting instead", "https://docs.google.com/document/d/1VFWKTcdHxARXMvaSZCceFVCXZVqWpMQyBT8EZrLRoRA/edit#heading=h.85wziman3nql");
         }
 
         private OutputChannelType channelType;
@@ -213,14 +214,14 @@ namespace YNBBot.NestedCommands
 
             if (!Enum.TryParse(context.Args[0], out channelType))
             {
-                return new ArgumentParseResult(Arguments[0], $"Could not parse to an output channel type. Available are: `{Macros.GetEnumNames<OutputChannelType>()}`");
+                return new ArgumentParseResult(ARGS[0], $"Could not parse to an output channel type. Available are: `{Macros.GetEnumNames<OutputChannelType>()}`");
             }
 
             if (context.Args.Count == 2)
             {
                 if (!ArgumentParsing.TryParseGuildChannel(context, context.Args[1], out channel))
                 {
-                    return new ArgumentParseResult(Arguments[1], $"Could not parse to a channel in this guild");
+                    return new ArgumentParseResult(ARGS[1], $"Could not parse to a channel in this guild");
                 }
             }
 
@@ -307,20 +308,22 @@ namespace YNBBot.NestedCommands
 
     class EditChannelInfoCommand : Command
     {
-        public override OverriddenMethod CommandHandlerMethod => OverriddenMethod.GuildAsync;
-        public override OverriddenMethod ArgumentParserMethod => OverriddenMethod.GuildSynchronous;
-
-        public EditChannelInfoCommand(string identifier) : base(identifier, AccessLevel.Admin)
-        {
-            CommandArgument[] arguments = new CommandArgument[2];
-            arguments[0] = new CommandArgument("Channel", ArgumentParsing.GENERIC_PARSED_CHANNEL);
-            arguments[1] = new CommandArgument("Configuration",
+        public const string SUMMARY = "Retrieve or update channel specific settings";
+        public const string REMARKS = "If no Configuration arguments are provided the current setting is printed out";
+        public const string LINK = "https://docs.google.com/document/d/1VFWKTcdHxARXMvaSZCceFVCXZVqWpMQyBT8EZrLRoRA/edit#heading=h.9qit39gxe2bs";
+        public static readonly Argument[] ARGS = new Argument[] {
+            new Argument("Channel", ArgumentParsing.GENERIC_PARSED_CHANNEL),
+            new Argument("Configuration",
                 $"Configuration arguments, formatted as `<ConfigIdentifier>:<boolean value>`. Available are:\n" +
                 $"`{ConfigIdentifier.allowcommands}` - Wether bot commands cna be used in this channel\n" +
                 $"`{ConfigIdentifier.allowshitposting}` - Wether shitposting commands are usable in this channel\n\n" +
                 $"Example Arguments: `#somechannel {ConfigIdentifier.allowcommands}:true {ConfigIdentifier.allowshitposting}:false` enables commands but disables shitposting in this channel.",
-                true, true);
-            InitializeHelp("Retrieve or update channel specific settings", arguments, "If no Configuration arguments are provided the current setting is printed out.", "https://docs.google.com/document/d/1VFWKTcdHxARXMvaSZCceFVCXZVqWpMQyBT8EZrLRoRA/edit#heading=h.9qit39gxe2bs");
+                true, true)
+        };
+        public static readonly Precondition[] AUTHCHECKS = new Precondition[] { AccessLevelAuthPrecondition.ADMIN };
+
+        public EditChannelInfoCommand(string identifier) : base(identifier, OverriddenMethod.GuildSynchronous, OverriddenMethod.GuildAsync, false, ARGS, AUTHCHECKS, SUMMARY, REMARKS, LINK)
+        {
         }
 
         private SocketGuildChannel Channel;
@@ -330,7 +333,7 @@ namespace YNBBot.NestedCommands
         {
             if (!ArgumentParsing.TryParseGuildChannel(context, context.Args[0], out Channel))
             {
-                return new ArgumentParseResult(Arguments[0], "Failed to parse to a guild channel!");
+                return new ArgumentParseResult(ARGS[0], "Failed to parse to a guild channel!");
             }
 
             Configs.Clear();
@@ -345,17 +348,17 @@ namespace YNBBot.NestedCommands
                     {
                         if (!Enum.TryParse(argSplit[0], out ConfigIdentifier configIdentifier))
                         {
-                            return new ArgumentParseResult(Arguments[1], $"{arg} - Could not parse to config identifier. Available are `{Macros.GetEnumNames<ConfigIdentifier>()}`!");
+                            return new ArgumentParseResult(ARGS[1], $"{arg} - Could not parse to config identifier. Available are `{Macros.GetEnumNames<ConfigIdentifier>()}`!");
                         }
                         if (!bool.TryParse(argSplit[1], out bool setting))
                         {
-                            return new ArgumentParseResult(Arguments[1], $"{arg} - Could not parse boolean value!");
+                            return new ArgumentParseResult(ARGS[1], $"{arg} - Could not parse boolean value!");
                         }
                         Configs.Add(new Tuple<ConfigIdentifier, bool>(configIdentifier, setting));
                     }
                     else
                     {
-                        return new ArgumentParseResult(Arguments[1], $"{arg} - Could not split into config identifer and setting!");
+                        return new ArgumentParseResult(ARGS[1], $"{arg} - Could not split into config identifer and setting!");
                     }
                 }
                 context.Args.Index--;
@@ -421,25 +424,27 @@ namespace YNBBot.NestedCommands
 
     class SetTemplateCommand : Command
     {
-        public override OverriddenMethod CommandHandlerMethod => OverriddenMethod.BasicAsync;
-        public override OverriddenMethod ArgumentParserMethod => OverriddenMethod.BasicSynchronous;
+        public const string SUMMARY = "Gets or sets message templates";
+        public const string REMARKS = "If the argument `([Text])` is not provided, the current template is returned instead of setting a new one";
+        public const string LINK = "https://docs.google.com/document/d/1VFWKTcdHxARXMvaSZCceFVCXZVqWpMQyBT8EZrLRoRA/edit#heading=h.j9fbgsio3olf";
+        public static readonly Argument[] ARGS = new Argument[] {
+            new Argument("TemplateIdentifier", $"String identifier for the template you want to get or set. Available are: `{string.Join(", ", Enum.GetNames(typeof(Templates)))}`"),
+            new Argument("Text", "These arguments combined represent the new text for the template", true, true)
+        };
+        public static readonly Precondition[] AUTHCHECKS = new Precondition[] { AccessLevelAuthPrecondition.ADMIN };
 
         private Templates template;
         private string newText;
 
-        public SetTemplateCommand(string identifier) : base(identifier, AccessLevel.Admin)
+        public SetTemplateCommand(string identifier) : base(identifier, OverriddenMethod.BasicSynchronous, OverriddenMethod.BasicAsync, false, ARGS, AUTHCHECKS, SUMMARY, REMARKS, LINK)
         {
-            List<CommandArgument> arguments = new List<CommandArgument>(2);
-            arguments.Add(new CommandArgument("TemplateIdentifier", $"String identifier for the template you want to get or set. Available are: `{string.Join(", ", Enum.GetNames(typeof(Templates)))}`"));
-            arguments.Add(new CommandArgument("Text", "These arguments combined represent the new text for the template", true, true));
-            InitializeHelp("Gets or sets message templates for welcoming, etc.", arguments.ToArray(), "If the argument `([Text])` is not provided, the current template is returned instead of setting a new one", "https://docs.google.com/document/d/1VFWKTcdHxARXMvaSZCceFVCXZVqWpMQyBT8EZrLRoRA/edit#heading=h.j9fbgsio3olf");
         }
 
         protected override ArgumentParseResult TryParseArgumentsSynchronous(CommandContext context)
         {
             if (!Enum.TryParse(context.Args.First, out template))
             {
-                return new ArgumentParseResult(Arguments[0], $"Could not parse to a template identifier. Available are: `{string.Join(", ", Enum.GetNames(typeof(Templates)))}`");
+                return new ArgumentParseResult(ARGS[0], $"Could not parse to a template identifier. Available are: `{string.Join(", ", Enum.GetNames(typeof(Templates)))}`");
             }
 
             if (context.Args.Count > 1 && context.Message.Content.Length > FullIdentifier.Length + context.Args.First.Length + 2)
@@ -502,16 +507,18 @@ namespace YNBBot.NestedCommands
 
     class PrefixCommand : Command
     {
-        public override OverriddenMethod CommandHandlerMethod => OverriddenMethod.BasicAsync;
-        public override OverriddenMethod ArgumentParserMethod => OverriddenMethod.BasicSynchronous;
+        public const string SUMMARY = "Sets the command prefix the bot should use";
+        public const string REMARKS = default;
+        public const string LINK = "https://docs.google.com/document/d/1VFWKTcdHxARXMvaSZCceFVCXZVqWpMQyBT8EZrLRoRA/edit#heading=h.kw660g9sdfi5";
+        public static readonly Argument[] ARGS = new Argument[] {
+            new Argument("PrefixCharacter", "A character to set as the new command prefix")
+        };
+        public static readonly Precondition[] AUTHCHECKS = new Precondition[] { AccessLevelAuthPrecondition.ADMIN };
 
         char Prefix;
 
-        public PrefixCommand(string identifier) : base(identifier, AccessLevel.Admin)
+        public PrefixCommand(string identifier) : base(identifier, OverriddenMethod.BasicSynchronous, OverriddenMethod.BasicAsync, false, ARGS, AUTHCHECKS, SUMMARY, REMARKS, LINK)
         {
-            List<CommandArgument> arguments = new List<CommandArgument>();
-            arguments.Add(new CommandArgument("PrefixCharacter", "A character to set as the new command prefix"));
-            InitializeHelp("Sets the command prefix the bot should use", arguments.ToArray(), helpLink: "https://docs.google.com/document/d/1VFWKTcdHxARXMvaSZCceFVCXZVqWpMQyBT8EZrLRoRA/edit#heading=h.kw660g9sdfi5");
         }
 
         protected override ArgumentParseResult TryParseArgumentsSynchronous(CommandContext context)
@@ -533,25 +540,27 @@ namespace YNBBot.NestedCommands
 
     class ToggleLoggingCommand : Command
     {
-        public override OverriddenMethod CommandHandlerMethod => OverriddenMethod.BasicAsync;
-        public override OverriddenMethod ArgumentParserMethod => OverriddenMethod.BasicSynchronous;
+        public const string SUMMARY = "Toggles logging for specific message categories";
+        public const string LINK = "https://docs.google.com/document/d/1VFWKTcdHxARXMvaSZCceFVCXZVqWpMQyBT8EZrLRoRA/edit#heading=h.l2sb9l9seq78";
+        public static readonly Argument[] ARGS = new Argument[] {
+            new Argument("MessageCategory", $"Specifies the logging message category that you want to get or set. Available are: `{Macros.GetEnumNames<DebugCategories>()}`"),
+            new Argument("Enabled", "Specify the new setting for the given MessageType. Use `true`, `false`, `enable` or `disable`", true)
+        };
+        public static readonly Precondition[] AUTHCHECKS = new Precondition[] { AccessLevelAuthPrecondition.ADMIN };
+        public static readonly string REMARKS = $"If `{ARGS[1]}` is not provided, will display the current setting instead";
 
         private DebugCategories category;
         private bool? newSetting;
 
-        public ToggleLoggingCommand(string identifier) : base(identifier, AccessLevel.Admin)
+        public ToggleLoggingCommand(string identifier) : base(identifier, OverriddenMethod.BasicSynchronous, OverriddenMethod.BasicAsync, false, ARGS, AUTHCHECKS, SUMMARY, REMARKS, LINK)
         {
-            List<CommandArgument> arguments = new List<CommandArgument>(2);
-            arguments.Add(new CommandArgument("MessageCategory", $"Specifies the logging message category that you want to get or set. Available are: `{Macros.GetEnumNames<DebugCategories>()}`"));
-            arguments.Add(new CommandArgument("Enabled", "Specify the new setting for the given MessageType. Use `true`, `false`, `enable` or `disable`", true));
-            InitializeHelp("Toggles logging for specific message categories", arguments.ToArray(), $"If the argument `{arguments[1]}` is not provided, will display the current setting instead", "https://docs.google.com/document/d/1VFWKTcdHxARXMvaSZCceFVCXZVqWpMQyBT8EZrLRoRA/edit#heading=h.l2sb9l9seq78");
         }
 
         protected override ArgumentParseResult TryParseArgumentsSynchronous(CommandContext context)
         {
             if (!Enum.TryParse(context.Args.First, out category))
             {
-                return new ArgumentParseResult(Arguments[0], $"Failed to parse to a logging category! Available are: `{Macros.GetEnumNames<DebugCategories>()}`");
+                return new ArgumentParseResult(ARGS[0], $"Failed to parse to a logging category! Available are: `{Macros.GetEnumNames<DebugCategories>()}`");
             }
 
             if (context.Args.Count > 1)
@@ -571,7 +580,7 @@ namespace YNBBot.NestedCommands
                 }
                 else
                 {
-                    return new ArgumentParseResult(Arguments[1], "Could not parse to a boolean value! Use `true`, `false`, `enable` or `disable`");
+                    return new ArgumentParseResult(ARGS[1], "Could not parse to a boolean value! Use `true`, `false`, `enable` or `disable`");
                 }
             }
             else
@@ -606,17 +615,14 @@ namespace YNBBot.NestedCommands
 
     class StopCommand : Command
     {
-        public override OverriddenMethod CommandHandlerMethod => OverriddenMethod.BasicSynchronous;
-        public override OverriddenMethod ArgumentParserMethod => OverriddenMethod.BasicSynchronous;
+        public const string SUMMARY = "Stops the bot application. Requires manual restart";
+        public const string REMARKS = default;
+        public const string LINK = default;
+        public static readonly Argument[] ARGS = new Argument[] { };
+        public static readonly Precondition[] AUTHCHECKS = new Precondition[] { AccessLevelAuthPrecondition.ADMIN };
 
-        public StopCommand(string identifier) : base(identifier, AccessLevel.Admin)
+        public StopCommand(string identifier) : base(identifier, OverriddenMethod.None, OverriddenMethod.BasicSynchronous, false, ARGS, AUTHCHECKS, SUMMARY, REMARKS, LINK)
         {
-            InitializeHelp("Stops the bot application. Requires manual restart", new CommandArgument[0]);
-        }
-
-        protected override ArgumentParseResult TryParseArgumentsSynchronous(CommandContext context)
-        {
-            return ArgumentParseResult.DefaultNoArguments;
         }
 
         protected override void HandleCommandSynchronous(CommandContext context)
@@ -630,23 +636,148 @@ namespace YNBBot.NestedCommands
 
     class RestartCommand : Command
     {
-        public override OverriddenMethod CommandHandlerMethod => OverriddenMethod.BasicSynchronous;
-        public override OverriddenMethod ArgumentParserMethod => OverriddenMethod.BasicSynchronous;
+        public const string SUMMARY = "Restarts the bot application";
+        public const string REMARKS = default;
+        public const string LINK = "https://docs.google.com/document/d/1VFWKTcdHxARXMvaSZCceFVCXZVqWpMQyBT8EZrLRoRA/edit#heading=h.d373hflw2kml";
+        public static readonly Argument[] ARGS = new Argument[] { };
+        public static readonly Precondition[] AUTHCHECKS = new Precondition[] { AccessLevelAuthPrecondition.ADMIN };
 
-        public RestartCommand(string identifier) : base(identifier, AccessLevel.Admin)
+        public RestartCommand(string identifier) : base(identifier, OverriddenMethod.None, OverriddenMethod.BasicSynchronous, false, ARGS, AUTHCHECKS, SUMMARY, REMARKS, LINK)
         {
-            InitializeHelp("Restarts the bot application", new CommandArgument[0], helpLink: "https://docs.google.com/document/d/1VFWKTcdHxARXMvaSZCceFVCXZVqWpMQyBT8EZrLRoRA/edit#heading=h.d373hflw2kml");
-        }
-
-        protected override ArgumentParseResult TryParseArgumentsSynchronous(CommandContext context)
-        {
-            return ArgumentParseResult.DefaultNoArguments;
         }
 
         protected override void HandleCommandSynchronous(CommandContext context)
         {
             Var.RestartPath = System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName;
             Var.running = false;
+        }
+    }
+
+    #endregion
+    #region AutoRoles
+
+    class AutoRoleCommand : Command
+    {
+        public const string SUMMARY = "List, add or remove roles that are automatically added to any user that joins";
+        public const string REMARKS = "If executed without arguments, lists all autoroles instead!";
+        public const string LINK = default;
+        public static readonly Argument[] ARGS = new Argument[] {
+            new Argument("Mode", $"What mode the command runs in. Available are: `{Macros.GetEnumNames<CommandMode>()}`", optional:true),
+            new Argument("Role", ArgumentParsing.GENERIC_PARSED_ROLE, optional:true)
+        };
+        public static readonly Precondition[] AUTHCHECKS = new Precondition[] { AccessLevelAuthPrecondition.ADMIN };
+
+        public AutoRoleCommand(string identifier) : base(identifier, OverriddenMethod.GuildSynchronous, OverriddenMethod.GuildAsync, false, ARGS, AUTHCHECKS, SUMMARY, REMARKS, LINK)
+        {
+        }
+
+        private enum CommandMode
+        {
+            list,
+            add,
+            remove
+        }
+
+        private CommandMode Mode;
+        private SocketRole Role;
+        private ulong RoleId;
+
+        protected override ArgumentParseResult TryParseArgumentsGuildSynchronous(GuildCommandContext context)
+        {
+            if (context.Args.Count == 0)
+            {
+                Mode = CommandMode.list;
+                Role = null;
+            }
+            else
+            {
+                if (!Enum.TryParse(context.Args.First, out Mode))
+                {
+                    return new ArgumentParseResult(ARGS[0], $"Unable to parse `{context.Args.First}` to a valid command mode!");
+                }
+
+                context.Args.Index++;
+
+                if (context.Args.Count == 0 && Mode != CommandMode.list)
+                {
+                    return new ArgumentParseResult(ARGS[1], $"Mode `{Mode}` requires a role as second argument!");
+                }
+
+                if (Mode != CommandMode.list)
+                {
+                    if (!ArgumentParsing.TryParseRole(context, context.Args.First, out Role))
+                    {
+                        if (Mode == CommandMode.add)
+                        {
+                            return new ArgumentParseResult(ARGS[1], $"Could not parse `{context.Args.First}` to a valid role!");
+                        }
+                        else
+                        {
+                            if (!ulong.TryParse(context.Args.First, out RoleId))
+                            {
+                                return new ArgumentParseResult(ARGS[1], $"Could not parse `{context.Args.First}` to a valid role!");
+                            }
+                        }
+                    }
+
+                    if (Role != null)
+                    {
+                        RoleId = Role.Id;
+                    }
+
+                    bool hasRole = JoinLeaveHandler.AutoAssignRoleIds.Contains(RoleId);
+                    if (Mode == CommandMode.add && hasRole)
+                    {
+                        return new ArgumentParseResult(ARGS[1], $"{Role.Mention} is already amongst the auto assign roles!");
+                    }
+                    else if (Mode == CommandMode.remove && !hasRole)
+                    {
+                        return new ArgumentParseResult(ARGS[1], $"Can not remove {Role.Mention} from the list of auto assign roles, as it isn't in that list already!");
+                    }
+                }
+            }
+
+            return ArgumentParseResult.SuccessfullParse;
+        }
+
+        protected override async Task HandleCommandGuildAsync(GuildCommandContext context)
+        {
+            switch (Mode)
+            {
+                case CommandMode.list:
+                    EmbedBuilder embed = new EmbedBuilder()
+                    {
+                        Title = "Roles automatically assigned to newly joined users",
+                        Color = Var.BOTCOLOR,
+                        Description = JoinLeaveHandler.AutoAssignRoleIds.Count == 0 ?
+                        "No Roles"
+                        :
+                        JoinLeaveHandler.AutoAssignRoleIds.OperationJoin(", ", (ulong roleId) =>
+                        {
+                            SocketRole role = context.Guild.GetRole(roleId);
+                            if (role != null)
+                            {
+                                return role.Mention;
+                            }
+                            else
+                            {
+                                return Macros.InlineCodeBlock(roleId);
+                            }
+                        })
+                    };
+                    await context.Channel.SendEmbedAsync(embed);
+                    break;
+                case CommandMode.add:
+                    JoinLeaveHandler.AutoAssignRoleIds.Add(RoleId);
+                    await SettingsModel.SaveSettings();
+                    await context.Channel.SendEmbedAsync($"Added {Role.Mention} to the list of roles automatically assigned to new users!");
+                    break;
+                case CommandMode.remove:
+                    JoinLeaveHandler.AutoAssignRoleIds.Remove(RoleId);
+                    await SettingsModel.SaveSettings();
+                    await context.Channel.SendEmbedAsync($"Removed {(Role == null ? Macros.InlineCodeBlock(RoleId) : Role.Mention)} from the list of roles automatically assigned to new users!");
+                    break;
+            }
         }
     }
 

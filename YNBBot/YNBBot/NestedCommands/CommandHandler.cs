@@ -34,8 +34,29 @@ namespace YNBBot.NestedCommands
             }
             else
             {
-                // nothing at all was found
-                await context.Message.AddReactionAsync(UnicodeEmoteService.Question);
+                if (matchedCommands.Count == 0 && matchedFamily == null)
+                {
+                    // nothing at all was found
+                    await context.Message.AddReactionAsync(UnicodeEmoteService.Question);
+                }
+                else
+                {
+                    if (context.Message.Content.EndsWith("help", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (matchedCommands.Count > 0)
+                        {
+                            await CommandHelper.SendCommandHelp(context, matchedCommands[0]);
+                        }
+                        else
+                        {
+                            await CommandHelper.SendCommandCollectionHelp(context, matchedFamily);
+                        }
+                    }
+                    else
+                    {
+                        await context.Message.AddReactionAsync(UnicodeEmoteService.Question);
+                    }
+                }
             }
         }
 
@@ -98,6 +119,7 @@ namespace YNBBot.NestedCommands
             ConfigFamily.TryAddCommand(new SetRoleCommand("role"));
             ConfigFamily.TryAddCommand(new SetTemplateCommand("template"));
             ConfigFamily.TryAddCommand(new ToggleLoggingCommand("logging"));
+            ConfigFamily.TryAddCommand(new AutoRoleCommand("autorole"));
             ConfigFamily.TryAddCommand(new RestartCommand("restart"));
             ConfigFamily.TryAddCommand(new StopCommand("stop"));
             CommandFamily EmbedFamily = new CommandFamily("embed", BaseFamily, "Collection of commands used for analyzing, designing and sending fully custom embeds");
@@ -118,6 +140,7 @@ namespace YNBBot.NestedCommands
             GuildFamily.TryAddCommand(new SyncGuildsCommand("sync"));
             CommandFamily ManagingFamily = new CommandFamily("manage", BaseFamily, "Collection of commands used for managing discord entity properties");
             ManagingFamily.TryAddCommand(new SetUserNicknameCommand("setnick"));
+            ManagingFamily.TryAddCommand(new PurgeMessagesCommand("purge"));
         }
     }
 }

@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
+using YNBBot.MultiThreading;
 
 namespace YNBBot.NestedCommands
 {
@@ -20,7 +21,9 @@ namespace YNBBot.NestedCommands
         /// <summary>
         /// The minimum AccessLevel required to execute this command
         /// </summary>
-        public AccessLevel RequireAccessLevel { get; protected set; } = AccessLevel.Basic;
+        public AccessLevel RequiredAccessLevel { get; private set; } = AccessLevel.Basic;
+
+        public bool RunAsync { get; private set; }
 
         /// <summary>
         /// String id key used for message->command parsing
@@ -30,52 +33,22 @@ namespace YNBBot.NestedCommands
         /// <summary>
         /// The maximum amount of non-identifier arguments the command can handle
         /// </summary>
-        public int MaxArgCnt { get; protected set; }
+        public int MaxArgCnt { get; private set; }
         /// <summary>
         /// The minimum amount of non-identifier arguments the command can handle
         /// </summary>
-        public int MinArgCnt { get; protected set; }
+        public int MinArgCnt { get; private set; }
 
         private const int MESSAGE_DELETION_DELAY = 5000;
-        private CommandArgument[] args;
         /// <summary>
         /// The arguments used to define min/max argument count and argument helps
         /// </summary>
-        public CommandArgument[] Arguments
-        {
-            get => args;
-            set
-            {
-                args = value;
-                MaxArgCnt = value.Length;
-                MinArgCnt = value.Length;
-                if (value.Length > 0)
-                {
-                    for (int i = 0; i < value.Length; i++)
-                    {
-                        if (value[i].Multiple)
-                        {
-                            MaxArgCnt = 1000;
-                            break;
-                        }
-                    }
-                    for (int i = value.Length - 1; i >= 0; i--)
-                    {
-                        if (value[i].Optional)
-                        {
-                            MinArgCnt--;
-                        }
-                        else
-                        {
-                            break;
-                        }
-                    }
-                }
-            }
-        }
+        public readonly Argument[] Arguments;
 
-        public abstract OverriddenMethod CommandHandlerMethod { get; }
-        public abstract OverriddenMethod ArgumentParserMethod { get; }
+        public readonly Precondition[] Preconditions;
+
+        private readonly OverriddenMethod CommandHandlerMethod;
+        private readonly OverriddenMethod ArgumentParserMethod;
 
         public enum OverriddenMethod
         {
@@ -89,11 +62,65 @@ namespace YNBBot.NestedCommands
         #endregion
         #region Constructors
 
-        public Command(string identifier, AccessLevel requireAccessLevel = AccessLevel.Basic)
+        public Command(string identifier, OverriddenMethod argumentParser, OverriddenMethod commandHandler, bool offThread = false, Argument[] arguments = null, Precondition[] preconditions = null, string summary = default, string remarks = default, string helplink = default)
         {
             Identifier = identifier;
-            RequireAccessLevel = requireAccessLevel;
             RequireGuild = CommandHandlerMethod == OverriddenMethod.GuildAsync || CommandHandlerMethod == OverriddenMethod.GuildSynchronous || ArgumentParserMethod == OverriddenMethod.GuildAsync || ArgumentParserMethod == OverriddenMethod.GuildSynchronous;
+            ArgumentParserMethod = argumentParser;
+            CommandHandlerMethod = commandHandler;
+            RunAsync = offThread;
+            if (arguments == null)
+            {
+                Arguments = new Argument[0];
+            }
+            else
+            {
+                Arguments = arguments;
+                MaxArgCnt = arguments.Length;
+                MinArgCnt = arguments.Length;
+                if (arguments.Length > 0)
+                {
+                    for (int i = 0; i < arguments.Length; i++)
+                    {
+                        if (arguments[i].Multiple)
+                        {
+                            MaxArgCnt = 1000;
+                            break;
+                        }
+                    }
+                    for (int i = arguments.Length - 1; i >= 0; i--)
+                    {
+                        if (arguments[i].Optional)
+                        {
+                            MinArgCnt--;
+                        }
+                    }
+                }
+            }
+            RequiredAccessLevel = AccessLevel.Basic;
+            if (preconditions == null)
+            {
+                Preconditions = new Precondition[0];
+            }
+            else
+            {
+                Preconditions = preconditions;
+                foreach (Precondition precondition in Preconditions)
+                {
+                    if (precondition.RequireGuild && !RequireGuild)
+                    {
+                        RequireGuild = true;
+                    }
+                    AccessLevelAuthPrecondition accessLevelAuthPrecondition = precondition as AccessLevelAuthPrecondition;
+                    if (accessLevelAuthPrecondition != null)
+                    {
+                        RequiredAccessLevel = accessLevelAuthPrecondition.RequiredAccessLevel;
+                    }
+                }
+            }
+            Description = summary;
+            Remarks = remarks;
+            Link = helplink;
         }
 
         #endregion
@@ -146,14 +173,14 @@ namespace YNBBot.NestedCommands
 
                 GuildCommandContext.TryConvert(context, out GuildCommandContext guildContext);
 
+                if (RequireGuild && guildContext == null)
+                {
+                    await context.Channel.SendEmbedAsync("This command can only be executed in guilds (commonly referred to as \"server\")!", true);
+                }
                 if ((guildContext != null) && !guildContext.ChannelConfig.AllowCommands && context.UserAccessLevel < AccessLevel.Admin)
                 {
                     var message = await context.Channel.SendEmbedAsync("This channel is a no-command-zone!", true);
                     Macros.ScheduleMessagesForDeletion(MESSAGE_DELETION_DELAY, message, context.Message);
-                }
-                else if (context.UserAccessLevel < RequireAccessLevel)
-                {
-                    await context.Channel.SendEmbedAsync($"You don't have permission to use this command! It requires `{RequireAccessLevel}` access, but you have only `{context.UserAccessLevel}` access!", true);
                 }
                 else if ((guildContext != null) && IsShitposting && !guildContext.ChannelConfig.AllowShitposting && context.UserAccessLevel < AccessLevel.Admin)
                 {
@@ -162,138 +189,210 @@ namespace YNBBot.NestedCommands
                 }
                 else
                 {
-                    try
+                    PreconditionCheck(context, guildContext, out List<string> failedAuthCheckMessages);
+                    if (failedAuthCheckMessages.Count == 1)
                     {
-                        if (RequireAccessLevel >= AccessLevel.Admin)
+                        EmbedBuilder embed = new EmbedBuilder()
                         {
-                            await SettingsModel.SendAdminCommandUsedMessage(context, this);
-                        }
-
-                        ArgumentParseResult parseResult = await TryParseArguments(context);
-                        if (!parseResult.Success)
-                        {
-                            await context.Channel.SendEmbedAsync("Argument Parsing Error", parseResult.Message, true);
-                        }
-                        else
-                        {
-                            await HandleCommand(context);
-                        }
+                            Color = Var.ERRORCOLOR,
+                            Title = "A Precondition has not been met!",
+                            Description = failedAuthCheckMessages[0]
+                        };
+                        await context.Channel.SendEmbedAsync(embed);
                     }
-                    catch (Exception e)
+                    else if (failedAuthCheckMessages.Count > 1)
                     {
-                        string location;
-                        if (guildContext != null)
+                        EmbedBuilder embed = new EmbedBuilder()
                         {
-                            location = Macros.GetMessageURL(guildContext.Message, guildContext.Guild.Id);
-                        }
-                        else
+                            Color = Var.ERRORCOLOR,
+                            Title = $"{failedAuthCheckMessages.Count} Preconditions have not been met!",
+                            Description = failedAuthCheckMessages.Join("\n")
+                        };
+                        await context.Channel.SendEmbedAsync(embed);
+                    }
+                    else
+                    {
+
+                        try
                         {
-                            location = $"PM with {context.User.Mention} ({context.User.Username}#{context.User.Discriminator})";
+                            if (RequiredAccessLevel >= AccessLevel.Admin)
+                            {
+                                await SettingsModel.SendAdminCommandUsedMessage(context, this);
+                            }
+
+                            bool mayBeHelpRequest = false;
+                            if (context.Args.Count >= 1)
+                            {
+                                mayBeHelpRequest = context.Args.First.Equals("help", StringComparison.OrdinalIgnoreCase) && context.Args.Count == 1;
+                            }
+                            ArgumentParseResult parseResult = await TryParseArguments(context, guildContext);
+                            if (!parseResult.Success)
+                            {
+                                if (!mayBeHelpRequest)
+                                {
+                                    await context.Channel.SendEmbedAsync("Argument Parsing Error", parseResult.Message, true);
+                                }
+                                await CommandHelper.SendCommandHelp(context, this);
+                            }
+                            else
+                            {
+                                await HandleCommand(context, guildContext);
+                            }
                         }
-                        await GuildChannelHelper.SendExceptionNotification(e, $"Error Executing Command `{CommandHandler.Prefix}{FullIdentifier}`, here: {location}");
-                        await context.Channel.SendEmbedAsync("The command you attempted to execute unexpectedly threw an exception. Bot Dev is notified, stand by!");
+                        catch (Exception e)
+                        {
+                            string location;
+                            if (context.IsGuildContext)
+                            {
+                                location = Macros.GetMessageURL(guildContext.Message, guildContext.Guild.Id);
+                            }
+                            else
+                            {
+                                location = $"PM with {context.User.Mention} ({context.User.Username}#{context.User.Discriminator})";
+                            }
+                            await GuildChannelHelper.SendExceptionNotification(e, $"Error Executing Command `{CommandHandler.Prefix}{FullIdentifier}`, here: {location}");
+                            await context.Channel.SendEmbedAsync("The command you attempted to execute unexpectedly threw an exception. Bot Dev is notified, stand by!", true);
+                        }
                     }
                 }
             }
             return commandMatch;
         }
 
-        private async Task HandleCommand(CommandContext context)
+        public bool PreconditionCheck(CommandContext context, GuildCommandContext guildContext, out List<string> failedAuthCheckMessages)
         {
-            GuildCommandContext guildContext = context as GuildCommandContext;
-
-            switch (CommandHandlerMethod)
+            failedAuthCheckMessages = new List<string>();
+            if (!context.IsGuildContext && RequireGuild)
             {
-                case OverriddenMethod.BasicAsync:
-                    await HandleCommandAsync(context);
-                    break;
-                case OverriddenMethod.GuildAsync:
-                    await HandleCommandGuildAsync(guildContext);
-                    break;
-                case OverriddenMethod.BasicSynchronous:
-                    HandleCommandSynchronous(context);
-                    break;
-                case OverriddenMethod.GuildSynchronous:
-                    HandleCommandGuildSynchronous(guildContext);
-                    break;
-                default:
-                    throw new Exception("The overriden Method could not be parsed!");
+                failedAuthCheckMessages.Add("Command can only be executed in a Guild Channel!");
+                return false;
+            }
+            foreach (Precondition authCheck in Preconditions)
+            {
+                if (authCheck.RequireGuild)
+                {
+                    if (!authCheck.IsAuthorizedGuild(guildContext, out string message))
+                    {
+                        failedAuthCheckMessages.Add(message);
+                    }
+                }
+                else
+                {
+                    if (!authCheck.IsAuthorized(context, out string message))
+                    {
+                        failedAuthCheckMessages.Add(message);
+                    }
+                }
+            }
+
+            return failedAuthCheckMessages.Count == 0;
+        }
+
+        private async Task HandleCommand(CommandContext context, GuildCommandContext guildContext)
+        {
+            if (RunAsync)
+            {
+                switch (CommandHandlerMethod)
+                {
+                    case OverriddenMethod.BasicAsync:
+                        WorkerThreadService.QueueTask(new WorkerTask(() => { return HandleCommandAsync(context); }));
+                        break;
+                    case OverriddenMethod.GuildAsync:
+                        WorkerThreadService.QueueTask(new WorkerTask(() => { return HandleCommandGuildAsync(guildContext); }));
+                        break;
+                    case OverriddenMethod.BasicSynchronous:
+                        WorkerThreadService.QueueTask(new WorkerTask(() => { HandleCommandSynchronous(context); return Task.CompletedTask; }));
+                        break;
+                    case OverriddenMethod.GuildSynchronous:
+                        WorkerThreadService.QueueTask(new WorkerTask(() => { HandleCommandGuildSynchronous(guildContext); return Task.CompletedTask; }));
+                        break;
+                    default:
+                        throw new Exception("The overriden Method could not be parsed!");
+                }
+            }
+            else
+            {
+                switch (CommandHandlerMethod)
+                {
+                    case OverriddenMethod.BasicAsync:
+                        await HandleCommandAsync(context);
+                        break;
+                    case OverriddenMethod.GuildAsync:
+                        await HandleCommandGuildAsync(guildContext);
+                        break;
+                    case OverriddenMethod.BasicSynchronous:
+                        HandleCommandSynchronous(context);
+                        break;
+                    case OverriddenMethod.GuildSynchronous:
+                        HandleCommandGuildSynchronous(guildContext);
+                        break;
+                    default:
+                        throw new Exception("The overriden Method could not be parsed!");
+                }
             }
         }
 
-#pragma warning disable 1998
-        protected async virtual Task HandleCommandAsync(CommandContext context)
+        protected virtual Task HandleCommandAsync(CommandContext context)
         {
-            throw new UnpopulatedCommandMethodException(CommandEnvironment.Base);
+            throw new UnpopulatedMethodException(OverriddenMethod.BasicAsync);
         }
 
-        protected async virtual Task HandleCommandGuildAsync(GuildCommandContext context)
+        protected virtual Task HandleCommandGuildAsync(GuildCommandContext context)
         {
-            throw new UnpopulatedCommandMethodException(CommandEnvironment.Guild);
+            throw new UnpopulatedMethodException(OverriddenMethod.GuildAsync);
         }
-#pragma warning restore 1998
-
         protected virtual void HandleCommandSynchronous(CommandContext context)
         {
-            throw new UnpopulatedCommandMethodException(CommandEnvironment.Base);
+            throw new UnpopulatedMethodException(OverriddenMethod.BasicSynchronous);
         }
 
         protected virtual void HandleCommandGuildSynchronous(GuildCommandContext context)
         {
-            throw new UnpopulatedCommandMethodException(CommandEnvironment.Base);
+            throw new UnpopulatedMethodException(OverriddenMethod.GuildSynchronous);
         }
 
         #endregion
         #region ArgumentParsers
 
-        private async Task<ArgumentParseResult> TryParseArguments(CommandContext context)
+        private async Task<ArgumentParseResult> TryParseArguments(CommandContext context, GuildCommandContext guildContext)
         {
-            if (RequireGuild == false || RequireGuild == context.IsGuildContext)
+            switch (ArgumentParserMethod)
             {
-                GuildCommandContext guildContext = context as GuildCommandContext;
-
-                switch (ArgumentParserMethod)
-                {
-                    case OverriddenMethod.None:
-                        return ArgumentParseResult.DefaultNoArguments;
-                    case OverriddenMethod.BasicAsync:
-                        return await TryParseArgumentsAsync(context);
-                    case OverriddenMethod.GuildAsync:
-                        return await TryParseArgumentsGuildAsync(guildContext);
-                    case OverriddenMethod.BasicSynchronous:
-                        return TryParseArgumentsSynchronous(context);
-                    case OverriddenMethod.GuildSynchronous:
-                        return TryParseArgumentsGuildSynchronous(guildContext);
-                    default:
-                        return new ArgumentParseResult($"Internal Error: `{Macros.GetCodeLocation()}`");
-                }
-            }
-            else
-            {
-                return new ArgumentParseResult($"Command can not be executed in DM Channels, it needs to be executed in Guild Channels!");
+                case OverriddenMethod.None:
+                    return ArgumentParseResult.DefaultNoArguments;
+                case OverriddenMethod.BasicAsync:
+                    return await TryParseArgumentsAsync(context);
+                case OverriddenMethod.GuildAsync:
+                    return await TryParseArgumentsGuildAsync(guildContext);
+                case OverriddenMethod.BasicSynchronous:
+                    return TryParseArgumentsSynchronous(context);
+                case OverriddenMethod.GuildSynchronous:
+                    return TryParseArgumentsGuildSynchronous(guildContext);
+                default:
+                    return new ArgumentParseResult($"Internal Error: `{Macros.GetCodeLocation()}`");
             }
         }
 
 #pragma warning disable 1998
         protected async virtual Task<ArgumentParseResult> TryParseArgumentsAsync(CommandContext context)
         {
-            throw new UnpopulatedCommandMethodException(CommandEnvironment.Base);
+            throw new UnpopulatedMethodException(OverriddenMethod.BasicAsync);
         }
 
         protected async virtual Task<ArgumentParseResult> TryParseArgumentsGuildAsync(GuildCommandContext context)
         {
-            throw new UnpopulatedCommandMethodException(CommandEnvironment.Base);
+            throw new UnpopulatedMethodException(OverriddenMethod.GuildAsync);
         }
 #pragma warning restore 1998
 
         protected virtual ArgumentParseResult TryParseArgumentsSynchronous(CommandContext context)
         {
-            throw new UnpopulatedCommandMethodException(CommandEnvironment.Base);
+            throw new UnpopulatedMethodException(OverriddenMethod.BasicSynchronous);
         }
 
         protected virtual ArgumentParseResult TryParseArgumentsGuildSynchronous(GuildCommandContext context)
         {
-            throw new UnpopulatedCommandMethodException(CommandEnvironment.Base);
+            throw new UnpopulatedMethodException(OverriddenMethod.GuildSynchronous);
         }
 
         #endregion
@@ -322,7 +421,7 @@ namespace YNBBot.NestedCommands
             {
                 if (MaxArgCnt > 0)
                 {
-                    return CommandHandler.Prefix + FullIdentifier + " " + string.Join(" ", args);
+                    return CommandHandler.Prefix + FullIdentifier + " " + Arguments.Join(" ");
                 }
                 else
                 {
@@ -334,16 +433,17 @@ namespace YNBBot.NestedCommands
         /// <summary>
         /// The commands help description
         /// </summary>
-        public string Description = string.Empty;
+        public readonly string Description;
         /// <summary>
         /// Optional remarks for a command
         /// </summary>
-        public string Remarks = string.Empty;
+        public readonly string Remarks;
         /// <summary>
         /// Optional Link to online documentation of the command
         /// </summary>
-        public string Link = string.Empty;
+        public readonly string Link;
 
+        public bool HasDescription { get { return !string.IsNullOrEmpty(Description); } }
         public bool HasRemarks { get { return !string.IsNullOrEmpty(Remarks); } }
         public bool HasLink { get { return !string.IsNullOrEmpty(Link); } }
 
@@ -364,71 +464,26 @@ namespace YNBBot.NestedCommands
             }
         }
 
-        public void InitializeHelp(string description, CommandArgument[] arguments, string remarks = null, string helpLink = null)
+        [Obsolete]
+        public void InitializeHelp(string description, Argument[] arguments, string remarks = null, string helpLink = null)
         {
-            Description = description;
-            Remarks = remarks;
-            Arguments = arguments;
-            Link = helpLink;
         }
 
         #endregion
+
     }
-
-    /// <summary>
-    /// Contains parsing and help information for a command argument
-    /// </summary>
-    public struct CommandArgument
+    public class UnpopulatedMethodException : Exception
     {
-        /// <summary>
-        /// String identifier that represents the argument in syntax and help
-        /// </summary>
-        public string Identifier;
-        /// <summary>
-        /// Help text that provides information on usage of the argument
-        /// </summary>
-        public string Help;
-        /// <summary>
-        /// Wether the argument is optional or not
-        /// </summary>
-        public bool Optional;
-        /// <summary>
-        /// Wether multiple arguments are allowed or not
-        /// </summary>
-        public bool Multiple;
+        public override string Message { get; }
 
-        /// <summary>
-        /// Creates a new CommandArgument object
-        /// </summary>
-        /// <param name="identifier">String representation of the argument in syntax and help</param>
-        /// <param name="help">Help text that provides information on usage of the argument</param>
-        /// <param name="optional">Wether the argument is optional or not</param>
-        /// <param name="multiple">Wether multiple arguments are allowed or not</param>
-        public CommandArgument(string identifier, string help, bool optional = false, bool multiple = false)
+        internal UnpopulatedMethodException(Command.OverriddenMethod environment) : base()
         {
-            Identifier = identifier;
-            Help = help;
-            Optional = optional;
-            Multiple = multiple;
+            Message = $"The Commandhandler for {environment} has not been overridden!";
         }
 
-        public override string ToString()
+        internal UnpopulatedMethodException(string message) : base()
         {
-            string result = Identifier;
-            if (Multiple)
-            {
-                result = $"[{result}]";
-            }
-
-            if (Optional)
-            {
-                result = $"({result})";
-            }
-            else
-            {
-                result = $"<{result}>";
-            }
-            return result;
+            Message = message;
         }
     }
 
@@ -468,7 +523,7 @@ namespace YNBBot.NestedCommands
         /// Creates an ArgumentParseResult based on a CommandArgument
         /// </summary>
         /// <param name="argument">Command Argument which could not be parsed</param>
-        public ArgumentParseResult(CommandArgument argument)
+        public ArgumentParseResult(Argument argument)
         {
             Message = $"*`{argument}`*: Failed to parse!";
         }
@@ -478,23 +533,12 @@ namespace YNBBot.NestedCommands
         /// </summary>
         /// <param name="argument">Command Argument which could not be parsed</param>
         /// <param name="errormessage">Error message text that explains why parsing failed</param>
-        public ArgumentParseResult(CommandArgument argument, string errormessage)
+        public ArgumentParseResult(Argument argument, string errormessage)
         {
             Message = $"*`{argument}`*: {errormessage}";
         }
     }
 
-    public class UnpopulatedCommandMethodException : Exception
-    {
-        private CommandEnvironment environment;
-
-        public override string Message => $"The Commandhandler for {environment} has not been overridden!";
-
-        public UnpopulatedCommandMethodException(CommandEnvironment environment) : base()
-        {
-            this.environment = environment;
-        }
-    }
 
     public enum CommandEnvironment
     {

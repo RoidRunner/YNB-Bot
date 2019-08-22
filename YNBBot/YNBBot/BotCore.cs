@@ -77,8 +77,8 @@ namespace YNBBot
 
                 Var.client.MessageReceived += CommandHandler.HandleMessage;
                 Var.client.MessageReceived += PingSpamDefenceService.HandleMessage;
-                Var.client.UserJoined += HandleUserJoined;
-                Var.client.UserLeft += HandleUserLeft;
+                Var.client.UserJoined += JoinLeaveHandler.HandleUserJoined;
+                Var.client.UserLeft += JoinLeaveHandler.HandleUserLeft;
                 Var.client.Log += Logger;
                 SettingsModel.DebugMessage += Logger;
                 Var.client.ReactionAdded += ReactionAddedHandler;
@@ -101,11 +101,11 @@ namespace YNBBot
 
                 if (string.IsNullOrEmpty(Var.RestartPath))
                 {
-                    await SettingsModel.SendDebugMessage("Shutting down ...", DebugCategories.misc);
+                    await SettingsModel.SendDebugMessage(DebugCategories.misc, "Shutting down ...");
                 }
                 else
                 {
-                    await SettingsModel.SendDebugMessage("Restarting ...", DebugCategories.misc);
+                    await SettingsModel.SendDebugMessage(DebugCategories.misc, "Restarting ...");
                 }
 
                 Var.client.Dispose();
@@ -167,17 +167,6 @@ namespace YNBBot
         {
             SocketTextChannel guildChannel = channel as SocketTextChannel;
             await ReactionService.HandleReactionAdded(guildChannel, reaction);
-        }
-
-        private async Task HandleUserJoined(SocketGuildUser user)
-        {
-            await SettingsModel.SendDebugMessage(string.Format("{0} joined", user.Mention), DebugCategories.joinleave);
-            await SettingsModel.WelcomeNewUser(user);
-        }
-
-        private async Task HandleUserLeft(SocketGuildUser user)
-        {
-            await SettingsModel.SendDebugMessage(string.Format("{0} left", user.Mention), DebugCategories.joinleave);
         }
 
         #endregion

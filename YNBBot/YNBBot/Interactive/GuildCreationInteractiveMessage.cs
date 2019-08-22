@@ -15,7 +15,7 @@ namespace YNBBot.Interactive
         public List<bool> ConfirmedMembers;
         public bool AdminConfirmed;
 
-        public GuildCreationInteractiveMessage(IUserMessage message, MinecraftGuild guild) : base(message, expirationTime: TimingThread.Millis + EXPIRATIONDELAY)
+        public GuildCreationInteractiveMessage(IUserMessage message, MinecraftGuild guild) : base(message, expirationTime: EXPIRATIONDELAY)
         {
             Guild = guild;
             ConfirmedMembers = new List<bool>(new bool[guild.MemberIds.Count]);

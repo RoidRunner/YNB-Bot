@@ -22,7 +22,7 @@ namespace YNBBot
         /// <summary>
         /// Timespan the limits are active for, in milliseconds (30 minutes)
         /// </summary>
-        public const int EM_TIMESPAN = 1800000;
+        public const int EM_TIMESPAN = 3200000;
 
         private static List<MentionEvent> MentionEvents = new List<MentionEvent>();
 
@@ -177,12 +177,12 @@ namespace YNBBot
                 if (Var.client.TryGetRole(SettingsModel.MuteRole, out SocketRole MuteRole))
                 {
                     await user.AddRoleAsync(MuteRole);
-                    foreach (SocketRole role in user.Roles)
+                }
+                foreach (SocketRole role in user.Roles)
+                {
+                    if (!role.IsEveryone && role.Id != SettingsModel.MuteRole)
                     {
-                        if (!role.IsEveryone && role.Id != MuteRole.Id)
-                        {
-                            await user.RemoveRoleAsync(role);
-                        }
+                        await user.RemoveRoleAsync(role);
                     }
                 }
                 IDMChannel dmChannel = await user.GetOrCreateDMChannelAsync();

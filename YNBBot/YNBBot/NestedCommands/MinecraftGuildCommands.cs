@@ -15,16 +15,17 @@ namespace YNBBot.NestedCommands
     #region found
     class CreateGuildCommand : Command
     {
-        public override OverriddenMethod CommandHandlerMethod => OverriddenMethod.BasicAsync;
-        public override OverriddenMethod ArgumentParserMethod => OverriddenMethod.GuildSynchronous;
+        public const string SUMMARY = "Requests creation of a new minecraft guild";
+        public const string LINK = "https://docs.google.com/document/d/1IdTQoq2l9YhF5Tlj5lBYz5Zcz56NQEgL3Hg5Dg2RyWs/edit#heading=h.h41js19sf4v4";
+        public static readonly Argument[] ARGS = new Argument[] {
+            new Argument("Name", "The name of the guild. Will be the name of the channel and role created. Also applies to ingame naming"),
+            new Argument("Color", $"The color of the guild. Will be the color of the role created. Also applies to ingame color. Available are `{string.Join(", ", MinecraftGuildSystem.MinecraftGuildModel.AvailableColors)}`"),
+            new Argument("Members", "Minimum of two members, selected either by discord snowflake id, mention or Username#Discriminator", multiple: true)};
+        public static readonly Precondition[] AUTHCHECKS = new Precondition[] { AccessLevelAuthPrecondition.MINECRAFT };
+        public static readonly string REMARKS = $"{ARGS[0]} and {ARGS[1]} have to be free to take, all invited members ({ARGS[2]}) have to accept the invitation, and an admin has to confirm the creation of the new guild";
 
-        public CreateGuildCommand(string identifier) : base(identifier, AccessLevel.Minecraft)
+        public CreateGuildCommand(string identifier) : base(identifier, OverriddenMethod.GuildSynchronous, OverriddenMethod.BasicAsync, arguments: ARGS, preconditions: AUTHCHECKS, summary: SUMMARY, remarks: REMARKS, helplink: LINK)
         {
-            CommandArgument[] arguments = new CommandArgument[3];
-            arguments[0] = new CommandArgument("Name", "The name of the guild. Will be the name of the channel and role created. Also applies to ingame naming");
-            arguments[1] = new CommandArgument("Color", $"The color of the guild. Will be the color of the role created. Also applies to ingame color. Available are `{string.Join(", ", MinecraftGuildSystem.MinecraftGuildModel.AvailableColors)}`");
-            arguments[2] = new CommandArgument("Members", "Minimum of two members, selected either by discord snowflake id, mention or Username#Discriminator", multiple: true);
-            InitializeHelp("Requests creation of a new minecraft guild", arguments, $"{arguments[0]} and {arguments[1]} have to be free to take, all invited members ({arguments[2]}) have to accept the invitation, and an admin has to confirm the creation of the new guild", "https://docs.google.com/document/d/1IdTQoq2l9YhF5Tlj5lBYz5Zcz56NQEgL3Hg5Dg2RyWs/edit#heading=h.h41js19sf4v4");
         }
 
         string GuildName;
@@ -66,28 +67,28 @@ namespace YNBBot.NestedCommands
 
             if (GuildName.Length < 3)
             {
-                return new ArgumentParseResult(Arguments[0], "Too short! Minimum of 3 Characters");
+                return new ArgumentParseResult(ARGS[0], "Too short! Minimum of 3 Characters");
             }
             if (GuildName.Length > 50)
             {
-                return new ArgumentParseResult(Arguments[0], "Too long! Maximum of 50 Characters");
+                return new ArgumentParseResult(ARGS[0], "Too long! Maximum of 50 Characters");
             }
             if (!MinecraftGuildModel.NameIsLegal(GuildName))
             {
-                return new ArgumentParseResult(Arguments[0], "The guild name contains illegal characters! (Or starts/ends with a whitespace)");
+                return new ArgumentParseResult(ARGS[0], "The guild name contains illegal characters! (Or starts/ends with a whitespace)");
             }
             if (!MinecraftGuildModel.NameIsAvailable(GuildName))
             {
-                return new ArgumentParseResult(Arguments[0], "A guild with this name already exists!");
+                return new ArgumentParseResult(ARGS[0], "A guild with this name already exists!");
             }
 
             if (!Enum.TryParse(context.Args[0], out GuildColor))
             {
-                return new ArgumentParseResult(Arguments[1], $"Could not parse to an available guild color! Available are `{string.Join(", ", MinecraftGuildModel.AvailableColors)}`");
+                return new ArgumentParseResult(ARGS[1], $"Could not parse to an available guild color! Available are `{string.Join(", ", MinecraftGuildModel.AvailableColors)}`");
             }
             if (!MinecraftGuildModel.ColorIsAvailable(GuildColor))
             {
-                return new ArgumentParseResult(Arguments[1], $"A guild with this color already exists! Available are `{string.Join(", ", MinecraftGuildModel.AvailableColors)}`");
+                return new ArgumentParseResult(ARGS[1], $"A guild with this color already exists! Available are `{string.Join(", ", MinecraftGuildModel.AvailableColors)}`");
             }
 
             context.Args.Index++;
@@ -95,7 +96,7 @@ namespace YNBBot.NestedCommands
             Members.Clear();
             if (context.Args.Count < MinecraftGuildModel.MIN_GUILDFOUNDINGMEMBERS)
             {
-                return new ArgumentParseResult(Arguments[2], $"You need to supply a minimum of {MinecraftGuildModel.MIN_GUILDFOUNDINGMEMBERS} members!");
+                return new ArgumentParseResult(ARGS[2], $"You need to supply a minimum of {MinecraftGuildModel.MIN_GUILDFOUNDINGMEMBERS} members!");
             }
 
             for (int i = 0; i < context.Args.Count; i++)
@@ -104,17 +105,17 @@ namespace YNBBot.NestedCommands
                 {
                     if (member.Id == context.User.Id)
                     {
-                        return new ArgumentParseResult(Arguments[2], "Can not add yourself as a guild member!");
+                        return new ArgumentParseResult(ARGS[2], "Can not add yourself as a guild member!");
                     }
                     if (MinecraftGuildSystem.MinecraftGuildModel.TryGetGuildOfUser(member.Id, out MinecraftGuild memberGuild))
                     {
                         if (memberGuild.Active)
                         {
-                            return new ArgumentParseResult(Arguments[2], $"Can not invite {member.Mention}, because he is already part of \"{memberGuild.Name}\"");
+                            return new ArgumentParseResult(ARGS[2], $"Can not invite {member.Mention}, because he is already part of \"{memberGuild.Name}\"");
                         }
                         else if (memberGuild.CaptainId == member.Id)
                         {
-                            return new ArgumentParseResult(Arguments[2], $"Can not invite {member.Mention}, because he is captain of inactivated guild \"{memberGuild.Name}\". Please contact an admin!");
+                            return new ArgumentParseResult(ARGS[2], $"Can not invite {member.Mention}, because he is captain of inactivated guild \"{memberGuild.Name}\". Please contact an admin!");
                         }
                     }
                     bool hasMinecraftRole = false;
@@ -129,14 +130,14 @@ namespace YNBBot.NestedCommands
 
                     if (!hasMinecraftRole)
                     {
-                        return new ArgumentParseResult(Arguments[2], $"Can not invite {member.Mention}, because he is not part of the minecraft branch!");
+                        return new ArgumentParseResult(ARGS[2], $"Can not invite {member.Mention}, because he is not part of the minecraft branch!");
                     }
 
                     Members.Add(member);
                 }
                 else
                 {
-                    return new ArgumentParseResult(Arguments[2], $"Could not parse `{context.Args[i]}` to a guild user!");
+                    return new ArgumentParseResult(ARGS[2], $"Could not parse `{context.Args[i]}` to a guild user!");
                 }
             }
 
@@ -162,17 +163,8 @@ namespace YNBBot.NestedCommands
 
     class ModifyGuildCommand : Command
     {
-        public override OverriddenMethod CommandHandlerMethod => OverriddenMethod.BasicAsync;
-        public override OverriddenMethod ArgumentParserMethod => OverriddenMethod.BasicSynchronous;
-
-        public ModifyGuildCommand(string identifier) : base(identifier, AccessLevel.Admin)
-        {
-            CommandArgument[] arguments = new CommandArgument[]
-            {
-                new CommandArgument("Name", "Name of the guild to delete"),
-                new CommandArgument("Actions", $"The modifying action you want to take", multiple:true)
-            };
-            InitializeHelp("Modifies guild attributes", arguments, "For a list of modifying actions see below. Some actions require an argument to be passed after them following this syntax: `<Action>:<Argument>`. Multiword arguments are to be encased with quotation marks '\"'.\n\n" +
+        public const string SUMMARY = "Modifies guild attributes";
+        public static readonly string REMARKS = $"For a list of modifying actions see below. Some actions require an argument to be passed after them following this syntax: `<Action>:<Argument>`. Multiword arguments are to be encased with quotation marks '\"'.\n\n" +
                 $"`{GuildModifyActions.delete}` - Removes the guild dataset, channel and role\n" +
                 $"`{GuildModifyActions.deletedataset}` - Removes the guild dataset\n" +
                 $"`{GuildModifyActions.setactive}<Active>` - Sets the guild active/inactive (boolean value)\n" +
@@ -183,9 +175,19 @@ namespace YNBBot.NestedCommands
                 $"`{GuildModifyActions.setcaptain}:<Captain>` - Sets the captain of the guild. Has to be a member!\n" +
                 $"`{GuildModifyActions.addmember}:<Member>` - Manually adds a member to the guild\n" +
                 $"`{GuildModifyActions.removemember}:<Member>` - Manually removes a member from the guild" +
-                $"`{GuildModifyActions.timestamp}:<Timestamp>` - Sets the founding timestamp for this guild. Format is a variant of ISO 8601: `YYYY-MM-DD hh:mm:ssZ`, example: `2019-06-11 17:55:35Z`"
-                //$"`{GuildModifyActions}` - " + 
-                , "https://docs.google.com/document/d/1VFWKTcdHxARXMvaSZCceFVCXZVqWpMQyBT8EZrLRoRA/edit#heading=h.z9qkxx7wamoo");
+                $"`{GuildModifyActions.timestamp}:<Timestamp>` - Sets the founding timestamp for this guild. Format is a variant of ISO 8601: `YYYY-MM-DD hh:mm:ssZ`, example: `2019-06-11 17:55:35Z`";
+        public static readonly Argument[] ARGS = new Argument[] {
+                new Argument("Name", "Name of the guild to delete"),
+                new Argument("Actions", $"The modifying action you want to take. For a list of modifying actions see remarks", multiple:true)
+        };
+        public static readonly Precondition[] AUTHCHECKS = new Precondition[] 
+        {
+            AccessLevelAuthPrecondition.ADMIN
+        };
+        public const string LINK = "https://docs.google.com/document/d/1VFWKTcdHxARXMvaSZCceFVCXZVqWpMQyBT8EZrLRoRA/edit#heading=h.z9qkxx7wamoo";
+
+        public ModifyGuildCommand(string identifier) : base(identifier, OverriddenMethod.BasicSynchronous, OverriddenMethod.BasicAsync, false, ARGS, AUTHCHECKS, SUMMARY, REMARKS, LINK)
+        {
         }
 
         private enum GuildModifyActions
@@ -253,7 +255,7 @@ namespace YNBBot.NestedCommands
         {
             if (!ArgumentParsing.TryParseMinecraftGuild(context.Args, out string parsedName, out TargetGuild))
             {
-                return new ArgumentParseResult(Arguments[0], $"Unable to find a guild named `{parsedName}`");
+                return new ArgumentParseResult(ARGS[0], $"Unable to find a guild named `{parsedName}`");
             }
 
             Actions.Clear();
@@ -274,7 +276,7 @@ namespace YNBBot.NestedCommands
                             {
                                 if (!Enum.TryParse(splits[0], out action))
                                 {
-                                    return new ArgumentParseResult(Arguments[1], $"Unable to parse `{splits[0]}` to a guild modify action!");
+                                    return new ArgumentParseResult(ARGS[1], $"Unable to parse `{splits[0]}` to a guild modify action!");
                                 }
                                 arg = splits[1];
                                 for (int i = 2; i < splits.Length; i++)
@@ -292,14 +294,14 @@ namespace YNBBot.NestedCommands
                             }
                             else
                             {
-                                return new ArgumentParseResult(Arguments[1], $"Unable to parse `{current}` to a guild modify action!");
+                                return new ArgumentParseResult(ARGS[1], $"Unable to parse `{current}` to a guild modify action!");
                             }
                         }
                         else if (Enum.TryParse(current, out action))
                         {
                             if (requireArgument(action))
                             {
-                                return new ArgumentParseResult(Arguments[1], $"Action `{action}` requires an argument!");
+                                return new ArgumentParseResult(ARGS[1], $"Action `{action}` requires an argument!");
                             }
                             else
                             {
@@ -308,7 +310,7 @@ namespace YNBBot.NestedCommands
                         }
                         else
                         {
-                            return new ArgumentParseResult(Arguments[1], $"Unable to parse `{current}` to a guild modify action!");
+                            return new ArgumentParseResult(ARGS[1], $"Unable to parse `{current}` to a guild modify action!");
                         }
                         break;
                     case ModifyActionsParseStep.AppendArgument:
@@ -325,7 +327,7 @@ namespace YNBBot.NestedCommands
 
             if (parseStep == ModifyActionsParseStep.AppendArgument)
             {
-                return new ArgumentParseResult(Arguments[1], $"Argument {arg} was not terminated with quotation marks '\"'");
+                return new ArgumentParseResult(ARGS[1], $"Argument {arg} was not terminated with quotation marks '\"'");
             }
 
             return ArgumentParseResult.SuccessfullParse;
@@ -359,9 +361,15 @@ namespace YNBBot.NestedCommands
                     case GuildModifyActions.delete:
                         if (hasGuildContext)
                         {
-                            await MinecraftGuildModel.DeleteGuildAsync(guildContext.Guild, TargetGuild);
+                            if (await MinecraftGuildModel.DeleteGuildAsync(guildContext.Guild, TargetGuild))
+                            {
+                                successful.Add(action);
+                            }
+                            else
+                            {
+                                errors.Add($"`{action}` - Internal Error deleting Guild!");
+                            }
                             i = Actions.Count;
-                            successful.Add(action);
                         }
                         else
                         {
@@ -659,16 +667,14 @@ namespace YNBBot.NestedCommands
 
     class GuildInfoCommand : Command
     {
-        public override OverriddenMethod CommandHandlerMethod => OverriddenMethod.BasicAsync;
-        public override OverriddenMethod ArgumentParserMethod => OverriddenMethod.BasicSynchronous;
+        public const string SUMMARY = "Shows public info on all or one individual guild";
+        public const string REMARKS = "If no Name is supplied, will display a list of all guilds";
+        public const string LINK = "https://docs.google.com/document/d/1IdTQoq2l9YhF5Tlj5lBYz5Zcz56NQEgL3Hg5Dg2RyWs/edit#heading=h.bz5kjsmanwmo";
+        public static readonly Argument[] ARGS = new Argument[] { new Argument("Name", "Name of the guild to get info on", true, true) };
+        public static readonly Precondition[] AUTHCHECKS = new Precondition[] { AccessLevelAuthPrecondition.MINECRAFT };
 
-        public GuildInfoCommand(string identifier) : base(identifier, AccessLevel.Minecraft)
+        public GuildInfoCommand(string identifier) : base(identifier, OverriddenMethod.BasicSynchronous, OverriddenMethod.BasicAsync, false, ARGS, AUTHCHECKS, SUMMARY, REMARKS, LINK)
         {
-            CommandArgument[] arguments = new CommandArgument[]
-            {
-                new CommandArgument("Name", "Name of the guild to get info on", true, true)
-            };
-            InitializeHelp("Shows public info on all or one individual guild", arguments, "If no Name is supplied, will display a list of all guilds", "https://docs.google.com/document/d/1IdTQoq2l9YhF5Tlj5lBYz5Zcz56NQEgL3Hg5Dg2RyWs/edit#heading=h.bz5kjsmanwmo");
         }
 
         private MinecraftGuild TargetGuild;
@@ -681,11 +687,11 @@ namespace YNBBot.NestedCommands
             }
             else if (!ArgumentParsing.TryParseMinecraftGuild(context.Args, out string parsedName, out TargetGuild))
             {
-                return new ArgumentParseResult(Arguments[0], $"Unable to find a guild named `{parsedName}`");
+                return new ArgumentParseResult(ARGS[0], $"Unable to find a guild named `{parsedName}`");
             }
             else if (!TargetGuild.Active)
             {
-                return new ArgumentParseResult(Arguments[0], "This guild is currently inactive");
+                return new ArgumentParseResult(ARGS[0], "This guild is currently inactive");
             }
 
 
@@ -828,16 +834,14 @@ namespace YNBBot.NestedCommands
 
     class InviteMemberCommand : Command
     {
-        public override OverriddenMethod CommandHandlerMethod => OverriddenMethod.GuildAsync;
-        public override OverriddenMethod ArgumentParserMethod => OverriddenMethod.GuildSynchronous;
+        public const string SUMMARY = "Invite members to join your guild";
+        public const string REMARKS = "Only users who are not already in a guild and are part of the minecraft branch can be invited";
+        public const string LINK = "https://docs.google.com/document/d/1IdTQoq2l9YhF5Tlj5lBYz5Zcz56NQEgL3Hg5Dg2RyWs/edit#heading=h.od6ln2j4yudz";
+        public static readonly Argument[] ARGS = new Argument[] { new Argument("Member", "Users you want to invite to join your guild", multiple: true) };
+        public static readonly Precondition[] AUTHCHECKS = new Precondition[] { AccessLevelAuthPrecondition.MINECRAFT, MinecraftGuildRankAuthPrecondition.MATE };
 
-        public InviteMemberCommand(string identifier) : base(identifier, AccessLevel.Minecraft)
+        public InviteMemberCommand(string identifier) : base(identifier, OverriddenMethod.GuildSynchronous, OverriddenMethod.GuildAsync, false, ARGS, AUTHCHECKS, SUMMARY, REMARKS, LINK)
         {
-            CommandArgument[] arguments = new CommandArgument[]
-            {
-                new CommandArgument("Member", "Users you want to invite to join your guild", multiple:true)
-            };
-            InitializeHelp("Invite members to join your guild as a guild captain", arguments, "Only users who are not already in a guild and are part of the minecraft branch can be invited", "https://docs.google.com/document/d/1IdTQoq2l9YhF5Tlj5lBYz5Zcz56NQEgL3Hg5Dg2RyWs/edit#heading=h.od6ln2j4yudz");
         }
 
         private MinecraftGuild TargetGuild;
@@ -884,7 +888,7 @@ namespace YNBBot.NestedCommands
             }
             if (newMembers.Count == 0)
             {
-                return new ArgumentParseResult(Arguments[0], "Could not parse any of your arguments to members!\n" + string.Join('\n', parseErrors));
+                return new ArgumentParseResult(ARGS[0], "Could not parse any of your arguments to members!\n" + string.Join('\n', parseErrors));
             }
             else
             {
@@ -915,16 +919,13 @@ namespace YNBBot.NestedCommands
 
     class KickGuildMemberCommand : Command
     {
-        public override OverriddenMethod CommandHandlerMethod => OverriddenMethod.GuildAsync;
-        public override OverriddenMethod ArgumentParserMethod => OverriddenMethod.GuildSynchronous;
+        public const string SUMMARY = "Kick members from your guild";
+        public const string LINK = "https://docs.google.com/document/d/1IdTQoq2l9YhF5Tlj5lBYz5Zcz56NQEgL3Hg5Dg2RyWs/edit#heading=h.lqccs9cye6i3";
+        public static readonly Argument[] ARGS = new Argument[] { new Argument("Member", "All members you want to have kicked from the guild. They can rejoin with a new invitation.", multiple: true) };
+        public static readonly Precondition[] AUTHCHECKS = new Precondition[] { AccessLevelAuthPrecondition.MINECRAFT, MinecraftGuildRankAuthPrecondition.MATE };
 
-        public KickGuildMemberCommand(string identifier) : base(identifier, AccessLevel.Minecraft)
+        public KickGuildMemberCommand(string identifier) : base(identifier, OverriddenMethod.GuildSynchronous, OverriddenMethod.GuildAsync, false, ARGS, AUTHCHECKS, SUMMARY, helplink:LINK)
         {
-            CommandArgument[] arguments = new CommandArgument[]
-            {
-                new CommandArgument("Member", "All members you want to have kicked from the guild. They can rejoin with a new invitation.", multiple:true)
-            };
-            InitializeHelp("Kick members from your guild as a captain", arguments, helpLink: "https://docs.google.com/document/d/1IdTQoq2l9YhF5Tlj5lBYz5Zcz56NQEgL3Hg5Dg2RyWs/edit#heading=h.lqccs9cye6i3");
         }
 
         private MinecraftGuild TargetGuild;
@@ -988,7 +989,7 @@ namespace YNBBot.NestedCommands
             }
             if (kickedMembers.Count == 0)
             {
-                return new ArgumentParseResult(Arguments[0], "Could not parse any of your arguments to members!\n" + string.Join('\n', parseErrors));
+                return new ArgumentParseResult(ARGS[0], "Could not parse any of your arguments to members!\n" + string.Join('\n', parseErrors));
             }
             else
             {
@@ -1028,17 +1029,14 @@ namespace YNBBot.NestedCommands
 
     class LeaveGuildCommand : Command
     {
-        public override OverriddenMethod CommandHandlerMethod => OverriddenMethod.GuildAsync;
-        public override OverriddenMethod ArgumentParserMethod => OverriddenMethod.GuildSynchronous;
+        public const string SUMMARY = "Leave a guild";
+        public const string REMARKS = "A captain can only leave their guild if no members are left, deleting it in the progress";
+        public const string LINK = "https://docs.google.com/document/d/1IdTQoq2l9YhF5Tlj5lBYz5Zcz56NQEgL3Hg5Dg2RyWs/edit#heading=h.94kph266h8s2";
+        public static readonly Argument[] ARGS = new Argument[] { };
+        public static readonly Precondition[] AUTHCHECKS = new Precondition[] { AccessLevelAuthPrecondition.MINECRAFT };
 
-        public LeaveGuildCommand(string identifier) : base(identifier, AccessLevel.Minecraft)
+        public LeaveGuildCommand(string identifier) : base(identifier, OverriddenMethod.None, OverriddenMethod.GuildAsync, false, ARGS, AUTHCHECKS, SUMMARY, REMARKS, LINK)
         {
-            InitializeHelp("Leave a guild", new CommandArgument[0], "A captain can only leave their guild if no members are left, deleting it in the progress", "https://docs.google.com/document/d/1IdTQoq2l9YhF5Tlj5lBYz5Zcz56NQEgL3Hg5Dg2RyWs/edit#heading=h.94kph266h8s2");
-        }
-
-        protected override ArgumentParseResult TryParseArgumentsGuildSynchronous(GuildCommandContext context)
-        {
-            return ArgumentParseResult.DefaultNoArguments;
         }
 
         protected override async Task HandleCommandGuildAsync(GuildCommandContext context)
@@ -1095,19 +1093,17 @@ namespace YNBBot.NestedCommands
 
     class PassCaptainRightsCommand : Command
     {
-        public override OverriddenMethod CommandHandlerMethod => OverriddenMethod.GuildAsync;
-        public override OverriddenMethod ArgumentParserMethod => OverriddenMethod.GuildSynchronous;
+        public const string SUMMARY = "Pass your captain position to another member";
+        public const string REMARKS = default;
+        public const string LINK = "https://docs.google.com/document/d/1IdTQoq2l9YhF5Tlj5lBYz5Zcz56NQEgL3Hg5Dg2RyWs/edit#heading=h.z9qkxx7wamoo";
+        public static readonly Argument[] ARGS = new Argument[] { new Argument("Member", "The member you want to pass your captain position to") };
+        public static readonly Precondition[] AUTHCHECKS = new Precondition[] { AccessLevelAuthPrecondition.MINECRAFT, MinecraftGuildRankAuthPrecondition.CAPTAIN };
 
         private MinecraftGuild TargetGuild;
         private SocketGuildUser NewCaptain;
 
-        public PassCaptainRightsCommand(string identifier) : base(identifier, AccessLevel.Minecraft)
+        public PassCaptainRightsCommand(string identifier) : base(identifier, OverriddenMethod.GuildSynchronous, OverriddenMethod.GuildAsync, false, ARGS, AUTHCHECKS, SUMMARY, REMARKS, LINK)
         {
-            CommandArgument[] arguments = new CommandArgument[]
-            {
-                new CommandArgument("Member", "The member you want to pass your captain position to")
-            };
-            InitializeHelp("Pass your captain position to another user as a captain", arguments, helpLink: "https://docs.google.com/document/d/1IdTQoq2l9YhF5Tlj5lBYz5Zcz56NQEgL3Hg5Dg2RyWs/edit#heading=h.z9qkxx7wamoo");
         }
 
         protected override ArgumentParseResult TryParseArgumentsGuildSynchronous(GuildCommandContext context)
@@ -1132,16 +1128,16 @@ namespace YNBBot.NestedCommands
             {
                 if (NewCaptain.Id == context.User.Id)
                 {
-                    return new ArgumentParseResult(Arguments[0], "Can not pass captain rights to yourself!");
+                    return new ArgumentParseResult(ARGS[0], "Can not pass captain rights to yourself!");
                 }
                 else if (!TargetGuild.MemberIds.Contains(NewCaptain.Id) && !TargetGuild.MateIds.Contains(NewCaptain.Id))
                 {
-                    return new ArgumentParseResult(Arguments[0], "Can not pass captain rights to a user not in your guild!");
+                    return new ArgumentParseResult(ARGS[0], "Can not pass captain rights to a user not in your guild!");
                 }
             }
             else
             {
-                return new ArgumentParseResult(Arguments[0], "Could not parse to a valid user!");
+                return new ArgumentParseResult(ARGS[0], "Could not parse to a valid user!");
             }
 
             return ArgumentParseResult.SuccessfullParse;
@@ -1165,16 +1161,14 @@ namespace YNBBot.NestedCommands
 
     class PromoteMateCommand : Command
     {
-        public override OverriddenMethod CommandHandlerMethod => OverriddenMethod.GuildAsync;
-        public override OverriddenMethod ArgumentParserMethod => OverriddenMethod.GuildSynchronous;
+        public const string SUMMARY = "Promote a member of your guild to mate";
+        public const string REMARKS = "Mates are able to invite and kick members of your guild";
+        public const string LINK = default;
+        public static readonly Argument[] ARGS = new Argument[] { new Argument("Mate", "The member of your guild you want to promote to mate rank") };
+        public static readonly Precondition[] AUTHCHECKS = new Precondition[] { AccessLevelAuthPrecondition.MINECRAFT, MinecraftGuildRankAuthPrecondition.CAPTAIN };
 
-        public PromoteMateCommand(string identifier) : base(identifier, AccessLevel.Minecraft)
+        public PromoteMateCommand(string identifier) : base(identifier, OverriddenMethod.GuildSynchronous, OverriddenMethod.GuildAsync, false, ARGS, AUTHCHECKS, SUMMARY, REMARKS, LINK)
         {
-            CommandArgument[] arguments = new CommandArgument[]
-            {
-                new CommandArgument("Mate", "The member if your guild you want to promote to mate rank")
-            };
-            InitializeHelp("Promote a member of your guild to mate", arguments, "Mates are able to invite and kick members of your guild");
         }
 
         private MinecraftGuild TargetGuild;
@@ -1206,22 +1200,22 @@ namespace YNBBot.NestedCommands
                     {
                         if (!MateGuild.MemberIds.Contains(NewMate.Id))
                         {
-                            return new ArgumentParseResult(Arguments[0], "The user promoted to mate must be a regular guild member!");
+                            return new ArgumentParseResult(ARGS[0], "The user promoted to mate must be a regular guild member!");
                         }
                     }
                     else
                     {
-                        return new ArgumentParseResult(Arguments[0], "The user you want to promote is not your guild");
+                        return new ArgumentParseResult(ARGS[0], "The user you want to promote is not your guild");
                     }
                 }
                 else
                 {
-                    return new ArgumentParseResult(Arguments[0], "The user you want to promote is not your guild");
+                    return new ArgumentParseResult(ARGS[0], "The user you want to promote is not your guild");
                 }
             }
             else
             {
-                return new ArgumentParseResult(Arguments[0], $"Could not parse {context.Args.First} to a user in this guild!");
+                return new ArgumentParseResult(ARGS[0], $"Could not parse {context.Args.First} to a user in this guild!");
             }
 
             return ArgumentParseResult.SuccessfullParse;
@@ -1245,16 +1239,14 @@ namespace YNBBot.NestedCommands
 
     class DemoteMateCommand : Command
     {
-        public override OverriddenMethod CommandHandlerMethod => OverriddenMethod.GuildAsync;
-        public override OverriddenMethod ArgumentParserMethod => OverriddenMethod.GuildSynchronous;
+        public const string SUMMARY = "Demote a mate in your guild to a regular member";
+        public const string REMARKS = default;
+        public const string LINK = default;
+        public static readonly Argument[] ARGS = new Argument[] { new Argument("Mate", "The mate in your guild you want to demote to a regular member") };
+        public static readonly Precondition[] AUTHCHECKS = new Precondition[] { AccessLevelAuthPrecondition.MINECRAFT, MinecraftGuildRankAuthPrecondition.CAPTAIN };
 
-        public DemoteMateCommand(string identifier) : base(identifier, AccessLevel.Minecraft)
+        public DemoteMateCommand(string identifier) : base(identifier, OverriddenMethod.GuildSynchronous, OverriddenMethod.GuildAsync, false, ARGS, AUTHCHECKS, SUMMARY, REMARKS, LINK)
         {
-            CommandArgument[] arguments = new CommandArgument[]
-            {
-                new CommandArgument("Mate", "The mate in your guild you want to demote to a regular member")
-            };
-            InitializeHelp("Demote a user in your guild to a regular member", arguments);
         }
 
         private MinecraftGuild TargetGuild;
@@ -1286,22 +1278,22 @@ namespace YNBBot.NestedCommands
                     {
                         if (!MateGuild.MateIds.Contains(DemotedMate.Id))
                         {
-                            return new ArgumentParseResult(Arguments[0], "The user demoted to regular member must be a mate!");
+                            return new ArgumentParseResult(ARGS[0], "The user demoted to regular member must be a mate!");
                         }
                     }
                     else
                     {
-                        return new ArgumentParseResult(Arguments[0], "The user you want to demote is not your guild");
+                        return new ArgumentParseResult(ARGS[0], "The user you want to demote is not your guild");
                     }
                 }
                 else
                 {
-                    return new ArgumentParseResult(Arguments[0], "The user you want to demote is not your guild");
+                    return new ArgumentParseResult(ARGS[0], "The user you want to demote is not your guild");
                 }
             }
             else
             {
-                return new ArgumentParseResult(Arguments[0], $"Could not parse {context.Args.First} to a user in this guild!");
+                return new ArgumentParseResult(ARGS[0], $"Could not parse {context.Args.First} to a user in this guild!");
             }
 
             return ArgumentParseResult.SuccessfullParse;
@@ -1325,16 +1317,14 @@ namespace YNBBot.NestedCommands
 
     class SyncGuildsCommand : Command
     {
-        public override OverriddenMethod CommandHandlerMethod => OverriddenMethod.BasicAsync;
-        public override OverriddenMethod ArgumentParserMethod => OverriddenMethod.BasicSynchronous;
+        public const string SUMMARY = "Start the guild info syncing process";
+        public const string REMARKS = "This command is used to sync data internally stored with discord data";
+        public const string LINK = default;
+        public static readonly Argument[] ARGS = new Argument[] { new Argument("GuildId", "Discord Id of the guild (Discord Server) you want to sync against", true) };
+        public static readonly Precondition[] AUTHCHECKS = new Precondition[] { AccessLevelAuthPrecondition.ADMIN };
 
-        public SyncGuildsCommand(string identifier) : base(identifier, AccessLevel.Admin)
+        public SyncGuildsCommand(string identifier) : base(identifier, OverriddenMethod.BasicSynchronous, OverriddenMethod.BasicAsync, false, ARGS, AUTHCHECKS, SUMMARY, REMARKS, LINK)
         {
-            CommandArgument[] arguments = new CommandArgument[]
-            {
-                new CommandArgument("GuildId", "Discord Id of the guild (Discord Server) you want to sync against", true)
-            };
-            InitializeHelp("Start the guild info syncing process", arguments, "This command is used to sync data internally stored with discord data (leaving members only for now)");
         }
 
         private SocketGuild DiscordGuild;
@@ -1349,7 +1339,7 @@ namespace YNBBot.NestedCommands
                 }
                 else
                 {
-                    return new ArgumentParseResult(Arguments[0], "This command can not be used without arguments in PMs");
+                    return new ArgumentParseResult(ARGS[0], "This command can not be used without arguments in PMs");
                 }
             }
             else
@@ -1359,12 +1349,12 @@ namespace YNBBot.NestedCommands
                     DiscordGuild = Var.client.GetGuild(guildId);
                     if (DiscordGuild == null)
                     {
-                        return new ArgumentParseResult(Arguments[0], $"Could not find a guild with id `{guildId}`");
+                        return new ArgumentParseResult(ARGS[0], $"Could not find a guild with id `{guildId}`");
                     }
                 }
                 else
                 {
-                    return new ArgumentParseResult(Arguments[0], $"Could not parse {context.Args.First} to a valid discord Id");
+                    return new ArgumentParseResult(ARGS[0], $"Could not parse {context.Args.First} to a valid discord Id");
                 }
             }
 

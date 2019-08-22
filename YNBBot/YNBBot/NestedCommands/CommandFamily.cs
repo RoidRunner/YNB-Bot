@@ -87,7 +87,32 @@ namespace YNBBot.NestedCommands
 
             foreach (Command command in Commands)
             {
-                if (!(!isGuildContext && command.RequireGuild) && accessLevel >= command.RequireAccessLevel)
+                if (!(!isGuildContext && command.RequireGuild) && accessLevel >= command.RequiredAccessLevel)
+                {
+                    result++;
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Counts all commands in this and all nested families that fit the filters
+        /// </summary>
+        /// <returns>Number of commands matching the filter</returns>
+        public int CommandCount(CommandContext context, GuildCommandContext guildContext)
+        {
+            
+
+            int result = 0;
+            foreach (CommandFamily family in NestedFamilies)
+            {
+                result += family.CommandCount(context, guildContext);
+            }
+
+            foreach (Command command in Commands)
+            {
+                if (command.PreconditionCheck(context, guildContext, out _))
                 {
                     result++;
                 }
@@ -170,13 +195,14 @@ namespace YNBBot.NestedCommands
 
             bool matchingFamilyButNotEnoughArgs = false;
 
-            if (nestedFamilies.TryGetValue(argument, out matchedFamily))
+            if (nestedFamilies.TryGetValue(argument, out CommandFamily potentialMatch))
             {
+                matchedFamily = potentialMatch;
                 if (args.Index + 1 < args.TotalCount)
                 {
                     // The current argument matches the family, and there are more arguments left to continue parsing
                     args.Index++;
-                    bool success = matchedFamily.TryFindFamilyOrCommand(ref args, ref matchedCommands, ref matchedFamily);
+                    bool success = potentialMatch.TryFindFamilyOrCommand(ref args, ref matchedCommands, ref potentialMatch);
                     if (success)
                     {
                         return true;

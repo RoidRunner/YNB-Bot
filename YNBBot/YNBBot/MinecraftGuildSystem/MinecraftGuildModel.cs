@@ -30,8 +30,8 @@ namespace YNBBot.MinecraftGuildSystem
         /// <summary>
         /// Min amount of members required to found a guild
         /// </summary>
-        public const int MIN_GUILDFOUNDINGMEMBERS = 2;
-        private const int GUILD_ROLE_POSITION = 14;
+        public const int MIN_GUILDFOUNDINGMEMBERS = 1;
+        private const int GUILD_ROLE_POSITION = 3;
 
         private static readonly OverwritePermissions GuildRoleChannelPerms = new OverwritePermissions(addReactions: PermValue.Allow, viewChannel: PermValue.Allow, sendMessages: PermValue.Allow, readMessageHistory: PermValue.Allow);
         private static readonly OverwritePermissions CaptainChannelPerms = new OverwritePermissions(addReactions: PermValue.Allow, viewChannel: PermValue.Allow, sendMessages: PermValue.Allow, readMessageHistory: PermValue.Allow, manageMessages: PermValue.Allow);
@@ -180,15 +180,16 @@ namespace YNBBot.MinecraftGuildSystem
             {
                 Title = "Information on Guilds",
                 Color = Var.BOTCOLOR,
-                Description = "Use `/help guild` for an overview of all guild related commands!\n\nGuild members are managed by the guild captain. They can invite and kick members. " +
+                Description = "Use `/help guild` for an overview of all guild related commands!\n\nGuild members are managed by the guild captain and mates. They can invite and kick members. " +
                 "Leaving and joining guilds happens instantly on discord, but is manually done ingame by admins, which are automatically notified of the changes.\n" +
-                "Any member can leave the guild as they please with `/guild leave`. The guild captain can not leave a guild but delete it with the same command, assuming no other members are left.\n\n" +
+                "Any member or mate can leave the guild as they please with `/guild leave`. The guild captain can not leave a guild but delete it with the same command, assuming no other members are left.\n\n" +
                 "If you encounter any problems tell a <@&554485497192513540> or the bot programmer, <@117260771200598019>"
             };
             GuildHelpEmbed.AddField("Member commands", "`/guild leave` - Leave this guild");
-            GuildHelpEmbed.AddField("Captain commands", "`/guild invite [<Member>]` - Invite members to join your guild\n" +
-                "`/guild kick [<Member>]` - Kick members from your guild\n" +
-                "`/guild passcaptain <Member>` - Pass your captain rights to another user\n" +
+            GuildHelpEmbed.AddField("Mate/Captain commands", "`/guild invite [<Member>]` - Invite members to join your guild\n" +
+                "`/guild kick [<Member>]` - Kick members from your guild\n");
+            GuildHelpEmbed.AddField("Captain commands", 
+                "`/guild passcaptain <Member>` - Pass your captain rights to another user (reverting your rank to a regular member)\n" +
                 "`/guild leave` - Leave this guild (deleting it), after all other members have left");
         }
 
@@ -549,6 +550,12 @@ namespace YNBBot.MinecraftGuildSystem
             }
         }
 
+        /// <summary>
+        /// Promotes a guild member to mate rank
+        /// </summary>
+        /// <param name="guild">Guild</param>
+        /// <param name="newMate">Guild member to promote to mate rank</param>
+        /// <returns>true, if operation succeeds</returns>
         public static async Task<bool> PromoteGuildMember(MinecraftGuild guild, SocketGuildUser newMate)
         {
             try
@@ -676,8 +683,9 @@ namespace YNBBot.MinecraftGuildSystem
                 }
                 errorhint = "Removing captain role from captain";
                 SocketGuildUser captain = discordGuild.GetUser(minecraftGuild.CaptainId);
-                if (captain != null && guildRole != null)
+                if (captain != null && captainRole != null)
                 {
+                    if (captain.Roles.Any(item => { return item.Id == captainRole.Id; }))
                     await captain.RemoveRoleAsync(captainRole);
                 }
                 errorhint = "Removing Guild Channel";

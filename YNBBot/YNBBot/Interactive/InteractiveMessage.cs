@@ -38,8 +38,14 @@ namespace YNBBot.Interactive
             MessageId = message.Id;
             ChannelId = message.Channel.Id;
             GuildId = (ulong)(message.Channel as SocketTextChannel)?.Guild.Id;
-            ExpirationTime = expirationTime;
-
+            if (expirationTime == -1)
+            {
+                ExpirationTime = -1;
+            }
+            else
+            {
+                ExpirationTime = TimingThread.Millis + expirationTime;
+            }
             if (interactions != null)
             {
                 AddMessageInteractions(interactions);
@@ -107,7 +113,7 @@ namespace YNBBot.Interactive
 
         protected virtual Task<bool> OnAnyEmoteAdded(MessageInteractionContext context)
         {
-            return Task.FromResult(true);
+            return Task.FromResult(false);
         }
 
         internal static readonly EmbedBuilder GenericSuccess = new EmbedBuilder() { Title = "Success", Color = Var.BOTCOLOR };

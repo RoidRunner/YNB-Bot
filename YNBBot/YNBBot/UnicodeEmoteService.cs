@@ -10,6 +10,7 @@ namespace YNBBot
         internal static readonly Emote Question = new Emote(Emotes.question);
         internal static readonly Emote Checkmark = new Emote(Emotes.checkmark);
         internal static readonly Emote Cross = new Emote(Emotes.cross);
+        internal static readonly Emote TraingleRight = new Emote(Emotes.triangle_right);
 
         internal static readonly Emote[] Numbers = { new Emote(Emotes.zero), new Emote(Emotes.one), new Emote(Emotes.two), new Emote(Emotes.three), new Emote(Emotes.four), new Emote(Emotes.five), new Emote(Emotes.six), new Emote(Emotes.seven), new Emote(Emotes.eight), new Emote(Emotes.nine), new Emote(Emotes.ten) };
 
@@ -45,6 +46,8 @@ namespace YNBBot
                     return "\u0039\u20E3";
                 case Emotes.ten:
                     return "\u1F51F";
+                case Emotes.triangle_right:
+                    return "\u23F5";
                 default:
                     return null;
             }
@@ -130,6 +133,7 @@ namespace YNBBot
         seven,
         eight,
         nine,
-        ten
+        ten,
+        triangle_right
     }
 }

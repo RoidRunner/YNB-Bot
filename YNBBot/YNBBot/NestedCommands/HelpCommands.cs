@@ -6,17 +6,15 @@ namespace YNBBot.NestedCommands
 {
     internal class HelpCommand : Command
     {
-        public override OverriddenMethod CommandHandlerMethod => OverriddenMethod.BasicAsync;
-        public override OverriddenMethod ArgumentParserMethod => OverriddenMethod.BasicSynchronous;
+        public const string SUMMARY = "Provides help for specific commands and lists all available commands.";
+        public const string REMARKS = "Lists all available commands if no arguments are provided";
+        public const string LINK = "https://docs.google.com/document/d/1IdTQoq2l9YhF5Tlj5lBYz5Zcz56NQEgL3Hg5Dg2RyWs/edit#heading=h.7oz4bpjtg943";
+        public static readonly Argument[] ARGS = new Argument[] { new Argument("Command Identifier", "A list of all keywords that identify the command(s) you want the help text for.", true, true) };
 
         private IndexArray<string> CommandKeys;
 
-        public HelpCommand(string identifier) : base(identifier)
+        public HelpCommand(string identifier) : base(identifier, OverriddenMethod.BasicSynchronous, OverriddenMethod.BasicAsync, arguments: ARGS, summary:SUMMARY, remarks:REMARKS, helplink:LINK)
         {
-            List<CommandArgument> arguments = new List<CommandArgument>();
-            arguments.Add(new CommandArgument("Command Identifier", "A list of all keywords that identify the command(s) you want the help text for.", true, true));
-            InitializeHelp("Provides help for specific commands and lists all available commands.", arguments.ToArray(),
-                remarks: "Lists all available commands if no arguments are provided", "https://docs.google.com/document/d/1IdTQoq2l9YhF5Tlj5lBYz5Zcz56NQEgL3Hg5Dg2RyWs/edit#heading=h.7oz4bpjtg943");
         }
 
         protected override ArgumentParseResult TryParseArgumentsSynchronous(CommandContext context)
@@ -40,18 +38,22 @@ namespace YNBBot.NestedCommands
                     {
                         foreach (Command command in matchedCommands)
                         {
-                            await sendSpecificCommandhelp(context, command);
+                            await CommandHelper.SendCommandHelp(context, command);
                         }
                     }
                     else if (matchedFamily != null)
                     {
-                        await handleFamilyHelp(context, matchedFamily);
+                        await CommandHelper.SendCommandCollectionHelp(context, matchedFamily);
                     }
+                }
+                else
+                {
+                    await context.Channel.SendEmbedAsync("No matching commands found!", true);
                 }
             }
             else
             {
-                await handleFamilyHelp(context, CommandHandler.BaseFamily);
+                await CommandHelper.SendCommandCollectionHelp(context, CommandHandler.BaseFamily, "List of all Commands");
             }
         }
 
@@ -99,13 +101,20 @@ namespace YNBBot.NestedCommands
 
             foreach (Command command in matchedFamily.Commands)
             {
-                if (!(!context.IsGuildContext && command.RequireGuild) && context.UserAccessLevel >= command.RequireAccessLevel)
+                if (!(!context.IsGuildContext && command.RequireGuild) && context.UserAccessLevel >= command.RequiredAccessLevel)
                 {
-                    commandFields.Add(Macros.EmbedField(command.Syntax, command.Description, true));
+                    commandFields.Add(Macros.EmbedField(command.Syntax, command.HasDescription ? command.Description : "No Description Available", true));
                 }
             }
 
-            await context.Channel.SendSafeEmbedList(embedTitle, commandFields, embedDescription);
+            if (commandFields.Count > 0)
+            {
+                await context.Channel.SendSafeEmbedList(embedTitle, commandFields, embedDescription);
+            }
+            else
+            {
+                await context.Channel.SendEmbedAsync("You don't have sufficient access level to use any of the matched commands!", true);
+            }
         }
 
         private async Task sendSpecificCommandhelp(CommandContext context, Command command)
@@ -114,7 +123,7 @@ namespace YNBBot.NestedCommands
             {
                 Title = $"Help For `{command.PrefixIdentifier}`",
                 Color = Var.BOTCOLOR,
-                Description = command.Description,
+                Description = command.HasDescription ? command.Description : "No Description Available",
             };
             if (command.HasLink)
             {
@@ -130,8 +139,8 @@ namespace YNBBot.NestedCommands
                 string[] argumentInfo = new string[command.Arguments.Length];
                 for (int i = 0; i < command.Arguments.Length; i++)
                 {
-                    CommandArgument argument = command.Arguments[i];
-                    argumentInfo[i] = $"`{argument}`\n{argument.Help}";
+                    Argument argument = command.Arguments[i];
+                    argumentInfo[i] = $"**{UnicodeEmoteService.TraingleRight}`{argument}`**\n{argument.Help}";
                 }
 
                 embed.AddField("Syntax", Macros.MultiLineCodeBlock(command.Syntax) + "\n" + string.Join("\n\n", argumentInfo));
@@ -158,7 +167,7 @@ namespace YNBBot.NestedCommands
             {
                 executionLocation = "Anywhere";
             }
-            embed.AddField("Execution Requirements", $"Required Access Level: `{command.RequireAccessLevel}`\nRequired Execution Location `{executionLocation}`");
+            embed.AddField("Execution Requirements", $"Required Access Level: `{command.RequiredAccessLevel}`\nRequired Execution Location `{executionLocation}`");
             await context.Channel.SendEmbedAsync(embed);
         }
     }
