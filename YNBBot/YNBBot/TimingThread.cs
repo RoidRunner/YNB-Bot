@@ -88,7 +88,6 @@ namespace YNBBot
                 {
                     if (Millis >= schedule.executeAt && schedule.callback != null)
                     {
-                        await SettingsModel.SendDebugMessage(DebugCategories.timing, "Firing Callback: " + schedule.callback.Method.ToString());
                         try
                         {
                             await schedule.callback();
@@ -161,7 +160,6 @@ namespace YNBBot
                 now.Year, now.Month.ToString().PadLeft(2, '0'), now.Day.ToString().PadLeft(2, '0'),
                 now.Hour.ToString().PadLeft(2, '0'), now.Minute.ToString().PadLeft(2, '0'));
             await Var.client.SetActivityAsync(activity);
-            await SettingsModel.SendDebugMessage(DebugCategories.timing, $"Updated Time Activity to {activity.Time}!");
 
             AddScheduleDelegate(UpdateTimeActivity, (61 - now.Second) * 1000);
         }

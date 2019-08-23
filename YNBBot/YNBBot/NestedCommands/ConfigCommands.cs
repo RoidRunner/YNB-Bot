@@ -74,6 +74,25 @@ namespace YNBBot.NestedCommands
                 $"Bot Notifications Role: { (botNotifications == null ? Macros.InlineCodeBlock(SettingsModel.BotDevRole) : botNotifications.Mention) }\n" +
                 $"Minecraft Branch Role: {(minecraftBranch == null ? Macros.InlineCodeBlock(SettingsModel.MinecraftBranchRole) : minecraftBranch.Mention)}\n" +
                 $"Mute Role: {(mute == null ? Macros.InlineCodeBlock(SettingsModel.MuteRole) : mute.Mention)}");
+
+            string bAdmins = SettingsModel.botAdminIDs.OperationJoin(", ", id =>
+            {
+                SocketGuildUser user = null;
+                if (context.IsGuildContext)
+                {
+                    user = guildContext.Guild.GetUser(id);
+                } 
+
+                if (user != null)
+                {
+                    return $"{user.Mention} (`{user.Id}`)";
+                }
+                else
+                {
+                    return Macros.InlineCodeBlock(user.Id.ToString());
+                }
+            });
+            embed.AddField($"Bot Admins - {SettingsModel.botAdminIDs.Count}", bAdmins);
             await context.Channel.SendEmbedAsync(embed);
         }
     }
@@ -779,6 +798,29 @@ namespace YNBBot.NestedCommands
                     break;
             }
         }
+    }
+
+    #endregion
+    #region value
+
+    class ValueCommand : Command
+    {
+        public const string SUMMARY = "List, check and set ConfigValues";
+        public const string LINK = default;
+        public static readonly Argument[] ARGS = new Argument[] {
+            new Argument("ValueIdentifier", $"What ConfigValue to access. Available are: `{Macros.GetEnumNames<Values>()}`, see remarks for details.", optional:true),
+            new Argument("Value", $"Supply this if you want to override the existing value", optional:true)
+        };
+        public static readonly string REMARKS = $"Lists all values if neither {ARGS[0]} and {ARGS[1]} are supplied. Details on Values:" +
+            $"`{Values.WelcomingMode}` - Where welcoming info is sent to. Set to `0` for Welcoming Channel, and `1` for PMs";
+        public static readonly Precondition[] AUTHCHECKS = new Precondition[] { AccessLevelAuthPrecondition.ADMIN };
+
+        private enum Values
+        {
+            WelcomingMode
+        }
+
+        public ValueCommand(string identifier) : base(identifier, OverriddenMethod.BasicSynchronous, OverriddenMethod.BasicAsync, false, ARGS, AUTHCHECKS, SUMMARY, REMARKS, LINK) { }
     }
 
     #endregion

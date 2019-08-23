@@ -455,6 +455,33 @@ namespace YNBBot
             return builder.ToString();
         }
 
+        /// <summary>
+        /// Functions similarly to string.Join(), but with the addition of performing an operation to select the object represantation string instead of calling object.ToString()
+        /// </summary>
+        /// <param name="separator">Separator string that separates items in the result</param>
+        /// <param name="operation">Operation taking TSource as input, returning a string</param>
+        /// <returns>Concatenated string of all results of calling operation once for each item, with separator string inbetween</returns>
+        public static string OperationJoinReadonly<TSource>(this IReadOnlyCollection<TSource> source, string separator, Func<TSource, string> operation)
+        {
+            StringBuilder builder = new StringBuilder();
+
+            IEnumerator<TSource> enumerator = source.GetEnumerator();
+            for (int i = 0; i < source.Count; i++)
+            {
+                if (!enumerator.MoveNext())
+                {
+                    throw new IndexOutOfRangeException("Collection did not contain expected count of items!");
+                }
+                builder.Append(operation(enumerator.Current));
+                if (i < source.Count - 1)
+                {
+                    builder.Append(separator);
+                }
+            }
+
+            return builder.ToString();
+        }
+
         public static string Join<TSource>(this ICollection<TSource> source, string separator)
         {
             StringBuilder builder = new StringBuilder();

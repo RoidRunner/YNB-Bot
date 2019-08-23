@@ -110,6 +110,7 @@ namespace YNBBot.NestedCommands
             BaseFamily.TryAddCommand(new HelpCommand("help"));
             BaseFamily.TryAddCommand(new UserInfoCommand("userinfo"));
             BaseFamily.TryAddCommand(new AvatarCommand("avatar"));
+            BaseFamily.TryAddCommand(new ServerinfoCommand("serverinfo"));
             BaseFamily.TryAddCommand(new AboutCommand("about"));
             CommandFamily ConfigFamily = new CommandFamily("config", BaseFamily, "Collection of commands used for configuring the bot");
             ConfigFamily.TryAddCommand(new DetectConfigCommand("detect"));

@@ -5,6 +5,7 @@ using Discord.WebSocket;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using YNBBot.MinecraftGuildSystem;
+using System.Linq;
 
 namespace YNBBot.NestedCommands
 {
@@ -177,6 +178,64 @@ namespace YNBBot.NestedCommands
             }
             embed.ImageUrl = User.GetAvatarUrl(size: 2048);
             await context.Channel.SendEmbedAsync(embed);
+        }
+    }
+
+    #endregion
+    #region serverinfo
+
+    class ServerinfoCommand : Command
+    {
+        public const string SUMMARY = "Lists information about the current server";
+
+        public ServerinfoCommand(string identifier) : base(identifier, OverriddenMethod.None, OverriddenMethod.GuildAsync, false, new Argument[0], null, SUMMARY, null, null)
+        {
+
+        }
+
+        protected override Task HandleCommandGuildAsync(GuildCommandContext context)
+        {
+            SocketGuild guild = context.Guild;
+            EmbedBuilder embed = new EmbedBuilder()
+            {
+                Color = Var.BOTCOLOR
+            };
+            embed.Author = new EmbedAuthorBuilder()
+            {
+                Name = guild.Name,
+                IconUrl = guild.IconUrl
+            };
+            embed.AddField("Owner", guild.Owner.Mention, true);
+            embed.AddField("Region", guild.VoiceRegionId, true);
+            embed.AddField("Founded", guild.CreatedAt, true);
+            int bots = 0;
+            int online = 0;
+            foreach(SocketGuildUser member in guild.Users)
+            {
+                if (member.IsBot || member.IsWebhook)
+                {
+                    bots++;
+                }
+                if (member.Status != UserStatus.Offline)
+                {
+                    online++;
+                }
+            }
+            embed.AddField($"Members - {guild.MemberCount}", $"Online: `{online}`, Humans: `{guild.MemberCount - bots}`, Bots: `{bots}`", true);
+            embed.AddField($"Channels - {guild.Channels.Count}", $"Categories: `{guild.CategoryChannels.Count}`, Text: `{guild.TextChannels.Count}`, Voice: `{guild.VoiceChannels.Count}`", true);
+            List<SocketRole> roles = new List<SocketRole>(guild.Roles);
+            roles.Sort(new RoleSorter());
+            embed.AddField($"Roles - {guild.Roles.Count}", Macros.MaxLength(roles.OperationJoin(", ", role => { return role.Mention; }), EmbedHelper.EMBEDFIELDVALUE_MAX));
+
+            return context.Channel.SendEmbedAsync(embed);
+        }
+    }
+
+    class RoleSorter : Comparer<SocketRole>
+    {
+        public override int Compare(SocketRole x, SocketRole y)
+        {
+            return x.Position - y.Position;
         }
     }
 
