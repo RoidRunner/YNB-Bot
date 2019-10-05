@@ -10,6 +10,7 @@ using Discord;
 using JSON;
 using YNBBot.Interactive;
 using System.Linq;
+using BotCoreNET;
 
 namespace YNBBot.MinecraftGuildSystem
 {
@@ -179,7 +180,7 @@ namespace YNBBot.MinecraftGuildSystem
             GuildHelpEmbed = new EmbedBuilder()
             {
                 Title = "Information on Guilds",
-                Color = Var.BOTCOLOR,
+                Color = BotCore.EmbedColor,
                 Description = "Use `/help guild` for an overview of all guild related commands!\n\nGuild members are managed by the guild captain and mates. They can invite and kick members. " +
                 "Leaving and joining guilds happens instantly on discord, but is manually done ingame by admins, which are automatically notified of the changes.\n" +
                 "Any member or mate can leave the guild as they please with `/guild leave`. The guild captain can not leave a guild but delete it with the same command, assuming no other members are left.\n\n" +
@@ -363,7 +364,7 @@ namespace YNBBot.MinecraftGuildSystem
             string errorhint = "Adding Guild Role";
             try
             {
-                if (Var.client.TryGetRole(guild.RoleId, out SocketRole guildRole) && !guild.MemberIds.Contains(newMember.Id))
+                if (BotCore.Client.TryGetRole(guild.RoleId, out SocketRole guildRole) && !guild.MemberIds.Contains(newMember.Id))
                 {
                     await newMember.AddRoleAsync(guildRole);
                     errorhint = "Adding Member to Guild and Saving";
@@ -437,7 +438,7 @@ namespace YNBBot.MinecraftGuildSystem
             string errorhint = "Modifying Guild Channel";
             try
             {
-                if (GuildChannelHelper.TryGetChannel(guild.ChannelId, out SocketTextChannel guildChannel) && Var.client.TryGetRole(guild.RoleId, out SocketRole guildRole))
+                if (GuildChannelHelper.TryGetChannel(guild.ChannelId, out SocketTextChannel guildChannel) && BotCore.Client.TryGetRole(guild.RoleId, out SocketRole guildRole))
                 {
                     await guildChannel.ModifyAsync(GuildChannelProperties =>
                     {
@@ -479,7 +480,7 @@ namespace YNBBot.MinecraftGuildSystem
             string errorhint = "Modifying Guild Role";
             try
             {
-                if (Var.client.TryGetRole(guild.RoleId, out SocketRole guildRole))
+                if (BotCore.Client.TryGetRole(guild.RoleId, out SocketRole guildRole))
                 {
                     await guildRole.ModifyAsync(RoleProperties =>
                     {

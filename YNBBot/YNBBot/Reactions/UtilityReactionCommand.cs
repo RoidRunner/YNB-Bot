@@ -1,4 +1,6 @@
-﻿using Discord;
+﻿using BotCoreNET;
+using BotCoreNET.Helpers;
+using Discord;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -19,7 +21,7 @@ namespace YNBBot.Reactions
         {
             string messagelink = context.Message.GetMessageURL(context.Channel.Guild.Id);
             IDMChannel dmChannel = await context.User.GetOrCreateDMChannelAsync();
-            await dmChannel.SendMessageAsync(embed: new EmbedBuilder() { Title = $"Message link to requested message in #{context.Channel.Name}", Description = $"[{messagelink}]({messagelink})", Color = Var.BOTCOLOR }.Build());
+            await dmChannel.SendMessageAsync(embed: new EmbedBuilder() { Title = $"Message link to requested message in #{context.Channel.Name}", Description = $"[{messagelink}]({messagelink})", Color = BotCore.EmbedColor }.Build());
         }
 
         public static async Task HandleGetMessageContentReaction(ReactionContext context)
@@ -32,7 +34,7 @@ namespace YNBBot.Reactions
             EmbedBuilder embed = new EmbedBuilder()
             {
                 Title = $"Messagecontent of requested message in #{context.Channel.Name}",
-                Description = Macros.MultiLineCodeBlock(Macros.MaxLength(messageContent.Replace("```", "[3`]"), EmbedHelper.EMBEDDESCRIPTION_MAX - 6)),
+                Description = Markdown.MultiLineCodeBlock(Macros.MaxLength(messageContent.Replace("```", "[3`]"), EmbedHelper.EMBEDDESCRIPTION_MAX - 6)),
                 Footer = new EmbedFooterBuilder()
                 {
                     Text = "Multiline codeblock markers \"```\" are replaced with \"[3`]\""

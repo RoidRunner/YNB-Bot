@@ -3,6 +3,7 @@ using System;
 using Discord.WebSocket;
 using System.Collections;
 using System.Collections.Generic;
+using BotCoreNET;
 
 namespace YNBBot.NestedCommands
 {
@@ -27,6 +28,8 @@ namespace YNBBot.NestedCommands
         /// The command message
         /// </summary>
         public SocketUserMessage Message { get; private set; }
+        public string Content => Message.Content;
+        public string ContentSansIdentifier { get; private set; }
         /// <summary>
         /// All arguments of the command, stored in an index array
         /// </summary>
@@ -45,10 +48,11 @@ namespace YNBBot.NestedCommands
             User = message.Author;
             if (User != null)
             {
-                UserAccessLevel = Var.client.GetAccessLevel(User.Id);
+                UserAccessLevel = BotCore.Client.GetAccessLevel(User.Id);
             }
             Channel = message.Channel;
             Message = message;
+            ContentSansIdentifier = Content.Substring(1).Trim();
             Args = message.Content.Split(' ', StringSplitOptions.RemoveEmptyEntries);
             if (Args.TotalCount >= 1)
             {

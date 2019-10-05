@@ -7,6 +7,9 @@ using System.Globalization;
 using YNBBot.Reactions;
 using YNBBot.NestedCommands;
 using YNBBot.Interactive;
+using YNBBot.EventLogging;
+using YNBBot.Moderation;
+using BotCoreNET;
 
 // dotnet publish -c Release -r win10-x64
 // dotnet publish -c Release -r linux-x64
@@ -19,18 +22,6 @@ public static class Var
     /// </summary>
     internal static bool running = true;
     /// <summary>
-    /// The client wrapper used to communicate with discords servers
-    /// </summary>
-    internal static DiscordSocketClient client;
-    /// <summary>
-    /// Embed color used for the bot
-    /// </summary>
-    internal static readonly Color BOTCOLOR = new Color(71, 71, 255);
-    /// <summary>
-    /// Embed color used for bot error messages
-    /// </summary>
-    internal static readonly Color ERRORCOLOR = new Color(255, 0, 0);
-    /// <summary>
     /// Path containing the restart location
     /// </summary>
     internal static string RestartPath = string.Empty;
@@ -39,11 +30,15 @@ public static class Var
     /// </summary>
     internal static CultureInfo Culture = new CultureInfo("en-us");
 }
+
 namespace YNBBot
 {
-    public class BotCore
+    public class YNBBotCore
     {
-        static void Main(string[] args) => new BotCore().MainAsync().GetAwaiter().GetResult();
+        static void Main(string[] args)
+        {
+            BotCore.Run();
+        }
 
         /// <summary>
         /// Main Programs method running asynchronously
@@ -67,26 +62,22 @@ namespace YNBBot
 
             if (foundToken)
             {
-                Var.client = new DiscordSocketClient(new DiscordSocketConfig
-                {
-                    LogLevel = LogSeverity.Info,
-                    AlwaysDownloadUsers = true
-                });
+                await GuildModerationLog.LoadModerationLogs();
 
                 InitReactionsCommands();
 
-                Var.client.MessageReceived += CommandHandler.HandleMessage;
-                Var.client.MessageReceived += PingSpamDefenceService.HandleMessage;
-                Var.client.UserJoined += JoinLeaveHandler.HandleUserJoined;
-                Var.client.UserLeft += JoinLeaveHandler.HandleUserLeft;
-                Var.client.Log += Logger;
+                BotCore.Client.MessageReceived += CommandHandler.HandleMessage;
+                BotCore.Client.MessageReceived += PingSpamDefenceService.HandleMessage;
+                BotCore.Client.UserJoined += EventLogger.WelcomeUser;
+                BotCore.Client.UserLeft += EventLogger.HandleUserLeft;
+                BotCore.Client.Log += Logger;
                 SettingsModel.DebugMessage += Logger;
-                Var.client.ReactionAdded += ReactionAddedHandler;
-                Var.client.ReactionAdded += InteractiveMessageService.ReactionAddedHandler;
-                //Var.client.ChannelUpdated += ChannelUpdatedHandler;
+                BotCore.Client.ReactionAdded += ReactionAddedHandler;
+                BotCore.Client.ReactionAdded += InteractiveMessageService.ReactionAddedHandler;
+                //BotCore.Client.ChannelUpdated += ChannelUpdatedHandler;
 
-                await Var.client.LoginAsync(TokenType.Bot, SettingsModel.token);
-                await Var.client.StartAsync();
+                await BotCore.Client.LoginAsync(TokenType.Bot, SettingsModel.token);
+                await BotCore.Client.StartAsync();
 
                 await MinecraftGuildSystem.MinecraftGuildModel.Load();
                 await TimingThread.UpdateTimeActivity();
@@ -108,7 +99,7 @@ namespace YNBBot
                     await SettingsModel.SendDebugMessage(DebugCategories.misc, "Restarting ...");
                 }
 
-                Var.client.Dispose();
+                BotCore.Client.Dispose();
             }
             else
             {
@@ -155,7 +146,7 @@ namespace YNBBot
             {
                 EmbedBuilder debugembed = new EmbedBuilder
                 {
-                    Color = Var.BOTCOLOR,
+                    Color = BotCore.EmbedColor,
                     Title = string.Format("Channel #{0}: Topic updated", channel.Name),
                     Description = string.Format("{0}```\n{1}```", channel.Mention, channel.Topic)
                 };

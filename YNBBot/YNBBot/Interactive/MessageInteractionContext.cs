@@ -1,4 +1,5 @@
-﻿using Discord;
+﻿using BotCoreNET;
+using Discord;
 using Discord.WebSocket;
 using System;
 using System.Collections.Generic;
@@ -45,7 +46,7 @@ namespace YNBBot.Interactive
             Guild = Channel.Guild;
             if (User != null)
             {
-                UserAccessLevel = Var.client.GetAccessLevel(User.Id);
+                UserAccessLevel = BotCore.Client.GetAccessLevel(User.Id);
             }
         }
 

@@ -6,6 +6,9 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using YNBBot.MinecraftGuildSystem;
 using System.Linq;
+using BotCoreNET.Helpers;
+using BotCoreNET;
+using BotCoreNET.CommandHandling;
 
 namespace YNBBot.NestedCommands
 {
@@ -27,7 +30,7 @@ namespace YNBBot.NestedCommands
 
         protected override async Task<ArgumentParseResult> TryParseArgumentsAsync(CommandContext context)
         {
-            if (context.Args.Count == 0)
+            if (context.Arguments.Count == 0)
             {
                 User = context.User;
             }
@@ -35,14 +38,14 @@ namespace YNBBot.NestedCommands
             {
                 if (GuildCommandContext.TryConvert(context, out GuildCommandContext guildContext))
                 {
-                    if (ArgumentParsing.TryParseGuildUser(guildContext, context.Args.First, out SocketGuildUser guildUser))
+                    if (ArgumentParsing.TryParseGuildUser(guildContext, context.Arguments.First, out SocketGuildUser guildUser))
                     {
                         User = guildUser;
                     }
                 }
                 else
                 {
-                    User = await ArgumentParsing.ParseUser(context, context.Args.First);
+                    User = await ArgumentParsing.ParseUser(context, context.Arguments.First);
                 }
             }
 
@@ -60,10 +63,10 @@ namespace YNBBot.NestedCommands
         {
             EmbedBuilder embed = new EmbedBuilder()
             {
-                Color = Var.BOTCOLOR,
+                Color = BotCore.EmbedColor,
                 Title = "UserInfo"
             };
-            embed.AddField("Command Access Level", Var.client.GetAccessLevel(User.Id), true);
+            embed.AddField("Command Access Level", BotCore.Client.GetAccessLevel(User.Id), true);
             if (MinecraftGuildModel.TryGetGuildOfUser(User.Id, out MinecraftGuild minecraftGuild))
             {
                 embed.AddField("Minecraft Guild Membership", $"\"{minecraftGuild.Name}\", Rank `{minecraftGuild.GetMemberRank(User.Id)}`");
@@ -124,7 +127,7 @@ namespace YNBBot.NestedCommands
 
         protected override async Task<ArgumentParseResult> TryParseArgumentsAsync(CommandContext context)
         {
-            if (context.Args.Count == 0)
+            if (context.Arguments.Count == 0)
             {
                 User = context.User;
             }
@@ -132,14 +135,14 @@ namespace YNBBot.NestedCommands
             {
                 if (GuildCommandContext.TryConvert(context, out GuildCommandContext guildContext))
                 {
-                    if (ArgumentParsing.TryParseGuildUser(guildContext, context.Args.First, out SocketGuildUser guildUser))
+                    if (ArgumentParsing.TryParseGuildUser(guildContext, context.Arguments.First, out SocketGuildUser guildUser))
                     {
                         User = guildUser;
                     }
                 }
                 else
                 {
-                    User = await ArgumentParsing.ParseUser(context, context.Args.First);
+                    User = await ArgumentParsing.ParseUser(context, context.Arguments.First);
                 }
             }
 
@@ -157,7 +160,7 @@ namespace YNBBot.NestedCommands
         {
             EmbedBuilder embed = new EmbedBuilder()
             {
-                Color = Var.BOTCOLOR,
+                Color = BotCore.EmbedColor,
             };
             SocketGuildUser guildUser = User as SocketGuildUser;
             if ((guildUser != null) && !string.IsNullOrEmpty(guildUser.Nickname))
@@ -198,7 +201,7 @@ namespace YNBBot.NestedCommands
             SocketGuild guild = context.Guild;
             EmbedBuilder embed = new EmbedBuilder()
             {
-                Color = Var.BOTCOLOR
+                Color = BotCore.EmbedColor
             };
             embed.Author = new EmbedAuthorBuilder()
             {
@@ -260,7 +263,7 @@ namespace YNBBot.NestedCommands
         {
             AboutEmbed = new EmbedBuilder()
             {
-                Color = Var.BOTCOLOR,
+                Color = BotCore.EmbedColor,
                 Title = "You Need Bot"
             };
             AboutEmbed.AddField("Version", "v" + Var.VERSION.ToString());
@@ -271,7 +274,7 @@ namespace YNBBot.NestedCommands
         {
             if (string.IsNullOrEmpty(AboutEmbed.ThumbnailUrl))
             {
-                AboutEmbed.ThumbnailUrl = Var.client.CurrentUser.GetAvatarUrl();
+                AboutEmbed.ThumbnailUrl = BotCore.Client.CurrentUser.GetAvatarUrl();
             }
             return context.Channel.SendEmbedAsync(AboutEmbed);
         }

@@ -1,4 +1,5 @@
-﻿using Discord;
+﻿using BotCoreNET;
+using Discord;
 using Discord.WebSocket;
 using JSON;
 using System;
@@ -121,7 +122,7 @@ namespace YNBBot.MinecraftGuildSystem
         /// <returns>True if name and color could be retrieved</returns>
         public bool TryFindNameAndColor()
         {
-            if (Var.client.TryGetRole(RoleId, out SocketRole guildRole) && !nameAndColorRetrieved)
+            if (BotCore.Client.TryGetRole(RoleId, out SocketRole guildRole) && !nameAndColorRetrieved)
             {
                 Color = (GuildColor)guildRole.Color.RawValue;
                 if (guildRole.Color.RawValue == DISCORDBLACK)

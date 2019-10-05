@@ -1,4 +1,6 @@
-﻿using Discord;
+﻿using BotCoreNET;
+using BotCoreNET.Helpers;
+using Discord;
 using Discord.WebSocket;
 using System;
 using System.Collections.Generic;
@@ -10,7 +12,7 @@ using YNBBot.NestedCommands;
 
 namespace YNBBot
 {
-    static class Macros
+    static class YNBMacros
     {
         public static Random Rand = new Random();
 
@@ -79,11 +81,11 @@ namespace YNBBot
             EmbedBuilder embed = new EmbedBuilder();
             if (error)
             {
-                embed.Color = Var.ERRORCOLOR;
+                embed.Color = BotCore.ErrorColor;
             }
             else
             {
-                embed.Color = Var.BOTCOLOR;
+                embed.Color = BotCore.EmbedColor;
             }
             embed.Description = message;
             return await channel.SendMessageAsync(string.Empty, embed: embed.Build());
@@ -101,11 +103,11 @@ namespace YNBBot
             EmbedBuilder embed = new EmbedBuilder();
             if (error)
             {
-                embed.Color = Var.ERRORCOLOR;
+                embed.Color = BotCore.ErrorColor;
             }
             else
             {
-                embed.Color = Var.BOTCOLOR;
+                embed.Color = BotCore.EmbedColor;
             }
             embed.Description = embeddedmessage;
             return await channel.SendMessageAsync(messageContent, embed: embed.Build());
@@ -137,7 +139,7 @@ namespace YNBBot
                 {
                     CurrentBuilder = new EmbedBuilder
                     {
-                        Color = Var.BOTCOLOR,
+                        Color = BotCore.EmbedColor,
                         Title = title
                     };
                     if (!string.IsNullOrEmpty(description))
@@ -503,6 +505,14 @@ namespace YNBBot
             return builder.ToString();
         }
 
+        public static void RemoveRange<TSource>(this IList<TSource> list, IList<TSource> remove)
+        {
+            foreach (TSource item in remove)
+            {
+                list.Remove(item);
+            }
+        }
+
         #endregion
         #region Misc Methods
 
@@ -568,7 +578,7 @@ namespace YNBBot
             {
                 Title = MaxLength($"{e.GetType()} - {e.Message}", EmbedHelper.EMBEDTITLE_MAX),
                 Description = MaxLength("```" + e.StackTrace, EmbedHelper.EMBEDDESCRIPTION_MAX - 3) + "```",
-                Color = Var.ERRORCOLOR
+                Color = BotCore.ErrorColor
             };
             return result;
         }

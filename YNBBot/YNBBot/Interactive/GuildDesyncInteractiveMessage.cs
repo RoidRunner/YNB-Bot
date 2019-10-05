@@ -6,6 +6,7 @@ using Discord;
 using YNBBot.NestedCommands;
 using System.Threading.Tasks;
 using Discord.WebSocket;
+using BotCoreNET.CommandHandling;
 
 namespace YNBBot.Interactive
 {

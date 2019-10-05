@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Linq;
+using BotCoreNET;
 
 namespace YNBBot.MinecraftGuildSystem
 {
@@ -38,7 +39,7 @@ namespace YNBBot.MinecraftGuildSystem
             {
                 Title = Title,
                 Description = Description,
-                Color = Var.BOTCOLOR
+                Color = BotCore.EmbedColor
             };
             StringBuilder options = new StringBuilder();
             for (int i = 0; i < Options.Count; i++)

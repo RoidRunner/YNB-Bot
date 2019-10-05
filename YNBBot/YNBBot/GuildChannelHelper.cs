@@ -1,4 +1,5 @@
-﻿using Discord;
+﻿using BotCoreNET;
+using Discord;
 using Discord.Rest;
 using Discord.WebSocket;
 using JSON;
@@ -115,7 +116,7 @@ namespace YNBBot
         public static bool TryGetChannel(ulong channelId, out SocketGuildChannel channel)
         {
             channel = null;
-            foreach (SocketGuild guild in Var.client.Guilds)
+            foreach (SocketGuild guild in BotCore.Client.Guilds)
             {
                 channel = guild.GetChannel(channelId);
                 if (channel != null)
@@ -211,10 +212,10 @@ namespace YNBBot
 
         public static async Task<RestUserMessage> SendMessage(ulong channelId, string content = null, EmbedBuilder embed = null, string embedTitle = null, string embedDescription = null, bool useErrorColor = false)
         {
-            return await SendMessage(channelId, useErrorColor ? Var.ERRORCOLOR : Var.BOTCOLOR, content, embed, embedTitle, embedDescription);
+            return await SendMessage(channelId, useErrorColor ? BotCore.ErrorColor : BotCore.EmbedColor, content, embed, embedTitle, embedDescription);
         }
 
-        public static async Task<RestUserMessage> SendMessage(ulong channelId, Color color, string content = null, EmbedBuilder embed = null, string embedTitle = null, string embedDescription = null)
+        public static async Task<RestUserMessage> SendMessage(ulong channelId, Color color = default, string content = null, EmbedBuilder embed = null, string embedTitle = null, string embedDescription = null)
         {
             if (TryGetChannel(channelId, out SocketTextChannel channel))
             {
@@ -247,7 +248,7 @@ namespace YNBBot
 
         public static async Task<RestUserMessage> SendExceptionNotification(Exception e, string context)
         {
-            bool botDevRoleFound = Var.client.TryGetRole(SettingsModel.BotDevRole, out SocketRole botDevRole);
+            bool botDevRoleFound = BotCore.Client.TryGetRole(SettingsModel.BotDevRole, out SocketRole botDevRole);
             return await SendMessage(DebugChannelId, content: $"{(botDevRoleFound ? botDevRole.Mention : "")} {context}", embed: Macros.EmbedFromException(e), useErrorColor: true);
         }
 

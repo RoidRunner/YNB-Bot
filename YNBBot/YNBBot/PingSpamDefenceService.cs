@@ -1,4 +1,5 @@
-﻿using Discord;
+﻿using BotCoreNET;
+using Discord;
 using Discord.WebSocket;
 using System;
 using System.Collections.Generic;
@@ -35,13 +36,13 @@ namespace YNBBot
             {
                 Title = "Muted for spamming Mentions",
                 Description = "You have breached the limits in place to prevent raiding and excessive ping spamming. PM an admin if you believe this is in error!",
-                Color = Var.ERRORCOLOR
+                Color = BotCore.ErrorColor
             };
             WarningEmbed = new EmbedBuilder()
             {
                 Title = "Warning for spamming Mentions",
                 Description = "You have breached the warning limit in place to prevent excessive ping spamming. Avoid mentions in your next messages to avoid getting muted!",
-                Color = Var.ERRORCOLOR
+                Color = BotCore.ErrorColor
             };
         }
 
@@ -59,7 +60,7 @@ namespace YNBBot
                 if (user != null)
                 {
                     SocketGuild guild = user.Guild;
-                    AccessLevel userAccessLevel = Var.client.GetAccessLevel(user.Id);
+                    AccessLevel userAccessLevel = BotCore.Client.GetAccessLevel(user.Id);
 
                     int effectiveMentionCount = message.MentionedUsers.Count;
                     foreach (SocketRole role in message.MentionedRoles)
@@ -77,7 +78,7 @@ namespace YNBBot
                         effectiveMentionCount += guild.MemberCount;
                     }
 
-                    if (effectiveMentionCount > 0 && userAccessLevel < AccessLevel.Admin && user.Id != Var.client.CurrentUser.Id)
+                    if (effectiveMentionCount > 0 && userAccessLevel < AccessLevel.Admin && user.Id != BotCore.Client.CurrentUser.Id)
                     {
                         await HandleMention(user, effectiveMentionCount);
                     }
@@ -174,7 +175,7 @@ namespace YNBBot
             if (totalEMs >= EM_MUTE_LIMIT && !firstInfraction)
             {
                 // Handle Mute
-                if (Var.client.TryGetRole(SettingsModel.MuteRole, out SocketRole MuteRole))
+                if (BotCore.Client.TryGetRole(SettingsModel.MuteRole, out SocketRole MuteRole))
                 {
                     await user.AddRoleAsync(MuteRole);
                 }

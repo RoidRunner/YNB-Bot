@@ -1,4 +1,5 @@
-﻿using Discord;
+﻿using BotCoreNET;
+using Discord;
 using Discord.WebSocket;
 using System;
 using System.Collections.Generic;
@@ -159,7 +160,7 @@ namespace YNBBot
             activity.Time = string.Format("UTC {0}-{1}-{2} {3}:{4}",
                 now.Year, now.Month.ToString().PadLeft(2, '0'), now.Day.ToString().PadLeft(2, '0'),
                 now.Hour.ToString().PadLeft(2, '0'), now.Minute.ToString().PadLeft(2, '0'));
-            await Var.client.SetActivityAsync(activity);
+            await BotCore.Client.SetActivityAsync(activity);
 
             AddScheduleDelegate(UpdateTimeActivity, (61 - now.Second) * 1000);
         }

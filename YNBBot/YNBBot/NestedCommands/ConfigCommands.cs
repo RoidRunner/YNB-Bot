@@ -1,10 +1,16 @@
-﻿using Discord;
+﻿#if OLDCOMMANDS
+
+using BotCoreNET;
+using BotCoreNET.CommandHandling;
+using BotCoreNET.Helpers;
+using Discord;
 using Discord.WebSocket;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using YNBBot.EventLogging;
 
 namespace YNBBot.NestedCommands
 {
@@ -47,13 +53,13 @@ namespace YNBBot.NestedCommands
             EmbedBuilder embed = new EmbedBuilder()
             {
                 Title = "Current Settings",
-                Color = Var.BOTCOLOR,
+                Color = BotCore.EmbedColor,
                 Description = $"YNB Bot {Var.VERSION}"
             };
             StringBuilder debugLogging = new StringBuilder("Logging Channel: ");
             if (debugChannel == null)
             {
-                debugLogging.AppendLine(Macros.InlineCodeBlock(GuildChannelHelper.DebugChannelId));
+                debugLogging.AppendLine(Markdown.InlineCodeBlock(GuildChannelHelper.DebugChannelId));
             }
             else
             {
@@ -65,15 +71,15 @@ namespace YNBBot.NestedCommands
                 debugLogging.AppendLine($"{(DebugCategories)i}: { (option ? "**enabled**" : "disabled") }");
             }
             embed.AddField("Debug Logging", debugLogging);
-            embed.AddField("Channels", $"Welcoming: { (welcomingChannel == null ? Macros.InlineCodeBlock(GuildChannelHelper.WelcomingChannelId) : welcomingChannel.Mention) }\n" +
-                $"Interactive Messages: {(interactiveMessagesChannel == null ? Macros.InlineCodeBlock(GuildChannelHelper.InteractiveMessagesChannelId) : interactiveMessagesChannel.Mention)}\n" +
-                $"Admin Command Usage Logging: {(adminCommandUsageLogging == null ? Macros.InlineCodeBlock(GuildChannelHelper.AdminCommandUsageLogChannelId) : adminCommandUsageLogging.Mention)}\n" +
-                $"Admin Notifications: {(adminNotificationChannel == null ? Macros.InlineCodeBlock(GuildChannelHelper.AdminNotificationChannelId) : adminNotificationChannel.Mention)}");
+            embed.AddField("Channels", $"Welcoming: { (welcomingChannel == null ? Markdown.InlineCodeBlock(GuildChannelHelper.WelcomingChannelId) : welcomingChannel.Mention) }\n" +
+                $"Interactive Messages: {(interactiveMessagesChannel == null ? Markdown.InlineCodeBlock(GuildChannelHelper.InteractiveMessagesChannelId) : interactiveMessagesChannel.Mention)}\n" +
+                $"Admin Command Usage Logging: {(adminCommandUsageLogging == null ? Markdown.InlineCodeBlock(GuildChannelHelper.AdminCommandUsageLogChannelId) : adminCommandUsageLogging.Mention)}\n" +
+                $"Admin Notifications: {(adminNotificationChannel == null ? Markdown.InlineCodeBlock(GuildChannelHelper.AdminNotificationChannelId) : adminNotificationChannel.Mention)}");
 
-            embed.AddField("Roles", $"Admin Role: { (adminRole == null ? Macros.InlineCodeBlock(SettingsModel.AdminRole) : adminRole.Mention) }\n" +
-                $"Bot Notifications Role: { (botNotifications == null ? Macros.InlineCodeBlock(SettingsModel.BotDevRole) : botNotifications.Mention) }\n" +
-                $"Minecraft Branch Role: {(minecraftBranch == null ? Macros.InlineCodeBlock(SettingsModel.MinecraftBranchRole) : minecraftBranch.Mention)}\n" +
-                $"Mute Role: {(mute == null ? Macros.InlineCodeBlock(SettingsModel.MuteRole) : mute.Mention)}");
+            embed.AddField("Roles", $"Admin Role: { (adminRole == null ? Markdown.InlineCodeBlock(SettingsModel.AdminRole) : adminRole.Mention) }\n" +
+                $"Bot Notifications Role: { (botNotifications == null ? Markdown.InlineCodeBlock(SettingsModel.BotDevRole) : botNotifications.Mention) }\n" +
+                $"Minecraft Branch Role: {(minecraftBranch == null ? Markdown.InlineCodeBlock(SettingsModel.MinecraftBranchRole) : minecraftBranch.Mention)}\n" +
+                $"Mute Role: {(mute == null ? Markdown.InlineCodeBlock(SettingsModel.MuteRole) : mute.Mention)}");
 
             string bAdmins = SettingsModel.botAdminIDs.OperationJoin(", ", id =>
             {
@@ -89,7 +95,7 @@ namespace YNBBot.NestedCommands
                 }
                 else
                 {
-                    return Macros.InlineCodeBlock(user.Id.ToString());
+                    return Markdown.InlineCodeBlock(user.Id.ToString());
                 }
             });
             embed.AddField($"Bot Admins - {SettingsModel.botAdminIDs.Count}", bAdmins);
@@ -120,14 +126,14 @@ namespace YNBBot.NestedCommands
 
         protected override ArgumentParseResult TryParseArgumentsGuildSynchronous(GuildCommandContext context)
         {
-            if (!Enum.TryParse(context.Args[0], out RoleIdentifier))
+            if (!Enum.TryParse(context.Arguments[0], out RoleIdentifier))
             {
                 return new ArgumentParseResult(ARGS[0], $"Could not parse to a role identifier. Available are: `{string.Join(", ", Enum.GetNames(typeof(SettingRoles)))}`");
             }
 
-            if (context.Args.Count == 2)
+            if (context.Arguments.Count == 2)
             {
-                if (!ArgumentParsing.TryParseRole(context, context.Args[1], out Role))
+                if (!ArgumentParsing.TryParseRole(context, context.Arguments[1], out Role))
                 {
                     return new ArgumentParseResult(ARGS[1], $"Could not parse to a role in this guild");
                 }
@@ -166,7 +172,7 @@ namespace YNBBot.NestedCommands
 
                 SocketRole role = context.Guild.GetRole(roleId);
 
-                await context.Channel.SendEmbedAsync($"Current setting for `{RoleIdentifier}` is {(role == null ? Macros.InlineCodeBlock(roleId) : role.Mention)}");
+                await context.Channel.SendEmbedAsync($"Current setting for `{RoleIdentifier}` is {(role == null ? Markdown.InlineCodeBlock(roleId) : role.Mention)}");
             }
             else
             {
@@ -231,14 +237,14 @@ namespace YNBBot.NestedCommands
         {
             channel = null;
 
-            if (!Enum.TryParse(context.Args[0], out channelType))
+            if (!Enum.TryParse(context.Arguments[0], out channelType))
             {
                 return new ArgumentParseResult(ARGS[0], $"Could not parse to an output channel type. Available are: `{Macros.GetEnumNames<OutputChannelType>()}`");
             }
 
-            if (context.Args.Count == 2)
+            if (context.Arguments.Count == 2)
             {
-                if (!ArgumentParsing.TryParseGuildChannel(context, context.Args[1], out channel))
+                if (!ArgumentParsing.TryParseGuildChannel(context, context.Arguments[1], out channel))
                 {
                     return new ArgumentParseResult(ARGS[1], $"Could not parse to a channel in this guild");
                 }
@@ -277,7 +283,7 @@ namespace YNBBot.NestedCommands
                 channel = context.Guild.GetTextChannel(channelId);
                 SocketTextChannel textChannel = channel as SocketTextChannel;
 
-                await context.Channel.SendEmbedAsync($"Current setting for `{channelType}` is {(channel == null ? Macros.InlineCodeBlock(channelId) : (textChannel == null ? channel.Name : textChannel.Mention))}");
+                await context.Channel.SendEmbedAsync($"Current setting for `{channelType}` is {(channel == null ? Markdown.InlineCodeBlock(channelId) : (textChannel == null ? channel.Name : textChannel.Mention))}");
             }
             else
             {
@@ -350,17 +356,17 @@ namespace YNBBot.NestedCommands
 
         protected override ArgumentParseResult TryParseArgumentsGuildSynchronous(GuildCommandContext context)
         {
-            if (!ArgumentParsing.TryParseGuildChannel(context, context.Args[0], out Channel))
+            if (!ArgumentParsing.TryParseGuildChannel(context, context.Arguments[0], out Channel))
             {
                 return new ArgumentParseResult(ARGS[0], "Failed to parse to a guild channel!");
             }
 
             Configs.Clear();
 
-            if (context.Args.Count > 1)
+            if (context.Arguments.Count > 1)
             {
-                context.Args.Index++;
-                foreach (string arg in context.Args)
+                context.Arguments.Index++;
+                foreach (string arg in context.Arguments)
                 {
                     string[] argSplit = arg.Split(':');
                     if (argSplit.Length == 2)
@@ -380,7 +386,7 @@ namespace YNBBot.NestedCommands
                         return new ArgumentParseResult(ARGS[1], $"{arg} - Could not split into config identifer and setting!");
                     }
                 }
-                context.Args.Index--;
+                context.Arguments.Index--;
             }
 
             return ArgumentParseResult.SuccessfullParse;
@@ -414,7 +420,7 @@ namespace YNBBot.NestedCommands
 
             EmbedBuilder embed = new EmbedBuilder()
             {
-                Color = Var.BOTCOLOR,
+                Color = BotCore.EmbedColor,
                 Description = channelConfig.ToString()
             };
             if (Configs.Count > 0)
@@ -461,14 +467,14 @@ namespace YNBBot.NestedCommands
 
         protected override ArgumentParseResult TryParseArgumentsSynchronous(CommandContext context)
         {
-            if (!Enum.TryParse(context.Args.First, out template))
+            if (!Enum.TryParse(context.Arguments.First, out template))
             {
                 return new ArgumentParseResult(ARGS[0], $"Could not parse to a template identifier. Available are: `{string.Join(", ", Enum.GetNames(typeof(Templates)))}`");
             }
 
-            if (context.Args.Count > 1 && context.Message.Content.Length > FullIdentifier.Length + context.Args.First.Length + 2)
+            if (context.Arguments.Count > 1 && context.Message.Content.Length > Identifier.Length + context.Arguments.First.Length + 2)
             {
-                newText = context.Message.Content.Substring(FullIdentifier.Length + context.Args.First.Length + 2);
+                newText = context.Message.Content.Substring(Identifier.Length + context.Arguments.First.Length + 2);
             }
             else
             {
@@ -542,7 +548,7 @@ namespace YNBBot.NestedCommands
 
         protected override ArgumentParseResult TryParseArgumentsSynchronous(CommandContext context)
         {
-            Prefix = context.Args.First[0];
+            Prefix = context.Arguments.First[0];
             return ArgumentParseResult.SuccessfullParse;
         }
 
@@ -577,14 +583,14 @@ namespace YNBBot.NestedCommands
 
         protected override ArgumentParseResult TryParseArgumentsSynchronous(CommandContext context)
         {
-            if (!Enum.TryParse(context.Args.First, out category))
+            if (!Enum.TryParse(context.Arguments.First, out category))
             {
                 return new ArgumentParseResult(ARGS[0], $"Failed to parse to a logging category! Available are: `{Macros.GetEnumNames<DebugCategories>()}`");
             }
 
-            if (context.Args.Count > 1)
+            if (context.Arguments.Count > 1)
             {
-                string setting = context.Args[1];
+                string setting = context.Arguments[1];
                 if (setting.Contains("enable"))
                 {
                     newSetting = true;
@@ -703,38 +709,38 @@ namespace YNBBot.NestedCommands
 
         protected override ArgumentParseResult TryParseArgumentsGuildSynchronous(GuildCommandContext context)
         {
-            if (context.Args.Count == 0)
+            if (context.Arguments.Count == 0)
             {
                 Mode = CommandMode.list;
                 Role = null;
             }
             else
             {
-                if (!Enum.TryParse(context.Args.First, out Mode))
+                if (!Enum.TryParse(context.Arguments.First, out Mode))
                 {
-                    return new ArgumentParseResult(ARGS[0], $"Unable to parse `{context.Args.First}` to a valid command mode!");
+                    return new ArgumentParseResult(ARGS[0], $"Unable to parse `{context.Arguments.First}` to a valid command mode!");
                 }
 
-                context.Args.Index++;
+                context.Arguments.Index++;
 
-                if (context.Args.Count == 0 && Mode != CommandMode.list)
+                if (context.Arguments.Count == 0 && Mode != CommandMode.list)
                 {
                     return new ArgumentParseResult(ARGS[1], $"Mode `{Mode}` requires a role as second argument!");
                 }
 
                 if (Mode != CommandMode.list)
                 {
-                    if (!ArgumentParsing.TryParseRole(context, context.Args.First, out Role))
+                    if (!ArgumentParsing.TryParseRole(context, context.Arguments.First, out Role))
                     {
                         if (Mode == CommandMode.add)
                         {
-                            return new ArgumentParseResult(ARGS[1], $"Could not parse `{context.Args.First}` to a valid role!");
+                            return new ArgumentParseResult(ARGS[1], $"Could not parse `{context.Arguments.First}` to a valid role!");
                         }
                         else
                         {
-                            if (!ulong.TryParse(context.Args.First, out RoleId))
+                            if (!ulong.TryParse(context.Arguments.First, out RoleId))
                             {
-                                return new ArgumentParseResult(ARGS[1], $"Could not parse `{context.Args.First}` to a valid role!");
+                                return new ArgumentParseResult(ARGS[1], $"Could not parse `{context.Arguments.First}` to a valid role!");
                             }
                         }
                     }
@@ -744,7 +750,7 @@ namespace YNBBot.NestedCommands
                         RoleId = Role.Id;
                     }
 
-                    bool hasRole = JoinLeaveHandler.AutoAssignRoleIds.Contains(RoleId);
+                    bool hasRole = EventLogger.AutoAssignRoleIds.Contains(RoleId);
                     if (Mode == CommandMode.add && hasRole)
                     {
                         return new ArgumentParseResult(ARGS[1], $"{Role.Mention} is already amongst the auto assign roles!");
@@ -767,11 +773,11 @@ namespace YNBBot.NestedCommands
                     EmbedBuilder embed = new EmbedBuilder()
                     {
                         Title = "Roles automatically assigned to newly joined users",
-                        Color = Var.BOTCOLOR,
-                        Description = JoinLeaveHandler.AutoAssignRoleIds.Count == 0 ?
+                        Color = BotCore.EmbedColor,
+                        Description = EventLogger.AutoAssignRoleIds.Count == 0 ?
                         "No Roles"
                         :
-                        JoinLeaveHandler.AutoAssignRoleIds.OperationJoin(", ", (ulong roleId) =>
+                        EventLogger.AutoAssignRoleIds.OperationJoin(", ", (ulong roleId) =>
                         {
                             SocketRole role = context.Guild.GetRole(roleId);
                             if (role != null)
@@ -780,21 +786,21 @@ namespace YNBBot.NestedCommands
                             }
                             else
                             {
-                                return Macros.InlineCodeBlock(roleId);
+                                return Markdown.InlineCodeBlock(roleId);
                             }
                         })
                     };
                     await context.Channel.SendEmbedAsync(embed);
                     break;
                 case CommandMode.add:
-                    JoinLeaveHandler.AutoAssignRoleIds.Add(RoleId);
+                    EventLogger.AutoAssignRoleIds.Add(RoleId);
                     await SettingsModel.SaveSettings();
                     await context.Channel.SendEmbedAsync($"Added {Role.Mention} to the list of roles automatically assigned to new users!");
                     break;
                 case CommandMode.remove:
-                    JoinLeaveHandler.AutoAssignRoleIds.Remove(RoleId);
+                    EventLogger.AutoAssignRoleIds.Remove(RoleId);
                     await SettingsModel.SaveSettings();
-                    await context.Channel.SendEmbedAsync($"Removed {(Role == null ? Macros.InlineCodeBlock(RoleId) : Role.Mention)} from the list of roles automatically assigned to new users!");
+                    await context.Channel.SendEmbedAsync($"Removed {(Role == null ? Markdown.InlineCodeBlock(RoleId) : Role.Mention)} from the list of roles automatically assigned to new users!");
                     break;
             }
         }
@@ -825,3 +831,4 @@ namespace YNBBot.NestedCommands
 
     #endregion
 }
+#endif

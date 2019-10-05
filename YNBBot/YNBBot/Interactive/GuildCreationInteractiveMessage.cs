@@ -1,4 +1,6 @@
-﻿using Discord;
+﻿using BotCoreNET;
+using BotCoreNET.Helpers;
+using Discord;
 using Discord.Rest;
 using Discord.WebSocket;
 using System;
@@ -98,7 +100,7 @@ namespace YNBBot.Interactive
                         embed = new EmbedBuilder()
                         {
                             Title = "Failure",
-                            Color = Var.ERRORCOLOR,
+                            Color = BotCore.ErrorColor,
                             Description = $"Internal Error!"
                         };
                     }
@@ -109,7 +111,7 @@ namespace YNBBot.Interactive
                     embed = new EmbedBuilder()
                     {
                         Title = "Failure",
-                        Color = Var.ERRORCOLOR,
+                        Color = BotCore.ErrorColor,
                         Description = $"Internal Error or members of the guild left the server!"
                     };
                 }
@@ -137,7 +139,7 @@ namespace YNBBot.Interactive
                 mentionString.Append(" ");
             }
 
-            RestUserMessage message = await GuildChannelHelper.SendMessage(GuildChannelHelper.InteractiveMessagesChannelId, guild.DiscordColor, content: $"{mentionString}Please confirm ({UnicodeEmoteService.Checkmark}) or deny ({UnicodeEmoteService.Cross}) founding Membership in Guild `{guild.Name}` by reacting to this message! {Macros.Mention_Role(SettingsModel.AdminRole)} Please choose to confirm ({UnicodeEmoteService.Checkmark}) or deny ({UnicodeEmoteService.Cross}) founding of this guild!", embedTitle: "Setting up Interactive Message - Stand By");
+            RestUserMessage message = await GuildChannelHelper.SendMessage(GuildChannelHelper.InteractiveMessagesChannelId, guild.DiscordColor, content: $"{mentionString}Please confirm ({UnicodeEmoteService.Checkmark}) or deny ({UnicodeEmoteService.Cross}) founding Membership in Guild `{guild.Name}` by reacting to this message! {Markdown.Mention_Role(SettingsModel.AdminRole)} Please choose to confirm ({UnicodeEmoteService.Checkmark}) or deny ({UnicodeEmoteService.Cross}) founding of this guild!", embedTitle: "Setting up Interactive Message - Stand By");
             if (message != null)
             {
                 GuildCreationInteractiveMessage result = new GuildCreationInteractiveMessage(message as IUserMessage, guild);
@@ -160,7 +162,7 @@ namespace YNBBot.Interactive
             {
                 ulong memberId = (ulong)minecraftGuild.MemberIds[i];
                 SocketGuildUser member = null;
-                SocketGuild guild = Var.client.GetGuild(guildId);
+                SocketGuild guild = BotCore.Client.GetGuild(guildId);
                 if (guild != null)
                 {
                     member = guild.GetUser(memberId);
@@ -182,7 +184,7 @@ namespace YNBBot.Interactive
                 EmbedBuilder embed = new EmbedBuilder()
                 {
                     Title = $"Founding of Guild \"{Guild.Name}\" - Failed due to Timeout!",
-                    Color = Var.ERRORCOLOR
+                    Color = BotCore.ErrorColor
                 };
 
                 await context.Message.ModifyAsync(MessageProperties =>
@@ -198,7 +200,7 @@ namespace YNBBot.Interactive
                 EmbedBuilder embed = new EmbedBuilder()
                 {
                     Title = $"Founding of Guild \"{Guild.Name}\" - Founding rights denied!",
-                    Color = Var.ERRORCOLOR
+                    Color = BotCore.ErrorColor
                 };
                 await context.Message.ModifyAsync(MessageProperties =>
                 {
@@ -212,7 +214,7 @@ namespace YNBBot.Interactive
                 EmbedBuilder embed = new EmbedBuilder()
                 {
                     Title = $"Founding of Guild \"{Guild.Name}\" - Founding member {context.User.Username} denied!",
-                    Color = Var.ERRORCOLOR
+                    Color = BotCore.ErrorColor
                 };
                 await context.Message.ModifyAsync(MessageProperties =>
                 {

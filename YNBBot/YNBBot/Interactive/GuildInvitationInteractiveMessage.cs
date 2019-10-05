@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
+using BotCoreNET;
 using Discord;
 using Discord.WebSocket;
 using YNBBot.MinecraftGuildSystem;
@@ -32,7 +33,7 @@ namespace YNBBot.Interactive
                     EmbedBuilder failure = new EmbedBuilder()
                     {
                         Title = "Failed",
-                        Color = Var.ERRORCOLOR,
+                        Color = BotCore.ErrorColor,
                         Description = $"Already in guild \"{(existingGuild.NameAndColorFound ? existingGuild.Name : existingGuild.ChannelId.ToString())}\""
                     };
                     await context.Message.ModifyAsync(MessageProperties =>

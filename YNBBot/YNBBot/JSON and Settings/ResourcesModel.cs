@@ -1,4 +1,5 @@
-﻿using JSON;
+﻿using BotCoreNET;
+using JSON;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -13,11 +14,14 @@ namespace YNBBot
         public static readonly string SettingsFilePath;
         public static readonly string GuildsFilePath;
 
+        public static readonly string ModerationLogsPath;
+
         static ResourcesModel()
         {
             SettingsDirectory = Environment.CurrentDirectory + "/YNBBot/Settings/";
             SettingsFilePath = SettingsDirectory + "Settings.json";
             GuildsFilePath = SettingsDirectory + "Guilds.json";
+            ModerationLogsPath = Environment.CurrentDirectory + "/YNBBot/ModerationLogs/";
         }
 
         public static bool CheckSettingsFilesExistence()
@@ -51,7 +55,7 @@ namespace YNBBot
                 }
                 catch (Exception e)
                 {
-                    await BotCore.Logger(new Discord.LogMessage(Discord.LogSeverity.Critical, "Save/Load", "Failed to load " + path, e));
+                    await YNBBotCore.Logger(new Discord.LogMessage(Discord.LogSeverity.Critical, "Save/Load", "Failed to load " + path, e));
                 }
             }
             return operation;
@@ -65,7 +69,7 @@ namespace YNBBot
             }
             catch (Exception e)
             {
-                await BotCore.Logger(new Discord.LogMessage(Discord.LogSeverity.Critical, "Save/Load", "Failed to save " + path, e));
+                await YNBBotCore.Logger(new Discord.LogMessage(Discord.LogSeverity.Critical, "Save/Load", "Failed to save " + path, e));
             }
         }
         #endregion
@@ -90,7 +94,7 @@ namespace YNBBot
 
         public static string GetMentionFromUserId(ulong userId)
         {
-            return Var.client.GetUser(userId).Mention;
+            return BotCore.Client.GetUser(userId).Mention;
         }
 
         #endregion

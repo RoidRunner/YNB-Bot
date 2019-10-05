@@ -8,6 +8,9 @@ using System.Threading.Tasks;
 using System.IO;
 using YNBBot.NestedCommands;
 using JSON;
+using YNBBot.EventLogging;
+using BotCoreNET;
+using BotCoreNET.Helpers;
 
 namespace YNBBot
 {
@@ -133,7 +136,7 @@ namespace YNBBot
                         {
                             if (idField.IsNumber && !idField.IsFloat && !idField.IsSigned)
                             {
-                                JoinLeaveHandler.AutoAssignRoleIds.Add(idField.Unsigned_Int64);
+                                EventLogger.AutoAssignRoleIds.Add(idField.Unsigned_Int64);
                             }
                         }
                     }
@@ -171,7 +174,7 @@ namespace YNBBot
             json.TryAddField(JSON_CHANNELINFOS, GuildChannelHelper.ToJSON());
 
             JSONContainer autoAssignRoleIds = JSONContainer.NewArray();
-            foreach (var roleId in JoinLeaveHandler.AutoAssignRoleIds)
+            foreach (var roleId in EventLogger.AutoAssignRoleIds)
             {
                 autoAssignRoleIds.Add(roleId);
             }
@@ -226,7 +229,7 @@ namespace YNBBot
                 {
                    debugembed = new EmbedBuilder
                     {
-                        Color = Var.BOTCOLOR,
+                        Color = BotCore.EmbedColor,
                         Title = $"**[{category.ToString().ToUpper()}]**",
                         Description = message
                     };
@@ -235,7 +238,7 @@ namespace YNBBot
                 {
                     debugembed = new EmbedBuilder
                     {
-                        Color = Var.BOTCOLOR,
+                        Color = BotCore.EmbedColor,
                         Title = $"**[{category.ToString().ToUpper()}]** {message}",
                         Description = description
                     };
@@ -250,7 +253,7 @@ namespace YNBBot
             {
                 EmbedBuilder debugembed = new EmbedBuilder
                 {
-                    Color = Var.BOTCOLOR,
+                    Color = BotCore.EmbedColor,
                     Title = $"Admin-Only command used by {context.User.Username}#{context.User.Discriminator}",
                 };
                 debugembed.AddField("Command and Arguments", $"Matched Command```{command.PrefixIdentifier}```Arguments```{context.Message.Content}".MaxLength(1021) + "```");
@@ -258,7 +261,7 @@ namespace YNBBot
                 if (GuildCommandContext.TryConvert(context, out GuildCommandContext guildContext))
                 {
                     SocketTextChannel locationChannel = channel.Guild.GetTextChannel(guildContext.Channel.Id);
-                    location = $"Guild `{guildContext.Guild.Name}` Channel {(locationChannel == null ? Macros.InlineCodeBlock(guildContext.Channel.Name) : locationChannel.Mention)}";
+                    location = $"Guild `{guildContext.Guild.Name}` Channel {(locationChannel == null ? Markdown.InlineCodeBlock(guildContext.Channel.Name) : locationChannel.Mention)}";
                 }
                 else
                 {

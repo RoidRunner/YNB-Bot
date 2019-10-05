@@ -24,6 +24,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\BotCore_Team\BotCore\BotCore\BotCoreNET.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Reference Include="JSON_Serialization">
       <HintPath>libs\JSON_Serialization\JSON_Serialization.dll</HintPath>
     </Reference>

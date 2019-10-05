@@ -1,4 +1,5 @@
-﻿using Discord;
+﻿using BotCoreNET;
+using Discord;
 using Discord.WebSocket;
 using System;
 using System.Collections.Generic;
@@ -32,7 +33,7 @@ namespace YNBBot.Interactive
             }
             SocketTextChannel textChannel = channel as SocketTextChannel;
 
-            if ((reactionMessage != null) && (textChannel != null) && reactionMessage.Author.Id == Var.client.CurrentUser.Id && reaction.User.Value.Id != Var.client.CurrentUser.Id)
+            if ((reactionMessage != null) && (textChannel != null) && reactionMessage.Author.Id == BotCore.Client.CurrentUser.Id && reaction.User.Value.Id != BotCore.Client.CurrentUser.Id)
             {
                 if (InteractiveMessages.TryGetValue(reactionMessage.Id, out InteractiveMessage interactiveMessage))
                 {

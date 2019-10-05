@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
+using BotCoreNET;
 using Discord;
 using Discord.WebSocket;
 
@@ -21,7 +22,7 @@ namespace YNBBot.Interactive
         /// </summary>
         public static Task<ConfirmationInteractiveMessage> CreateConfirmationMessage(string messageContent, string title, string description, MessageInteractionDelegate onConfirm, MessageInteractionDelegate onDeny)
         {
-            return CreateConfirmationMessage(messageContent, title, Var.BOTCOLOR, description, UnicodeEmoteService.Checkmark, UnicodeEmoteService.Cross, onConfirm, onDeny);
+            return CreateConfirmationMessage(messageContent, title, BotCore.EmbedColor, description, UnicodeEmoteService.Checkmark, UnicodeEmoteService.Cross, onConfirm, onDeny);
         }
 
         /// <summary>

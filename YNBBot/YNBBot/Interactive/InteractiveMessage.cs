@@ -1,4 +1,5 @@
-﻿using Discord;
+﻿using BotCoreNET;
+using Discord;
 using Discord.Rest;
 using Discord.WebSocket;
 using System;
@@ -116,9 +117,9 @@ namespace YNBBot.Interactive
             return Task.FromResult(false);
         }
 
-        internal static readonly EmbedBuilder GenericSuccess = new EmbedBuilder() { Title = "Success", Color = Var.BOTCOLOR };
-        internal static readonly EmbedBuilder GenericExpired = new EmbedBuilder() { Title = "Expired", Color = Var.ERRORCOLOR };
-        internal static readonly EmbedBuilder GenericFailure = new EmbedBuilder() { Title = "Failure", Color = Var.ERRORCOLOR };
+        internal static readonly EmbedBuilder GenericSuccess = new EmbedBuilder() { Title = "Success", Color = BotCore.EmbedColor };
+        internal static readonly EmbedBuilder GenericExpired = new EmbedBuilder() { Title = "Expired", Color = BotCore.ErrorColor };
+        internal static readonly EmbedBuilder GenericFailure = new EmbedBuilder() { Title = "Failure", Color = BotCore.ErrorColor };
 
         internal static async Task GenericInteractionEnd(IUserMessage message, EmbedBuilder embed)
         {
@@ -134,7 +135,7 @@ namespace YNBBot.Interactive
         {
             if (InteractiveMessageService.RemoveInteractiveMessage(message.Id))
             {
-                EmbedBuilder success = new EmbedBuilder() { Title = title, Color = Var.BOTCOLOR };
+                EmbedBuilder success = new EmbedBuilder() { Title = title, Color = BotCore.EmbedColor };
                 await message.ModifyAsync(MessageProperties =>
                 {
                     MessageProperties.Embed = success.Build();
