@@ -16,57 +16,51 @@ namespace YNBBot.NestedCommands
 
     class UserInfoCommand : Command
     {
-        public const string SUMMARY = "Provides a collection of info for a given user";
-        public const string REMARKS = default;
-        public const string LINK = default;
-        public static readonly Argument[] ARGS = new Argument[] { new Argument("User", ArgumentParsing.GENERIC_PARSED_USER, true) };
-        public static readonly Precondition[] AUTHCHECKS = new Precondition[] { };
+        public override HandledContexts ArgumentParserMethod => HandledContexts.GuildOnly;
 
-        private SocketUser User;
+        public override HandledContexts ExecutionMethod => HandledContexts.GuildOnly;
 
-        public UserInfoCommand(string identifier) : base(identifier, OverriddenMethod.BasicAsync, OverriddenMethod.BasicAsync, false, ARGS, AUTHCHECKS, SUMMARY, REMARKS, LINK)
+        public override string Summary => "Provides a collection of info for a given user";
+        public override Argument[] Arguments => new Argument[] { new Argument("User", ArgumentParsing.GENERIC_PARSED_USER, true) };
+
+
+        public UserInfoCommand(string identifier, CommandCollection collection = null)
         {
+            Register(identifier, collection);
         }
 
-        protected override async Task<ArgumentParseResult> TryParseArgumentsAsync(CommandContext context)
+
+        protected override Task<ArgumentParseResult> ParseArgumentsGuildAsync(IGuildCommandContext context)
         {
+            SocketUser User;
             if (context.Arguments.Count == 0)
             {
                 User = context.User;
             }
             else
             {
-                if (GuildCommandContext.TryConvert(context, out GuildCommandContext guildContext))
+                if (ArgumentParsing.TryParseGuildUser(context, context.Arguments.First, out SocketGuildUser guildUser))
                 {
-                    if (ArgumentParsing.TryParseGuildUser(guildContext, context.Arguments.First, out SocketGuildUser guildUser))
-                    {
-                        User = guildUser;
-                    }
+                    User = guildUser;
                 }
                 else
                 {
-                    User = await ArgumentParsing.ParseUser(context, context.Arguments.First);
+                    return Task.FromResult(new ArgumentParseResult(Arguments[0], "Failed to parse to a User!"));
                 }
             }
 
-            if (User != null)
-            {
-                return ArgumentParseResult.SuccessfullParse;
-            }
-            else
-            {
-                return new ArgumentParseResult(ARGS[0], "Failed to parse to a User!");
-            }
+            return Task.FromResult(new ArgumentParseResult(User));
         }
 
-        protected override async Task HandleCommandAsync(CommandContext context)
+        protected override async Task ExecuteGuild(IGuildCommandContext context, object argObj)
         {
+            SocketGuildUser User = argObj as SocketGuildUser;
+
             EmbedBuilder embed = new EmbedBuilder()
             {
                 Color = BotCore.EmbedColor,
                 Title = "UserInfo"
             };
-            embed.AddField("Command Access Level", BotCore.Client.GetAccessLevel(User.Id), true);
             if (MinecraftGuildModel.TryGetGuildOfUser(User.Id, out MinecraftGuild minecraftGuild))
             {
                 embed.AddField("Minecraft Guild Membership", $"\"{minecraftGuild.Name}\", Rank `{minecraftGuild.GetMemberRank(User.Id)}`");
@@ -88,7 +82,7 @@ namespace YNBBot.NestedCommands
                 }
                 if (guildUser.JoinedAt != null)
                 {
-                    embed.AddField("Joined "+ guildUser.Guild.Name, guildUser.JoinedAt?.ToString("r"), true);
+                    embed.AddField("Joined " + guildUser.Guild.Name, guildUser.JoinedAt?.ToString("r"), true);
                 }
             }
 
@@ -113,51 +107,43 @@ namespace YNBBot.NestedCommands
 
     class AvatarCommand : Command
     {
-        public const string SUMMARY = "Provides a users profile picture";
-        public const string REMARKS = default;
-        public const string LINK = default;
-        public static readonly Argument[] ARGS = new Argument[] { new Argument("User", ArgumentParsing.GENERIC_PARSED_USER, true) };
-        public static readonly Precondition[] AUTHCHECKS = new Precondition[] { };
+        public override HandledContexts ArgumentParserMethod => HandledContexts.GuildOnly;
+        public override HandledContexts ExecutionMethod => HandledContexts.GuildOnly;
 
-        private SocketUser User;
+        public override string Summary => "Provides a users profile picture";
+        public override Argument[] Arguments => new Argument[] { new Argument("User", ArgumentParsing.GENERIC_PARSED_USER, true) };
 
-        public AvatarCommand(string identifier) : base(identifier, OverriddenMethod.BasicAsync, OverriddenMethod.BasicAsync, false, ARGS, AUTHCHECKS, SUMMARY, REMARKS, LINK)
+        public AvatarCommand(string identifier, CommandCollection collection = null)
         {
+            Register(identifier, collection);
         }
 
-        protected override async Task<ArgumentParseResult> TryParseArgumentsAsync(CommandContext context)
+        protected override Task<ArgumentParseResult> ParseArgumentsGuildAsync(IGuildCommandContext context)
         {
+            SocketUser User;
             if (context.Arguments.Count == 0)
             {
                 User = context.User;
             }
             else
             {
-                if (GuildCommandContext.TryConvert(context, out GuildCommandContext guildContext))
+                if (ArgumentParsing.TryParseGuildUser(context, context.Arguments.First, out SocketGuildUser guildUser))
                 {
-                    if (ArgumentParsing.TryParseGuildUser(guildContext, context.Arguments.First, out SocketGuildUser guildUser))
-                    {
-                        User = guildUser;
-                    }
+                    User = guildUser;
                 }
                 else
                 {
-                    User = await ArgumentParsing.ParseUser(context, context.Arguments.First);
+                    return Task.FromResult(new ArgumentParseResult(Arguments[0], "Failed to parse to a User!"));
                 }
             }
 
-            if (User != null)
-            {
-                return ArgumentParseResult.SuccessfullParse;
-            }
-            else
-            {
-                return new ArgumentParseResult(ARGS[0], "Failed to parse to a User!");
-            }
+            return Task.FromResult(new ArgumentParseResult(User));
         }
 
-        protected override async Task HandleCommandAsync(CommandContext context)
+        protected override async Task ExecuteGuild(IGuildCommandContext context, object argObj)
         {
+            SocketGuildUser User = argObj as SocketGuildUser;
+
             EmbedBuilder embed = new EmbedBuilder()
             {
                 Color = BotCore.EmbedColor,
@@ -189,14 +175,18 @@ namespace YNBBot.NestedCommands
 
     class ServerinfoCommand : Command
     {
-        public const string SUMMARY = "Lists information about the current server";
+        public override HandledContexts ArgumentParserMethod => HandledContexts.None;
+        public override HandledContexts ExecutionMethod => HandledContexts.GuildOnly;
 
-        public ServerinfoCommand(string identifier) : base(identifier, OverriddenMethod.None, OverriddenMethod.GuildAsync, false, new Argument[0], null, SUMMARY, null, null)
+        public override string Summary => "Lists information about the current server";
+
+        public ServerinfoCommand(string identifier, CommandCollection collection = null)
         {
-
+            Register(identifier, collection);
         }
 
-        protected override Task HandleCommandGuildAsync(GuildCommandContext context)
+
+        protected override Task ExecuteGuild(IGuildCommandContext context, object argObj)
         {
             SocketGuild guild = context.Guild;
             EmbedBuilder embed = new EmbedBuilder()
@@ -213,7 +203,7 @@ namespace YNBBot.NestedCommands
             embed.AddField("Founded", guild.CreatedAt, true);
             int bots = 0;
             int online = 0;
-            foreach(SocketGuildUser member in guild.Users)
+            foreach (SocketGuildUser member in guild.Users)
             {
                 if (member.IsBot || member.IsWebhook)
                 {
@@ -239,44 +229,6 @@ namespace YNBBot.NestedCommands
         public override int Compare(SocketRole x, SocketRole y)
         {
             return x.Position - y.Position;
-        }
-    }
-
-    #endregion
-    #region about
-
-    class AboutCommand : Command
-    {
-        public const string SUMMARY = "Lists information about the bot";
-        public const string REMARKS = default;
-        public const string LINK = default;
-        public static readonly Argument[] ARGS = new Argument[] { };
-        public static readonly Precondition[] AUTHCHECKS = new Precondition[] { };
-
-        public AboutCommand(string identifier) : base(identifier, OverriddenMethod.None, OverriddenMethod.BasicAsync, false, ARGS, AUTHCHECKS, SUMMARY, REMARKS, LINK)
-        {
-        }
-
-        private static readonly EmbedBuilder AboutEmbed;
-
-        static AboutCommand()
-        {
-            AboutEmbed = new EmbedBuilder()
-            {
-                Color = BotCore.EmbedColor,
-                Title = "You Need Bot"
-            };
-            AboutEmbed.AddField("Version", "v" + Var.VERSION.ToString());
-            AboutEmbed.AddField("Credits", "Programming: <@117260771200598019>");
-        }
-
-        protected override Task HandleCommandAsync(CommandContext context)
-        {
-            if (string.IsNullOrEmpty(AboutEmbed.ThumbnailUrl))
-            {
-                AboutEmbed.ThumbnailUrl = BotCore.Client.CurrentUser.GetAvatarUrl();
-            }
-            return context.Channel.SendEmbedAsync(AboutEmbed);
         }
     }
 

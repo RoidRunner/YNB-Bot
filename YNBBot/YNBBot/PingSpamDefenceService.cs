@@ -3,9 +3,11 @@ using Discord;
 using Discord.WebSocket;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using YNBBot.Interactive;
+using YNBBot.Moderation;
 
 namespace YNBBot
 {
@@ -60,7 +62,8 @@ namespace YNBBot
                 if (user != null)
                 {
                     SocketGuild guild = user.Guild;
-                    AccessLevel userAccessLevel = BotCore.Client.GetAccessLevel(user.Id);
+
+                    bool userIsAdmin = user.Id == guild.OwnerId || user.Roles.Any(role => { return role.Permissions.Administrator == true; }) || BotCore.BotAdmins.Contains(user.Id);
 
                     int effectiveMentionCount = message.MentionedUsers.Count;
                     foreach (SocketRole role in message.MentionedRoles)
@@ -78,7 +81,7 @@ namespace YNBBot
                         effectiveMentionCount += guild.MemberCount;
                     }
 
-                    if (effectiveMentionCount > 0 && userAccessLevel < AccessLevel.Admin && user.Id != BotCore.Client.CurrentUser.Id)
+                    if (effectiveMentionCount > 0 && !userIsAdmin && user.Id != BotCore.Client.CurrentUser.Id)
                     {
                         await HandleMention(user, effectiveMentionCount);
                     }
@@ -174,18 +177,10 @@ namespace YNBBot
 
             if (totalEMs >= EM_MUTE_LIMIT && !firstInfraction)
             {
-                // Handle Mute
-                if (BotCore.Client.TryGetRole(SettingsModel.MuteRole, out SocketRole MuteRole))
-                {
-                    await user.AddRoleAsync(MuteRole);
-                }
-                foreach (SocketRole role in user.Roles)
-                {
-                    if (!role.IsEveryone && role.Id != SettingsModel.MuteRole)
-                    {
-                        await user.RemoveRoleAsync(role);
-                    }
-                }
+                UserModerationLog userModLog = GuildModerationLog.GetOrCreateUserModerationLog(user.Guild.Id, user.Id, out GuildModerationLog guildModLog);
+
+                await userModLog.AddMute(user, DateTimeOffset.MaxValue, null);
+
                 IDMChannel dmChannel = await user.GetOrCreateDMChannelAsync();
                 await dmChannel.SendMessageAsync(embed: MuteEmbed.Build());
                 await AdminTaskInteractiveMessage.CreateAdminTaskMessage($"Muted User {user} for exceeding the EM limits", $"User: {user.Mention}\nEffective Mentions: `{totalEMs}/{EM_MUTE_LIMIT}`");

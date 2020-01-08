@@ -165,39 +165,6 @@ namespace YNBBot
         #endregion
         #region Discord Client Extension Methods
 
-        /// <summary>
-        /// Retrieves access level (based on botadmin list and roles) for a given user Id
-        /// </summary>
-        /// <param name="userId"></param>
-        /// <returns></returns>
-        public static AccessLevel GetAccessLevel(this DiscordSocketClient client, ulong userId)
-        {
-            if (SettingsModel.UserIsBotAdmin(userId))
-            {
-                return AccessLevel.BotAdmin;
-            }
-            AccessLevel level = AccessLevel.Basic;
-            foreach (SocketGuild guild in client.Guilds)
-            {
-                SocketGuildUser userInGuild = guild.GetUser(userId);
-                if (userInGuild != null)
-                {
-                    foreach (SocketRole role in userInGuild.Roles)
-                    {
-                        if (role.Id == SettingsModel.AdminRole)
-                        {
-                            return AccessLevel.Admin;
-                        }
-                        else if (role.Id == SettingsModel.MinecraftBranchRole)
-                        {
-                            level = AccessLevel.Minecraft;
-                        }
-                    }
-                }
-            }
-            return level;
-        }
-
         public static bool TryGetRole(this DiscordSocketClient client, ulong roleId, out SocketRole result)
         {
             result = null;
@@ -258,6 +225,19 @@ namespace YNBBot
 
         #endregion
         #region Misc Extension Methods
+
+        public static int IndexOf<T>(this IEnumerable<T> enumerable, Func<T, bool> func)
+        {
+            IEnumerator<T> enumerator = enumerable.GetEnumerator();
+            for (int index = 0; enumerator.MoveNext(); index++)
+            {
+                if (func(enumerator.Current))
+                {
+                    return index;
+                }
+            }
+            return -1;
+        }
 
         /// <summary>
         /// Formats a discord compatible message url
@@ -418,6 +398,18 @@ namespace YNBBot
             }
 
             span = default;
+            return false;
+        }
+
+        public static bool Contains<T>(this IEnumerable<T> sequence, Func<T, bool> comparer)
+        {
+            foreach(T item in sequence)
+            {
+                if (comparer(item))
+                {
+                    return true;
+                }
+            }
             return false;
         }
 

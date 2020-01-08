@@ -29,10 +29,6 @@ namespace YNBBot.Interactive
         /// </summary>
         public SocketGuildUser User { get; private set; }
         /// <summary>
-        /// AccessLevel of the User
-        /// </summary>
-        public AccessLevel UserAccessLevel { get; private set; }
-        /// <summary>
         /// Reaction that was added
         /// </summary>
         public IEmote Emote { get; private set; }
@@ -44,10 +40,6 @@ namespace YNBBot.Interactive
             User = reaction.User.Value as SocketGuildUser;
             Channel = channel;
             Guild = Channel.Guild;
-            if (User != null)
-            {
-                UserAccessLevel = BotCore.Client.GetAccessLevel(User.Id);
-            }
         }
 
         public bool IsDefined { get { return Guild != null && Channel != null && Message != null && User != null && Emote != null; } }

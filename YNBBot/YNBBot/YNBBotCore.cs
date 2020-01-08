@@ -10,13 +10,15 @@ using YNBBot.Interactive;
 using YNBBot.EventLogging;
 using YNBBot.Moderation;
 using BotCoreNET;
+using BotCoreNET.CommandHandling;
+using BotCoreNET.BotVars;
 
 // dotnet publish -c Release -r win10-x64
 // dotnet publish -c Release -r linux-x64
 
 public static class Var
 {
-    internal readonly static Version VERSION = new Version(1, 2);
+    internal readonly static Version VERSION = new Version(1, 3);
     /// <summary>
     /// When put to false will stop the program
     /// </summary>
@@ -25,10 +27,8 @@ public static class Var
     /// Path containing the restart location
     /// </summary>
     internal static string RestartPath = string.Empty;
-    /// <summary>
-    /// Main culture that is set to all threads
-    /// </summary>
-    internal static CultureInfo Culture = new CultureInfo("en-us");
+
+    internal const string MinecraftBranchRoleBotVarId = "minecraftBranchRole";
 }
 
 namespace YNBBot
@@ -37,130 +37,100 @@ namespace YNBBot
     {
         static void Main(string[] args)
         {
-            BotCore.Run();
+            MainAsync().GetAwaiter().GetResult();
         }
 
         /// <summary>
         /// Main Programs method running asynchronously
         /// </summary>
         /// <returns></returns>
-        public async Task MainAsync()
+        public static async Task MainAsync()
         {
             Console.Title = "YNB Bot v" + Var.VERSION.ToString();
-            Thread.CurrentThread.CurrentCulture = Var.Culture;
+            Thread.CurrentThread.CurrentCulture = CultureInfo.InvariantCulture;
 
-            bool filesExist = false;
-            bool foundToken = false;
-            if (ResourcesModel.CheckSettingsFilesExistence())
-            {
-                filesExist = true;
-                if (await SettingsModel.LoadSettingsAndCheckToken())
-                {
-                    foundToken = true;
-                }
-            }
+            SetupCommands();
+            BotCore.OnBotVarDefaultSetup += SettingsModel.SetupSettingsUpdateListener;
+            BotVarManager.OnGuildBotVarCollectionLoaded += EventLogger.SubscribeToBotVarCollection;
 
-            if (foundToken)
-            {
-                await GuildModerationLog.LoadModerationLogs();
+            EventLogger.SubscribeToDiscordEvents(BotCore.Client);
+            EventLogger.SubscribeToModerationEvents();
 
-                InitReactionsCommands();
+            await GuildModerationLog.LoadModerationLogs();
 
-                BotCore.Client.MessageReceived += CommandHandler.HandleMessage;
-                BotCore.Client.MessageReceived += PingSpamDefenceService.HandleMessage;
-                BotCore.Client.UserJoined += EventLogger.WelcomeUser;
-                BotCore.Client.UserLeft += EventLogger.HandleUserLeft;
-                BotCore.Client.Log += Logger;
-                SettingsModel.DebugMessage += Logger;
-                BotCore.Client.ReactionAdded += ReactionAddedHandler;
-                BotCore.Client.ReactionAdded += InteractiveMessageService.ReactionAddedHandler;
-                //BotCore.Client.ChannelUpdated += ChannelUpdatedHandler;
+            InitReactionsCommands();
 
-                await BotCore.Client.LoginAsync(TokenType.Bot, SettingsModel.token);
-                await BotCore.Client.StartAsync();
-
-                await MinecraftGuildSystem.MinecraftGuildModel.Load();
-                await TimingThread.UpdateTimeActivity();
-
-                await Task.Delay(500);
+            BotCore.Client.MessageReceived += PingSpamDefenceService.HandleMessage;
+            SettingsModel.DebugMessage += Logger;
+            BotCore.Client.ReactionAdded += ReactionAddedHandler;
+            BotCore.Client.ReactionAdded += InteractiveMessageService.ReactionAddedHandler;
+            //BotCore.Client.ChannelUpdated += ChannelUpdatedHandler;
 
 
-                while (Var.running)
-                {
-                    await Task.Delay(100);
-                }
+            await MinecraftGuildSystem.MinecraftGuildModel.Load();
 
-                if (string.IsNullOrEmpty(Var.RestartPath))
-                {
-                    await SettingsModel.SendDebugMessage(DebugCategories.misc, "Shutting down ...");
-                }
-                else
-                {
-                    await SettingsModel.SendDebugMessage(DebugCategories.misc, "Restarting ...");
-                }
-
-                BotCore.Client.Dispose();
-            }
-            else
-            {
-                if (!filesExist)
-                {
-                    await Logger(new LogMessage(LogSeverity.Critical, "SETTINGS", string.Format("Could not find config files! Standard directory is \"{0}\".\nReply with 'y' if you want to generate basic files now!", ResourcesModel.SettingsDirectory)));
-                    if (Console.ReadLine().ToCharArray()[0] == 'y')
-                    {
-                        await ResourcesModel.InitiateBasicFiles();
-                    }
-                }
-                else
-                {
-                    await Logger(new LogMessage(LogSeverity.Critical, "SETTINGS", string.Format("Could not find a valid token in Settings file ({0}). Press any key to exit!", ResourcesModel.SettingsFilePath)));
-                    Console.ReadLine();
-                }
-            }
-
-            if (!string.IsNullOrEmpty(Var.RestartPath))
-            {
-                System.Diagnostics.Process.Start(Var.RestartPath);
-            }
+            BotCore.Run(commandParser: new YNBCommandParser(), aboutEmbed:getAboutEmbed());
         }
 
-        #region EventHandling
-
-        private async Task ChannelUpdatedHandler(SocketChannel arg1, SocketChannel arg2)
+        private static EmbedBuilder getAboutEmbed()
         {
-            SocketTextChannel old_version = arg1 as SocketTextChannel;
-            SocketTextChannel new_version = arg2 as SocketTextChannel;
-
-            if (old_version != null && new_version != null)
+            return new EmbedBuilder()
             {
-                if (old_version.Topic != new_version.Topic)
+                Author = new EmbedAuthorBuilder()
                 {
-                    await HandleTopicUpdated(new_version);
-                }
-            }
+                    Name = "YNBBot v" + Var.VERSION,
+                    IconUrl = "https://cdn.discordapp.com/avatars/589012413467328512/2550efa773fdc42b57d12e230d0552b8.png",
+                },
+                Color = BotCore.EmbedColor,
+                Description = $"**Programming**\n" +
+                $"\u23F5 BrainProtest#1394 (<@117260771200598019>)" +
+                $"\n" +
+                $"\n" +
+                $"**Third Party Dependencies**\n" +
+                $"\u23F5 [Discord.NET](https://github.com/discord-net/Discord.Net) Discord API Wrapper\n"
+            };
         }
 
-        private async Task HandleTopicUpdated(SocketTextChannel channel)
+        private static Task SubscribeEventLoggerSettingsBotVar(SocketGuild guild)
         {
-            if (GuildChannelHelper.TryGetChannel(GuildChannelHelper.DebugChannelId, out SocketTextChannel debugChannel))
-            {
-                EmbedBuilder debugembed = new EmbedBuilder
-                {
-                    Color = BotCore.EmbedColor,
-                    Title = string.Format("Channel #{0}: Topic updated", channel.Name),
-                    Description = string.Format("{0}```\n{1}```", channel.Mention, channel.Topic)
-                };
-                await debugChannel.SendEmbedAsync(debugembed);
-            }
+            BotVarCollection collection = BotVarManager.GetGuildBotVarCollection(guild.Id);
+            collection.SubscribeToBotVarUpdateEvent(EventLogger.OnBotVarUpdatedGuild, "logChannels");
+            return Task.CompletedTask;
+        }
+        private static void SetupCommands()
+        {
+            new UserInfoCommand("userinfo");
+            new AvatarCommand("avatar");
+            new ServerinfoCommand("serverinfo");
+            CommandCollection GuildFamily = new CommandCollection("Guild", "Collection of commands used for founding and managing minecraft guilds");
+            new CreateGuildCommand("guild-found", GuildFamily);
+            new ModifyGuildCommand("guild-modify", GuildFamily);
+            new GuildInfoCommand("guild-info", GuildFamily);
+            new InviteMemberCommand("guild-invite", GuildFamily);
+            new KickGuildMemberCommand("guild-kick", GuildFamily);
+            new LeaveGuildCommand("guild-leave", GuildFamily);
+            new PassCaptainRightsCommand("guild-passcaptain", GuildFamily);
+            new PromoteMateCommand("guild-promote", GuildFamily);
+            new DemoteMateCommand("guild-demote", GuildFamily);
+            new SyncGuildsCommand("guild-sync", GuildFamily);
+            CommandCollection ManagingFamily = new CommandCollection("Management", "Collection of commands used for managing discord entity properties");
+            new SetUserNicknameCommand("setnick", ManagingFamily);
+            new PurgeMessagesCommand("purge", ManagingFamily);
+            new KickUserCommand("kick", ManagingFamily);
+            new GetModLogsCommand("modlogs", ManagingFamily);
+            new AddModLogNoteCommand("addnote", ManagingFamily);
+            new WarnUserCommand("warn", ManagingFamily);
+            new BanUserCommand("ban", ManagingFamily);
+            new UnBanUserCommand("unban", ManagingFamily);
+            new MuteUserCommand("mute", ManagingFamily);
+            new UnMuteUserCommand("unmute", ManagingFamily);
         }
 
-        private async Task ReactionAddedHandler(Cacheable<IUserMessage, ulong> message, ISocketMessageChannel channel, SocketReaction reaction)
+        private static async Task ReactionAddedHandler(Cacheable<IUserMessage, ulong> message, ISocketMessageChannel channel, SocketReaction reaction)
         {
             SocketTextChannel guildChannel = channel as SocketTextChannel;
             await ReactionService.HandleReactionAdded(guildChannel, reaction);
         }
-
-        #endregion
 
         /// <summary>
         /// Logs messages to the console
@@ -169,7 +139,6 @@ namespace YNBBot
         /// <returns></returns>
         internal static Task Logger(LogMessage message)
         {
-            var cc = Console.ForegroundColor;
             switch (message.Severity)
             {
                 case LogSeverity.Critical:
@@ -210,13 +179,5 @@ namespace YNBBot
         {
             UtilityReactionCommand.Init();
         }
-    }
-
-    public enum AccessLevel
-    {
-        Basic,
-        Minecraft,
-        Admin,
-        BotAdmin
     }
 }

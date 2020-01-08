@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using BotCoreNET;
 using Discord.WebSocket;
 using JSON;
 
@@ -53,23 +54,24 @@ namespace YNBBot.Moderation
 
         public UserModerationLog(GuildModerationLog parent, ulong userId = 0)
         {
-            this.Parent = parent;
+            Parent = parent;
             UserId = userId;
         }
 
-        public Task AddModerationEntry(UserModerationEntry entry)
+        public async Task AddModerationEntry(UserModerationEntry entry)
         {
             moderationEntries.Add(entry);
-            return Save();
+            await Save();
+            await Parent.InvokeUserModerationLogModifiedEvents(this, entry);
         }
 
         public Task Save()
         {
             JSONContainer json = ToJSON();
-            return ResourcesModel.WriteJSONObjectToFile($"{Parent.Path}/{UserId}.json", json);
+            return ResourcesModel.WriteJSONObjectToFile($"{Parent.UserDirectory}/{UserId}.json", json);
         }
 
-        public Task AddBan(UserModerationEntry entry, DateTimeOffset banUntil)
+        public async Task AddBan(UserModerationEntry entry, DateTimeOffset banUntil)
         {
             moderationEntries.Add(entry);
             BannedUntil = banUntil;
@@ -78,32 +80,105 @@ namespace YNBBot.Moderation
             {
                 GuildModerationLog.AddTimeLimitedInfractionReference(this);
             }
-            return Save();
+            await Save();
+            await Parent.InvokeUserModerationLogModifiedEvents(this, entry);
         }
 
-        public async Task UnBan(SocketGuild guild)
+        public async Task UnBan(SocketGuild guild, UserModerationEntry? entry = null)
         {
             BannedUntil = null;
+            if (!entry.HasValue)
+            {
+                SocketGuildUser self = guild.GetUser(BotCore.Client.CurrentUser.Id);
+                entry = new UserModerationEntry(Parent.GuildId, ModerationType.UnBanned, null, self, "Automatic Unban");
+            }
+            moderationEntries.Add(entry.Value);
+            await Parent.InvokeUserModerationLogModifiedEvents(this, entry.Value);
             await Save();
             await guild.RemoveBanAsync(UserId);
         }
 
-        public Task AddMute(UserModerationEntry entry, DateTimeOffset muteUntil, List<ulong> roleIds)
+        public async Task AddMute(SocketGuildUser target, DateTimeOffset muteUntil, UserModerationEntry? entry = null)
         {
-            moderationEntries.Add(entry);
+            // Generate UserModerationEntry
+
+            if (!entry.HasValue)
+            {
+                SocketGuildUser self = target.Guild.GetUser(BotCore.Client.CurrentUser.Id);
+
+                if (muteUntil == DateTimeOffset.MaxValue)
+                {
+                    entry = new UserModerationEntry(target.Guild.Id, ModerationType.Muted, DateTimeOffset.UtcNow, self, "Automatic Mute", "Duration: perma");
+                }
+                else
+                {
+                    entry = new UserModerationEntry(target.Guild.Id, ModerationType.Muted, DateTimeOffset.UtcNow, self, "Automatic Mute", "Duration: " + (muteUntil - DateTimeOffset.UtcNow).ToHumanTimeString());
+                }
+            }
+
+            moderationEntries.Add(entry.Value);
+
+            // Edit user roles
+
+            List<SocketRole> roles = new List<SocketRole>(target.Roles.Count - 1);
+
+            foreach (SocketRole role in target.Roles)
+            {
+                if (!role.IsEveryone)
+                {
+                    roles.Add(role);
+                }
+            }
+
+            SocketRole muteRole = target.Guild.GetRole(SettingsModel.MuteRole);
+
+            try
+            {
+                await target.RemoveRolesAsync(roles);
+                if (muteRole != null)
+                {
+                    await target.AddRoleAsync(muteRole);
+                }
+            }
+            catch (Exception e)
+            {
+#if DEBUG
+                throw;
+#endif
+            }
+
+            // Edit UserModerationLog
+
             MutedUntil = muteUntil;
-            rolesPreMute = roleIds;
+            rolesPreMute = new List<ulong>(roles.Select(role => role.Id));
             if (muteUntil < DateTimeOffset.MaxValue)
             {
                 GuildModerationLog.AddTimeLimitedInfractionReference(this);
             }
-            return Save();
+
+            // Save
+
+            await Save();
+            await Parent.InvokeUserModerationLogModifiedEvents(this, entry.Value);
         }
 
-        public async Task RemoveMute(SocketGuildUser guildUser)
+        public async Task RemoveMute(SocketGuildUser guildUser, UserModerationEntry? entry = null)
         {
             MutedUntil = null;
+            if (!entry.HasValue)
+            {
+                SocketGuildUser self = guildUser.Guild.GetUser(BotCore.Client.CurrentUser.Id);
+                entry = new UserModerationEntry(Parent.GuildId, ModerationType.UnMuted, null, self, "Automatic Unmute");
+            }
+            moderationEntries.Add(entry.Value);
+            await Parent.InvokeUserModerationLogModifiedEvents(this, entry.Value);
             await Save();
+
+            SocketRole muteRole = guildUser.Guild.GetRole(SettingsModel.MuteRole);
+            if ((muteRole != null) && guildUser.Roles.Contains(role => { return role.Id == muteRole.Id; }))
+            {
+                await guildUser.RemoveRoleAsync(muteRole);
+            }
             if ((rolesPreMute != null) && rolesPreMute.Count > 0) {
                 List<SocketRole> roles = new List<SocketRole>();
                 foreach (ulong roleId in rolesPreMute)
@@ -118,6 +193,7 @@ namespace YNBBot.Moderation
                 {
                     await guildUser.AddRolesAsync(roles);
                 }
+                rolesPreMute.Clear();
             }
         }
 
@@ -166,6 +242,7 @@ namespace YNBBot.Moderation
                 }
                 if (json.TryGetField(JSON_ROLEIDS, out JSONContainer roleArray))
                 {
+                    rolesPreMute = new List<ulong>();
                     if (roleArray.IsArray && roleArray.Array != null)
                     {
                         foreach (JSONField arrayField in roleArray.Array)
@@ -215,7 +292,7 @@ namespace YNBBot.Moderation
             }
             if (MutedUntil.HasValue)
             {
-                result.TryAddField(JSON_MUTEDUNTIL, BannedUntil.Value.ToString("u"));
+                result.TryAddField(JSON_MUTEDUNTIL, MutedUntil.Value.ToString("u"));
                 if ((rolesPreMute != null) && rolesPreMute.Count > 0)
                 {
                     JSONContainer rolespremute = JSONContainer.NewArray();

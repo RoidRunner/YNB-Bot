@@ -31,24 +31,20 @@ namespace YNBBot.Reactions
 
                 if (user != null)
                 {
-                    AccessLevel userLevel = SettingsModel.GetUserAccessLevel(user);
-                    if (reactionCommand.HasPermission(userLevel))
+                    IUserMessage message = await channel.GetMessageAsync(reaction.MessageId) as IUserMessage;
+                    if (message != null)
                     {
-                        IUserMessage message = await channel.GetMessageAsync(reaction.MessageId) as IUserMessage;
-                        if (message != null)
+                        ReactionContext context = new ReactionContext(message, user, channel, reaction);
+                        try
                         {
-                            ReactionContext context = new ReactionContext(message, user, channel, reaction);
-                            try
+                            if (!reactionCommand.IsShitposting)
                             {
-                                if (!reactionCommand.IsShitposting || userLevel >= AccessLevel.Admin)
-                                {
-                                    await reactionCommand.HandleReaction(context);
-                                }
+                                await reactionCommand.HandleReaction(context);
                             }
-                            catch (Exception e)
-                            {
-                                await SendCommandExecutionExceptionMessage(e, context, reactionCommand);
-                            }
+                        }
+                        catch (Exception e)
+                        {
+                            await SendCommandExecutionExceptionMessage(e, context, reactionCommand);
                         }
                     }
                 }
@@ -76,8 +72,7 @@ namespace YNBBot.Reactions
                     stacktrace = e.StackTrace.Substring(0, 500);
                 }
                 embed.AddField("StackTrace", Markdown.MultiLineCodeBlock(stacktrace));
-                string message = Markdown.Mention_Role(SettingsModel.BotDevRole);
-                await channel.SendMessageAsync(message, embed: embed.Build());
+                await channel.SendMessageAsync(embed: embed.Build());
             }
             await YNBBotCore.Logger(new LogMessage(LogSeverity.Error, "CMDSERVICE", string.Format("An Exception occured while trying to execute command `/{0}`.Message: '{1}'\nStackTrace {2}", command.Emote, e.Message, e.StackTrace)));
         }

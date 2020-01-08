@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Discord;
@@ -50,7 +51,9 @@ namespace YNBBot.Interactive
 
         private async Task<bool> RemoveMessage(MessageInteractionContext context)
         {
-            if (context.UserAccessLevel >= AccessLevel.Admin)
+            bool userIsAdmin = context.User.Id == context.Guild.OwnerId || context.User.Roles.Any(role => { return role.Permissions.Administrator == true; });
+
+            if (userIsAdmin)
             {
                 await context.Message.DeleteAsync();
                 return true;

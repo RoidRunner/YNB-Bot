@@ -5,6 +5,7 @@ using Discord.Rest;
 using Discord.WebSocket;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using YNBBot.MinecraftGuildSystem;
@@ -32,7 +33,9 @@ namespace YNBBot.Interactive
         {
             bool updateMessage = false;
 
-            if (!AdminConfirmed && context.UserAccessLevel >= AccessLevel.Admin)
+            bool userIsAdmin = context.User.Id == context.Guild.OwnerId || context.User.Roles.Any(role => { return role.Permissions.Administrator == true; });
+
+            if (!AdminConfirmed && userIsAdmin)
             {
                 AdminConfirmed = true;
                 updateMessage = true;
@@ -195,7 +198,7 @@ namespace YNBBot.Interactive
 
         public async Task<bool> CrossEmoteUsed(MessageInteractionContext context)
         {
-            if (context.UserAccessLevel >= AccessLevel.Admin)
+            if (context.User.Id == context.Guild.OwnerId || context.User.Roles.Any(role => { return role.Permissions.Administrator == true; }))
             {
                 EmbedBuilder embed = new EmbedBuilder()
                 {

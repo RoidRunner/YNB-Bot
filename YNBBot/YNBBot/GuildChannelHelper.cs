@@ -246,10 +246,9 @@ namespace YNBBot
             return null;
         }
 
-        public static async Task<RestUserMessage> SendExceptionNotification(Exception e, string context)
+        public static Task SendExceptionNotification(Exception e, string context)
         {
-            bool botDevRoleFound = BotCore.Client.TryGetRole(SettingsModel.BotDevRole, out SocketRole botDevRole);
-            return await SendMessage(DebugChannelId, content: $"{(botDevRoleFound ? botDevRole.Mention : "")} {context}", embed: Macros.EmbedFromException(e), useErrorColor: true);
+            return BotCoreNET.ExceptionHandler.ReportException(e, "YNBBot", context);
         }
 
         #endregion

@@ -1,4 +1,5 @@
 ﻿using BotCoreNET;
+using BotCoreNET.BotVars;
 using BotCoreNET.CommandHandling;
 using BotCoreNET.Helpers;
 using Discord;
@@ -18,88 +19,94 @@ namespace YNBBot.NestedCommands
     #region found
     class CreateGuildCommand : Command
     {
-        public const string SUMMARY = "Requests creation of a new minecraft guild";
-        public const string LINK = "https://docs.google.com/document/d/1IdTQoq2l9YhF5Tlj5lBYz5Zcz56NQEgL3Hg5Dg2RyWs/edit#heading=h.h41js19sf4v4";
-        public static readonly Argument[] ARGS = new Argument[] {
+        public override HandledContexts ArgumentParserMethod => HandledContexts.GuildOnly;
+        public override HandledContexts ExecutionMethod => HandledContexts.GuildOnly;
+
+        public override string Summary => "Requests creation of a new minecraft guild";
+        public override string Link => "https://docs.google.com/document/d/1IdTQoq2l9YhF5Tlj5lBYz5Zcz56NQEgL3Hg5Dg2RyWs/edit#heading=h.h41js19sf4v4";
+        private static readonly Argument[] ARGS = new Argument[] {
             new Argument("Name", "The name of the guild. Will be the name of the channel and role created. Also applies to ingame naming"),
             new Argument("Color", $"The color of the guild. Will be the color of the role created. Also applies to ingame color. Available are `{string.Join(", ", MinecraftGuildSystem.MinecraftGuildModel.AvailableColors)}`"),
             new Argument("Members", "Minimum of two members, selected either by discord snowflake id, mention or Username#Discriminator", multiple: true)};
-        public static readonly Precondition[] AUTHCHECKS = new Precondition[] { AccessLevelAuthPrecondition.MINECRAFT };
-        public static readonly string REMARKS = $"{ARGS[0]} and {ARGS[1]} have to be free to take, all invited members ({ARGS[2]}) have to accept the invitation, and an admin has to confirm the creation of the new guild";
+        public override Argument[] Arguments => ARGS;
+        private static readonly Precondition[] PRECONDITIONS = new Precondition[] { new HasRolePrecondition(Var.MinecraftBranchRoleBotVarId) };
+        public override Precondition[] ExecutePreconditions => PRECONDITIONS;
+        public override Precondition[] ViewPreconditions => PRECONDITIONS;
+        public override string Remarks => $"{ARGS[0]} and {ARGS[1]} have to be free to take, all invited members ({ARGS[2]}) have to accept the invitation, and an admin has to confirm the creation of the new guild";
 
-        public CreateGuildCommand(string identifier) : base(identifier, OverriddenMethod.GuildSynchronous, OverriddenMethod.BasicAsync, arguments: ARGS, preconditions: AUTHCHECKS, summary: SUMMARY, remarks: REMARKS, helplink: LINK)
+        public override bool RunInAsyncMode => true;
+
+        public CreateGuildCommand(string identifier, CommandCollection collection = null)
         {
+            Register(identifier, collection);
         }
 
-        string GuildName;
-        GuildColor GuildColor;
-        List<SocketGuildUser> Members = new List<SocketGuildUser>();
-
-        protected override ArgumentParseResult TryParseArgumentsGuildSynchronous(GuildCommandContext context)
+        private class ArgumentContainer
         {
+            public string GuildName;
+            public GuildColor GuildColor;
+            public List<SocketGuildUser> Members = new List<SocketGuildUser>();
+        }
+
+
+        protected override Task<ArgumentParseResult> ParseArgumentsGuildAsync(IGuildCommandContext context)
+        {
+            ArgumentContainer args = new ArgumentContainer();
+
             if (MinecraftGuildSystem.MinecraftGuildModel.TryGetGuildOfUser(context.User.Id, out MinecraftGuild contextUserGuild))
             {
                 if (contextUserGuild.Active)
                 {
-                    return new ArgumentParseResult($"You can not found a new guild because you are still part of `{contextUserGuild.Name}`");
+                    return Task.FromResult(new ArgumentParseResult($"You can not found a new guild because you are still part of `{contextUserGuild.Name}`"));
                 }
                 else if (contextUserGuild.CaptainId == context.User.Id)
                 {
-                    return new ArgumentParseResult($"You can not found a new guild because you captain of the inactivated guild `{contextUserGuild.Name}`. Please contact an admin!");
+                    return Task.FromResult(new ArgumentParseResult($"You can not found a new guild because you captain of the inactive guild `{contextUserGuild.Name}`. Please contact an admin!"));
                 }
             }
 
-            GuildName = context.Arguments[0];
+            args.GuildName = context.Arguments[0];
 
-            context.Arguments.Index++;
 
-            if (GuildName.StartsWith('\"'))
+            if (args.GuildName.Length < 3)
             {
-                for (; context.Arguments.Index < context.Arguments.TotalCount; context.Arguments.Index++)
-                {
-                    GuildName += " " + context.Arguments.First;
-                    if (context.Arguments.First.EndsWith('\"'))
-                    {
-                        context.Arguments.Index++;
-                        break;
-                    }
-                }
-
-                GuildName = GuildName.Trim('\"');
+                return Task.FromResult(new ArgumentParseResult(ARGS[0], "Too short! Minimum of 3 Characters"));
             }
-
-            if (GuildName.Length < 3)
+            if (args.GuildName.Length > 50)
             {
-                return new ArgumentParseResult(ARGS[0], "Too short! Minimum of 3 Characters");
+                return Task.FromResult(new ArgumentParseResult(ARGS[0], "Too long! Maximum of 50 Characters"));
             }
-            if (GuildName.Length > 50)
+            if (!MinecraftGuildModel.NameIsLegal(args.GuildName))
             {
-                return new ArgumentParseResult(ARGS[0], "Too long! Maximum of 50 Characters");
+                return Task.FromResult(new ArgumentParseResult(ARGS[0], "The guild name contains illegal characters! (Or starts/ends with a whitespace)"));
             }
-            if (!MinecraftGuildModel.NameIsLegal(GuildName))
+            if (!MinecraftGuildModel.NameIsAvailable(args.GuildName))
             {
-                return new ArgumentParseResult(ARGS[0], "The guild name contains illegal characters! (Or starts/ends with a whitespace)");
-            }
-            if (!MinecraftGuildModel.NameIsAvailable(GuildName))
-            {
-                return new ArgumentParseResult(ARGS[0], "A guild with this name already exists!");
-            }
-
-            if (!Enum.TryParse(context.Arguments[0], out GuildColor))
-            {
-                return new ArgumentParseResult(ARGS[1], $"Could not parse to an available guild color! Available are `{string.Join(", ", MinecraftGuildModel.AvailableColors)}`");
-            }
-            if (!MinecraftGuildModel.ColorIsAvailable(GuildColor))
-            {
-                return new ArgumentParseResult(ARGS[1], $"A guild with this color already exists! Available are `{string.Join(", ", MinecraftGuildModel.AvailableColors)}`");
+                return Task.FromResult(new ArgumentParseResult(ARGS[0], "A guild with this name already exists!"));
             }
 
             context.Arguments.Index++;
 
-            Members.Clear();
+            if (!Enum.TryParse(context.Arguments[0], out args.GuildColor))
+            {
+                return Task.FromResult(new ArgumentParseResult(ARGS[1], $"Could not parse to an available guild color! Available are `{string.Join(", ", MinecraftGuildModel.AvailableColors)}`"));
+            }
+            if (!MinecraftGuildModel.ColorIsAvailable(args.GuildColor))
+            {
+                return Task.FromResult(new ArgumentParseResult(ARGS[1], $"A guild with this color already exists! Available are `{string.Join(", ", MinecraftGuildModel.AvailableColors)}`"));
+            }
+
+            context.Arguments.Index++;
+
             if (context.Arguments.Count < MinecraftGuildModel.MIN_GUILDFOUNDINGMEMBERS)
             {
-                return new ArgumentParseResult(ARGS[2], $"You need to supply a minimum of {MinecraftGuildModel.MIN_GUILDFOUNDINGMEMBERS} members!");
+                return Task.FromResult(new ArgumentParseResult(ARGS[2], $"You need to supply a minimum of {MinecraftGuildModel.MIN_GUILDFOUNDINGMEMBERS} members!"));
+            }
+
+            BotVarCollection guildBotVars = BotVarManager.GetGuildBotVarCollection(context.Guild.Id);
+            if (!guildBotVars.TryGetBotVar(Var.MinecraftBranchRoleBotVarId, out ulong minecraftBranchRoleId))
+            {
+                return Task.FromResult(new ArgumentParseResult($"Minecraft Branch role not assigned in guild botvars!"));
             }
 
             for (int i = 0; i < context.Arguments.Count; i++)
@@ -108,23 +115,23 @@ namespace YNBBot.NestedCommands
                 {
                     if (member.Id == context.User.Id)
                     {
-                        return new ArgumentParseResult(ARGS[2], "Can not add yourself as a guild member!");
+                        return Task.FromResult(new ArgumentParseResult(ARGS[2], "Can not add yourself as a guild member!"));
                     }
                     if (MinecraftGuildSystem.MinecraftGuildModel.TryGetGuildOfUser(member.Id, out MinecraftGuild memberGuild))
                     {
                         if (memberGuild.Active)
                         {
-                            return new ArgumentParseResult(ARGS[2], $"Can not invite {member.Mention}, because he is already part of \"{memberGuild.Name}\"");
+                            return Task.FromResult(new ArgumentParseResult(ARGS[2], $"Can not invite {member.Mention}, because they are already part of \"{memberGuild.Name}\""));
                         }
                         else if (memberGuild.CaptainId == member.Id)
                         {
-                            return new ArgumentParseResult(ARGS[2], $"Can not invite {member.Mention}, because he is captain of inactivated guild \"{memberGuild.Name}\". Please contact an admin!");
+                            return Task.FromResult(new ArgumentParseResult(ARGS[2], $"Can not invite {member.Mention}, because they are captain of inactivated guild \"{memberGuild.Name}\". Please contact an admin!"));
                         }
                     }
                     bool hasMinecraftRole = false;
                     foreach (SocketRole role in member.Roles)
                     {
-                        if (role.Id == SettingsModel.MinecraftBranchRole)
+                        if (role.Id == minecraftBranchRoleId)
                         {
                             hasMinecraftRole = true;
                             break;
@@ -133,31 +140,33 @@ namespace YNBBot.NestedCommands
 
                     if (!hasMinecraftRole)
                     {
-                        return new ArgumentParseResult(ARGS[2], $"Can not invite {member.Mention}, because he is not part of the minecraft branch!");
+                        return Task.FromResult(new ArgumentParseResult(ARGS[2], $"Can not invite {member.Mention}, because they are not part of the minecraft branch!"));
                     }
 
-                    Members.Add(member);
+                    args.Members.Add(member);
                 }
                 else
                 {
-                    return new ArgumentParseResult(ARGS[2], $"Could not parse `{context.Arguments[i]}` to a guild user!");
+                    return Task.FromResult(new ArgumentParseResult(ARGS[2], $"Could not parse `{context.Arguments[i]}` to a guild user!"));
                 }
             }
 
-            return ArgumentParseResult.SuccessfullParse;
+            return Task.FromResult(new ArgumentParseResult(args));
         }
 
-        protected override async Task HandleCommandAsync(CommandContext context)
+        protected override async Task ExecuteGuild(IGuildCommandContext context, object argObj)
         {
+            ArgumentContainer args = argObj as ArgumentContainer;
+
             MinecraftGuild guild = new MinecraftGuild()
             {
-                Name = GuildName,
-                Color = GuildColor,
+                Name = args.GuildName,
+                Color = args.GuildColor,
                 CaptainId = context.User.Id,
                 MemberIds = new List<ulong>()
             };
 
-            await GuildCreationInteractiveMessage.FromNewGuildAndMemberList(guild, Members);
+            await GuildCreationInteractiveMessage.FromNewGuildAndMemberList(guild, args.Members);
         }
     }
 
@@ -166,6 +175,19 @@ namespace YNBBot.NestedCommands
 
     class ModifyGuildCommand : Command
     {
+        public override HandledContexts ArgumentParserMethod => HandledContexts.GuildOnly;
+
+        public override HandledContexts ExecutionMethod => HandledContexts.GuildOnly;
+
+        public override string Summary => SUMMARY;
+        public override string Remarks => REMARKS;
+        public override Argument[] Arguments => ARGS;
+        private static readonly Precondition[] PRECONDITIONS = new Precondition[] { new HasRolePrecondition(BotCore.ADMINROLE_BOTVARID) };
+        public override Precondition[] ExecutePreconditions => PRECONDITIONS;
+        public override Precondition[] ViewPreconditions => PRECONDITIONS;
+
+        public override bool RunInAsyncMode => true;
+
         public const string SUMMARY = "Modifies guild attributes";
         public static readonly string REMARKS = $"For a list of modifying actions see below. Some actions require an argument to be passed after them following this syntax: `<Action>:<Argument>`. Multiword arguments are to be encased with quotation marks '\"'.\n\n" +
                 $"`{GuildModifyActions.delete}` - Removes the guild dataset, channel and role\n" +
@@ -183,14 +205,11 @@ namespace YNBBot.NestedCommands
                 new Argument("Name", "Name of the guild to delete"),
                 new Argument("Actions", $"The modifying action you want to take. For a list of modifying actions see remarks", multiple:true)
         };
-        public static readonly Precondition[] AUTHCHECKS = new Precondition[] 
-        {
-            AccessLevelAuthPrecondition.ADMIN
-        };
         public const string LINK = "https://docs.google.com/document/d/1VFWKTcdHxARXMvaSZCceFVCXZVqWpMQyBT8EZrLRoRA/edit#heading=h.z9qkxx7wamoo";
 
-        public ModifyGuildCommand(string identifier) : base(identifier, OverriddenMethod.BasicSynchronous, OverriddenMethod.BasicAsync, true, ARGS, AUTHCHECKS, SUMMARY, REMARKS, LINK)
+        public ModifyGuildCommand(string identifier, CommandCollection collection = null)
         {
+            Register(identifier, collection);
         }
 
         private enum GuildModifyActions
@@ -251,199 +270,148 @@ namespace YNBBot.NestedCommands
             }
         }
 
-        private List<GuildAction> Actions = new List<GuildAction>();
-        private MinecraftGuild TargetGuild;
-
-        protected override ArgumentParseResult TryParseArgumentsSynchronous(CommandContext context)
+        private class ArgumentContainer
         {
-            if (!ArgumentParsing.TryParseMinecraftGuild(context.Arguments, out string parsedName, out TargetGuild))
+            public List<GuildAction> Actions = new List<GuildAction>();
+            public MinecraftGuild TargetGuild;
+        }
+
+        protected override Task<ArgumentParseResult> ParseArgumentsGuildAsync(IGuildCommandContext context)
+        {
+            ArgumentContainer args = new ArgumentContainer();
+
+            if (!MinecraftGuildModel.TryParseMinecraftGuild(context.Arguments.First, out args.TargetGuild))
             {
-                return new ArgumentParseResult(ARGS[0], $"Unable to find a guild named `{parsedName}`");
+                return Task.FromResult(new ArgumentParseResult(ARGS[0], $"Unable to find a guild named `{context.Arguments.First}`"));
             }
 
-            Actions.Clear();
+            context.Arguments.Index++;
 
             GuildModifyActions action = GuildModifyActions.delete;
             string arg = string.Empty;
-            ModifyActionsParseStep parseStep = ModifyActionsParseStep.IdentifyAction;
             for (; context.Arguments.Count > 0; context.Arguments.Index++)
             {
                 string current = context.Arguments.First;
-                switch (parseStep)
+                string identifier;
+                string argument;
+                int index = current.IndexOf(':');
+                if (index == -1)
                 {
-                    case ModifyActionsParseStep.IdentifyAction:
-                        if (current.Contains(':'))
-                        {
-                            string[] splits = current.Split(':', StringSplitOptions.RemoveEmptyEntries);
-                            if (splits.Length > 0)
-                            {
-                                if (!Enum.TryParse(splits[0], out action))
-                                {
-                                    return new ArgumentParseResult(ARGS[1], $"Unable to parse `{splits[0]}` to a guild modify action!");
-                                }
-                                arg = splits[1];
-                                for (int i = 2; i < splits.Length; i++)
-                                {
-                                    arg += ':' + splits[i];
-                                }
-                                if (arg.StartsWith('\"'))
-                                {
-                                    parseStep = ModifyActionsParseStep.AppendArgument;
-                                }
-                                else
-                                {
-                                    Actions.Add(new GuildAction(action, arg));
-                                }
-                            }
-                            else
-                            {
-                                return new ArgumentParseResult(ARGS[1], $"Unable to parse `{current}` to a guild modify action!");
-                            }
-                        }
-                        else if (Enum.TryParse(current, out action))
-                        {
-                            if (requireArgument(action))
-                            {
-                                return new ArgumentParseResult(ARGS[1], $"Action `{action}` requires an argument!");
-                            }
-                            else
-                            {
-                                Actions.Add(new GuildAction(action, null));
-                            }
-                        }
-                        else
-                        {
-                            return new ArgumentParseResult(ARGS[1], $"Unable to parse `{current}` to a guild modify action!");
-                        }
-                        break;
-                    case ModifyActionsParseStep.AppendArgument:
-                        arg += ' ' + current;
-                        if (arg.EndsWith('\"'))
-                        {
-                            arg = arg.Substring(1, arg.Length - 2);
-                            Actions.Add(new GuildAction(action, arg));
-                            parseStep = ModifyActionsParseStep.IdentifyAction;
-                        }
-                        break;
+                    identifier = current;
+                    argument = string.Empty;
                 }
+                else
+                {
+                    identifier = current.Substring(0, index);
+                    if (index + 1 >= current.Length)
+                    {
+                        argument = string.Empty;
+                    }
+                    else
+                    {
+                        argument = current.Substring(index + 1);
+                    }
+                }
+
+                if (!Enum.TryParse(identifier, true, out action))
+                {
+                    return Task.FromResult(new ArgumentParseResult(ARGS[1], $"Could not parse `{identifier}` to a GuildModifyAction!"));
+                }
+
+                if (ActionRequiresArg[(int)action] == string.IsNullOrEmpty(argument))
+                {
+                    return Task.FromResult(new ArgumentParseResult(ARGS[1], $"The GuildModifyAction `{action}` requires {(ActionRequiresArg[(int)action] ? "an argument" : "no arguments")}"));
+                }
+
+                args.Actions.Add(new GuildAction(action, argument));
             }
 
-            if (parseStep == ModifyActionsParseStep.AppendArgument)
-            {
-                return new ArgumentParseResult(ARGS[1], $"Argument {arg} was not terminated with quotation marks '\"'");
-            }
-
-            return ArgumentParseResult.SuccessfullParse;
+            return Task.FromResult(new ArgumentParseResult(args));
         }
 
-        private bool requireArgument(GuildModifyActions action)
+        protected override async Task ExecuteGuild(IGuildCommandContext context, object argObj)
         {
-            return ActionRequiresArg[(int)action];
-        }
-
-        private enum ModifyActionsParseStep
-        {
-            IdentifyAction,
-            AppendArgument
-        }
-
-        protected override async Task HandleCommandAsync(CommandContext context)
-        {
-            bool hasGuildContext = GuildCommandContext.TryConvert(context, out GuildCommandContext guildContext);
+            ArgumentContainer args = argObj as ArgumentContainer;
 
             List<string> errors = new List<string>();
             List<GuildAction> successful = new List<GuildAction>();
 
             bool saveChanges = false;
-            Actions.Sort();
-            for (int i = 0; i < Actions.Count; i++)
+            args.Actions.Sort();
+            for (int i = 0; i < args.Actions.Count; i++)
             {
-                GuildAction action = Actions[i];
+                GuildAction action = args.Actions[i];
                 switch (action.Action)
                 {
                     case GuildModifyActions.delete:
-                        if (hasGuildContext)
+                        if (await MinecraftGuildModel.DeleteGuildAsync(context.Guild, args.TargetGuild))
                         {
-                            if (await MinecraftGuildModel.DeleteGuildAsync(guildContext.Guild, TargetGuild))
-                            {
-                                successful.Add(action);
-                            }
-                            else
-                            {
-                                errors.Add($"`{action}` - Internal Error deleting Guild!");
-                            }
-                            i = Actions.Count;
+                            successful.Add(action);
                         }
                         else
                         {
-                            errors.Add($"`{action}` - Requires Guild Context!");
+                            errors.Add($"`{action}` - Internal Error deleting Guild!");
                         }
+                        i = args.Actions.Count;
                         break;
                     case GuildModifyActions.deletedataset:
-                        await MinecraftGuildModel.DeleteGuildDatasetAsync(TargetGuild);
-                        i = Actions.Count;
+                        await MinecraftGuildModel.DeleteGuildDatasetAsync(args.TargetGuild);
+                        i = args.Actions.Count;
                         break;
                     case GuildModifyActions.setactive:
-                        if (hasGuildContext)
+                        switch (action.Argument.ToLower())
                         {
-                            switch (action.Argument.ToLower())
-                            {
-                                case "active":
-                                case "true":
-                                    if (!TargetGuild.Active)
+                            case "active":
+                            case "true":
+                                if (!args.TargetGuild.Active)
+                                {
+                                    if (await MinecraftGuildModel.SetGuildActive(context.Guild, args.TargetGuild, true))
                                     {
-                                        if (await MinecraftGuildModel.SetGuildActive(guildContext.Guild, TargetGuild, true))
-                                        {
-                                            successful.Add(action);
-                                        }
-                                        else
-                                        {
-                                            errors.Add($"`{action}` - Internal error setting guild active!");
-                                        }
+                                        successful.Add(action);
                                     }
                                     else
                                     {
-                                        errors.Add($"`{action}` - Guild already active!");
+                                        errors.Add($"`{action}` - Internal error setting guild active!");
                                     }
-                                    break;
-                                case "inactive":
-                                case "false":
-                                    if (TargetGuild.Active)
+                                }
+                                else
+                                {
+                                    errors.Add($"`{action}` - Guild already active!");
+                                }
+                                break;
+                            case "inactive":
+                            case "false":
+                                if (args.TargetGuild.Active)
+                                {
+                                    if (await MinecraftGuildModel.SetGuildActive(context.Guild, args.TargetGuild, false))
                                     {
-                                        if (await MinecraftGuildModel.SetGuildActive(guildContext.Guild, TargetGuild, false))
-                                        {
-                                            successful.Add(action);
-                                        }
-                                        else
-                                        {
-                                            errors.Add($"`{action}` - Internal error setting guild inactive!");
-                                        }
+                                        successful.Add(action);
                                     }
                                     else
                                     {
-                                        errors.Add($"`{action}` - Guild already inactive!");
+                                        errors.Add($"`{action}` - Internal error setting guild inactive!");
                                     }
-                                    break;
-                                default:
-                                    errors.Add($"`{action}` - Could not parse argument to a valid boolean value!");
-                                    break;
-                            }
+                                }
+                                else
+                                {
+                                    errors.Add($"`{action}` - Guild already inactive!");
+                                }
+                                break;
+                            default:
+                                errors.Add($"`{action}` - Could not parse argument to a valid boolean value!");
+                                break;
                         }
-                        else
-                        {
-                            errors.Add($"`{action}` - Requires Guild Context!");
-                        }
-                        i = Actions.Count;
+                        i = args.Actions.Count;
                         break;
                     case GuildModifyActions.setchannel:
                         if (ArgumentParsing.TryParseGuildTextChannel(context, action.Argument, out SocketTextChannel newGuildChannel))
                         {
                             await newGuildChannel.ModifyAsync(GuildChannelProperties =>
                             {
-                                GuildChannelProperties.Name = TargetGuild.Name;
+                                GuildChannelProperties.Name = args.TargetGuild.Name;
                                 GuildChannelProperties.CategoryId = GuildChannelHelper.GuildCategoryId;
                             });
-                            TargetGuild.ChannelId = newGuildChannel.Id;
+                            args.TargetGuild.ChannelId = newGuildChannel.Id;
                             saveChanges = true;
                             successful.Add(action);
                         }
@@ -453,32 +421,25 @@ namespace YNBBot.NestedCommands
                         }
                         break;
                     case GuildModifyActions.setrole:
-                        if (hasGuildContext)
+                        if (ArgumentParsing.TryParseRole(context, action.Argument, out SocketRole newGuildRole))
                         {
-                            if (ArgumentParsing.TryParseRole(guildContext, action.Argument, out SocketRole newGuildRole))
+                            await newGuildRole.ModifyAsync(RoleProperties =>
                             {
-                                await newGuildRole.ModifyAsync(RoleProperties =>
-                                {
-                                    RoleProperties.Name = TargetGuild.Name;
-                                    RoleProperties.Color = TargetGuild.DiscordColor;
-                                });
-                                TargetGuild.RoleId = newGuildRole.Id;
-                                saveChanges = true;
-                                successful.Add(action);
-                            }
-                            else
-                            {
-                                errors.Add($"`{action}` - Could not find new guild role!");
-                            }
+                                RoleProperties.Name = args.TargetGuild.Name;
+                                RoleProperties.Color = args.TargetGuild.DiscordColor;
+                            });
+                            args.TargetGuild.RoleId = newGuildRole.Id;
+                            saveChanges = true;
+                            successful.Add(action);
                         }
                         else
                         {
-                            errors.Add($"`{action}` - This action can only be executed in a guild context");
+                            errors.Add($"`{action}` - Could not find new guild role!");
                         }
                         break;
                     case GuildModifyActions.rename:
                         {
-                            if (await MinecraftGuildModel.UpdateGuildNameAsync(TargetGuild, action.Argument))
+                            if (await MinecraftGuildModel.UpdateGuildNameAsync(args.TargetGuild, action.Argument))
                             {
                                 successful.Add(action);
                                 saveChanges = true;
@@ -492,7 +453,7 @@ namespace YNBBot.NestedCommands
                     case GuildModifyActions.recolor:
                         if (Enum.TryParse(action.Argument, out GuildColor newColor))
                         {
-                            if (await MinecraftGuildModel.UpdateGuildColorAsync(TargetGuild, newColor))
+                            if (await MinecraftGuildModel.UpdateGuildColorAsync(args.TargetGuild, newColor))
                             {
                                 successful.Add(action);
                                 saveChanges = true;
@@ -508,35 +469,28 @@ namespace YNBBot.NestedCommands
                         }
                         break;
                     case GuildModifyActions.setcaptain:
-                        if (hasGuildContext)
+                        if (ArgumentParsing.TryParseGuildUser(context, action.Argument, out SocketGuildUser newCaptain))
                         {
-                            if (ArgumentParsing.TryParseGuildUser(guildContext, action.Argument, out SocketGuildUser newCaptain))
+                            if (args.TargetGuild.CaptainId == newCaptain.Id)
                             {
-                                if (TargetGuild.CaptainId == newCaptain.Id)
-                                {
-                                    errors.Add($"`{action}` - The new captain is already captain of this guild!");
-                                }
-                                else if (!TargetGuild.MemberIds.Contains(newCaptain.Id) && !TargetGuild.MateIds.Contains(newCaptain.Id))
-                                {
-                                    errors.Add($"`{action}` - The new captain has to be a member of this guild!");
-                                }
-                                else
-                                {
-                                    SocketGuildUser oldCaptain = guildContext.Guild.GetUser(TargetGuild.CaptainId);
-                                    if (await MinecraftGuildModel.SetGuildCaptain(TargetGuild, newCaptain, oldCaptain))
-                                    {
-                                        saveChanges = true;
-                                        successful.Add(action);
-                                    }
-                                    else
-                                    {
-                                        errors.Add($"`{action}` - Internal Error changing captain");
-                                    }
-                                }
+                                errors.Add($"`{action}` - The new captain is already captain of this guild!");
+                            }
+                            else if (!args.TargetGuild.MemberIds.Contains(newCaptain.Id) && !args.TargetGuild.MateIds.Contains(newCaptain.Id))
+                            {
+                                errors.Add($"`{action}` - The new captain has to be a member of this guild!");
                             }
                             else
                             {
-                                errors.Add($"`{action}` - Could not find the new captain user!");
+                                SocketGuildUser oldCaptain = context.Guild.GetUser(args.TargetGuild.CaptainId);
+                                if (await MinecraftGuildModel.SetGuildCaptain(args.TargetGuild, newCaptain, oldCaptain))
+                                {
+                                    saveChanges = true;
+                                    successful.Add(action);
+                                }
+                                else
+                                {
+                                    errors.Add($"`{action}` - Internal Error changing captain");
+                                }
                             }
                         }
                         else
@@ -545,73 +499,59 @@ namespace YNBBot.NestedCommands
                         }
                         break;
                     case GuildModifyActions.addmember:
-                        if (hasGuildContext)
+                        if (ArgumentParsing.TryParseGuildUser(context, action.Argument, out SocketGuildUser newMember))
                         {
-                            if (ArgumentParsing.TryParseGuildUser(guildContext, action.Argument, out SocketGuildUser newMember))
+                            if (args.TargetGuild.MemberIds.Contains(newMember.Id))
                             {
-                                if (TargetGuild.MemberIds.Contains(newMember.Id))
-                                {
-                                    errors.Add($"`{action}` - This user is already member of this guild!");
-                                }
-                                else
-                                {
-                                    if (await MinecraftGuildModel.MemberJoinGuildAsync(TargetGuild, newMember))
-                                    {
-                                        successful.Add(action);
-                                    }
-                                    else
-                                    {
-                                        errors.Add($"`{action}` - An internal error occured while adding {newMember.Mention} to guild \"{TargetGuild.Name}\"!");
-                                    }
-                                }
+                                errors.Add($"`{action}` - This user is already member of this guild!");
                             }
                             else
                             {
-                                errors.Add($"`{action}` - Could not find the new guild user!");
+                                if (await MinecraftGuildModel.MemberJoinGuildAsync(args.TargetGuild, newMember))
+                                {
+                                    successful.Add(action);
+                                }
+                                else
+                                {
+                                    errors.Add($"`{action}` - An internal error occured while adding {newMember.Mention} to guild \"{args.TargetGuild.Name}\"!");
+                                }
                             }
                         }
                         else
                         {
-                            errors.Add($"`{action}` - This action can only be executed in a guild context");
+                            errors.Add($"`{action}` - Could not find the new guild user!");
                         }
                         break;
                     case GuildModifyActions.removemember:
-                        if (hasGuildContext)
+                        if (ArgumentParsing.TryParseGuildUser(context, action.Argument, out SocketGuildUser leavingMember))
                         {
-                            if (ArgumentParsing.TryParseGuildUser(guildContext, action.Argument, out SocketGuildUser leavingMember))
+                            if (args.TargetGuild.CaptainId == leavingMember.Id)
                             {
-                                if (TargetGuild.CaptainId == leavingMember.Id)
-                                {
-                                    errors.Add($"`{action}` - Can not remove the guild captain! Assign a new guild captain first!");
-                                }
-                                else if (!TargetGuild.MemberIds.Contains(leavingMember.Id))
-                                {
-                                    errors.Add($"`{action}` - This user is not a member of this guild!");
-                                }
-                                else
-                                {
-                                    if (await MinecraftGuildModel.MemberLeaveGuildAsync(TargetGuild, leavingMember))
-                                    {
-                                        successful.Add(action);
-                                    }
-                                    else
-                                    {
-                                        errors.Add($"`{action}` - An internal error occured while removing {leavingMember.Mention} from guild \"{TargetGuild.Name}\"!");
-                                    }
-                                }
+                                errors.Add($"`{action}` - Can not remove the guild captain! Assign a new guild captain first!");
+                            }
+                            else if (!args.TargetGuild.MemberIds.Contains(leavingMember.Id))
+                            {
+                                errors.Add($"`{action}` - This user is not a member of this guild!");
                             }
                             else
                             {
-                                errors.Add($"`{action}` - Could not find the leaving guild user!");
+                                if (await MinecraftGuildModel.MemberLeaveGuildAsync(args.TargetGuild, leavingMember))
+                                {
+                                    successful.Add(action);
+                                }
+                                else
+                                {
+                                    errors.Add($"`{action}` - An internal error occured while removing {leavingMember.Mention} from guild \"{args.TargetGuild.Name}\"!");
+                                }
                             }
                         }
                         else
                         {
-                            errors.Add($"`{action}` - This action can only be executed in a guild context");
+                            errors.Add($"`{action}` - Could not find the leaving guild user!");
                         }
                         break;
                     case GuildModifyActions.timestamp:
-                        if (DateTimeOffset.TryParseExact(action.Argument, "u", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out TargetGuild.FoundingTimestamp))
+                        if (DateTimeOffset.TryParseExact(action.Argument, "u", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out args.TargetGuild.FoundingTimestamp))
                         {
                             saveChanges = true;
                             successful.Add(action);
@@ -670,72 +610,81 @@ namespace YNBBot.NestedCommands
 
     class GuildInfoCommand : Command
     {
+        public override HandledContexts ArgumentParserMethod => HandledContexts.GuildOnly;
+        public override HandledContexts ExecutionMethod => HandledContexts.GuildOnly;
+        public override string Summary => SUMMARY;
+        public override string Remarks => REMARKS;
+        public override string Link => LINK;
+        public override Argument[] Arguments => ARGS;
+        private static readonly Precondition[] PRECONDITIONS = new Precondition[] { new HasRolePrecondition(Var.MinecraftBranchRoleBotVarId) };
+        public override Precondition[] ExecutePreconditions => PRECONDITIONS;
+        public override Precondition[] ViewPreconditions => PRECONDITIONS;
         public const string SUMMARY = "Shows public info on all or one individual guild";
         public const string REMARKS = "If no Name is supplied, will display a list of all guilds";
         public const string LINK = "https://docs.google.com/document/d/1IdTQoq2l9YhF5Tlj5lBYz5Zcz56NQEgL3Hg5Dg2RyWs/edit#heading=h.bz5kjsmanwmo";
-        public static readonly Argument[] ARGS = new Argument[] { new Argument("Name", "Name of the guild to get info on", true, true) };
-        public static readonly Precondition[] AUTHCHECKS = new Precondition[] { AccessLevelAuthPrecondition.MINECRAFT };
+        public static readonly Argument[] ARGS = new Argument[] { new Argument("Name", "Name of the guild to get info on", true) };
 
-        public GuildInfoCommand(string identifier) : base(identifier, OverriddenMethod.BasicSynchronous, OverriddenMethod.BasicAsync, false, ARGS, AUTHCHECKS, SUMMARY, REMARKS, LINK)
+        public GuildInfoCommand(string identifier, CommandCollection collection = null)
         {
+            Register(identifier, collection);
         }
 
-        private MinecraftGuild TargetGuild;
 
-        protected override ArgumentParseResult TryParseArgumentsSynchronous(CommandContext context)
+        protected override Task<ArgumentParseResult> ParseArgumentsGuildAsync(IGuildCommandContext context)
         {
+            MinecraftGuild targetGuild;
             if (context.Arguments.Count == 0)
             {
-                TargetGuild = null;
+                targetGuild = null;
             }
-            else if (!ArgumentParsing.TryParseMinecraftGuild(context.Arguments, out string parsedName, out TargetGuild))
+            else if (!MinecraftGuildModel.TryParseMinecraftGuild(context.Arguments.First, out targetGuild))
             {
-                return new ArgumentParseResult(ARGS[0], $"Unable to find a guild named `{parsedName}`");
+                return Task.FromResult(new ArgumentParseResult(ARGS[0], $"Unable to find a guild named `{context.Arguments.First}`"));
             }
-            else if (!TargetGuild.Active)
+            else if (!targetGuild.Active)
             {
-                return new ArgumentParseResult(ARGS[0], "This guild is currently inactive");
+                return Task.FromResult(new ArgumentParseResult(ARGS[0], "This guild is currently inactive"));
             }
 
 
-            return ArgumentParseResult.SuccessfullParse;
+            return Task.FromResult(new ArgumentParseResult(targetGuild));
         }
 
-        protected override async Task HandleCommandAsync(CommandContext context)
+        protected override async Task ExecuteGuild(IGuildCommandContext context, object argObj)
         {
-            bool hasGuildContext = GuildCommandContext.TryConvert(context, out GuildCommandContext guildContext);
+            MinecraftGuild targetGuild = argObj as MinecraftGuild;
+
             EmbedBuilder embed;
 
-
-            if (TargetGuild != null)
+            if (targetGuild != null)
             {
                 embed = new EmbedBuilder()
                 {
-                    Color = TargetGuild.DiscordColor,
-                    Title = $"Guild \"{TargetGuild.Name}\"",
+                    Color = targetGuild.DiscordColor,
+                    Title = $"Guild \"{targetGuild.Name}\"",
                 };
-                if (TargetGuild.FoundingTimestamp == DateTimeOffset.MinValue)
+                if (targetGuild.FoundingTimestamp == DateTimeOffset.MinValue)
                 {
-                    embed.Description = $"Color: `{TargetGuild.Color}`\nNo foundation timestamp!";
+                    embed.Description = $"Color: `{targetGuild.Color}`\nNo foundation timestamp!";
                 }
                 else
                 {
-                    embed.Description = $"Color: `{TargetGuild.Color}`\nFounded: `{TargetGuild.FoundingTimestamp.ToString("u")}`";
+                    embed.Description = $"Color: `{targetGuild.Color}`\nFounded: `{targetGuild.FoundingTimestamp.ToString("u")}`";
                 }
                 StringBuilder members = new StringBuilder();
                 members.AppendLine("**Captain**");
-                SocketUser guildCaptain = BotCore.Client.GetUser(TargetGuild.CaptainId);
+                SocketUser guildCaptain = BotCore.Client.GetUser(targetGuild.CaptainId);
                 if (guildCaptain != null)
                 {
                     members.AppendLine(guildCaptain.Mention);
                 }
                 else
                 {
-                    members.AppendLine(Markdown.InlineCodeBlock(TargetGuild.CaptainId));
+                    members.AppendLine(Markdown.InlineCodeBlock(targetGuild.CaptainId));
                 }
                 members.AppendLine();
-                members.AppendFormat("**Mates - {0}**\n", TargetGuild.MateIds.Count);
-                foreach (ulong mateId in TargetGuild.MateIds)
+                members.AppendFormat("**Mates - {0}**\n", targetGuild.MateIds.Count);
+                foreach (ulong mateId in targetGuild.MateIds)
                 {
                     SocketUser mate = BotCore.Client.GetUser(mateId);
                     if (mate != null)
@@ -748,8 +697,8 @@ namespace YNBBot.NestedCommands
                     }
                 }
                 members.AppendLine();
-                members.AppendFormat("**Members - {0}**\n", TargetGuild.MemberIds.Count);
-                foreach (ulong memberId in TargetGuild.MemberIds)
+                members.AppendFormat("**Members - {0}**\n", targetGuild.MemberIds.Count);
+                foreach (ulong memberId in targetGuild.MemberIds)
                 {
                     SocketUser member = BotCore.Client.GetUser(memberId);
                     if (member != null)
@@ -761,25 +710,25 @@ namespace YNBBot.NestedCommands
                         members.AppendLine(Markdown.InlineCodeBlock(memberId));
                     }
                 }
-                embed.AddField("Members - " + TargetGuild.Count, members);
+                embed.AddField("Members - " + targetGuild.Count, members);
                 StringBuilder info = new StringBuilder();
                 info.Append("Channel: ");
-                if (GuildChannelHelper.TryGetChannel(TargetGuild.ChannelId, out SocketTextChannel channel))
+                if (GuildChannelHelper.TryGetChannel(targetGuild.ChannelId, out SocketTextChannel channel))
                 {
                     info.AppendLine(channel.Mention);
                 }
                 else
                 {
-                    info.AppendLine(Markdown.InlineCodeBlock(TargetGuild.ChannelId));
+                    info.AppendLine(Markdown.InlineCodeBlock(targetGuild.ChannelId));
                 }
                 info.Append("Role: ");
-                if (BotCore.Client.TryGetRole(TargetGuild.RoleId, out SocketRole role))
+                if (BotCore.Client.TryGetRole(targetGuild.RoleId, out SocketRole role))
                 {
                     info.AppendLine(role.Mention);
                 }
                 else
                 {
-                    info.AppendLine(Markdown.InlineCodeBlock(TargetGuild.RoleId));
+                    info.AppendLine(Markdown.InlineCodeBlock(targetGuild.RoleId));
                 }
                 embed.AddField("Debug Information", info);
 
@@ -837,82 +786,98 @@ namespace YNBBot.NestedCommands
 
     class InviteMemberCommand : Command
     {
+        public override HandledContexts ArgumentParserMethod => HandledContexts.GuildOnly;
+        public override HandledContexts ExecutionMethod => HandledContexts.GuildOnly;
+        public override string Summary => SUMMARY;
+        public override string Remarks => REMARKS;
+        public override string Link => LINK;
+        public override Argument[] Arguments => ARGS;
+        private static readonly Precondition[] PRECONDITIONS = new Precondition[] { new HasRolePrecondition(Var.MinecraftBranchRoleBotVarId), new MinecraftGuildRankPrecondition(GuildRank.Mate) };
+        public override Precondition[] ExecutePreconditions => PRECONDITIONS;
+        public override Precondition[] ViewPreconditions => PRECONDITIONS;
+        public override bool RunInAsyncMode => true;
         public const string SUMMARY = "Invite members to join your guild";
         public const string REMARKS = "Only users who are not already in a guild and are part of the minecraft branch can be invited";
         public const string LINK = "https://docs.google.com/document/d/1IdTQoq2l9YhF5Tlj5lBYz5Zcz56NQEgL3Hg5Dg2RyWs/edit#heading=h.od6ln2j4yudz";
         public static readonly Argument[] ARGS = new Argument[] { new Argument("Member", "Users you want to invite to join your guild", multiple: true) };
-        public static readonly Precondition[] AUTHCHECKS = new Precondition[] { AccessLevelAuthPrecondition.MINECRAFT, MinecraftGuildRankAuthPrecondition.MATE };
 
-        public InviteMemberCommand(string identifier) : base(identifier, OverriddenMethod.GuildSynchronous, OverriddenMethod.GuildAsync, false, ARGS, AUTHCHECKS, SUMMARY, REMARKS, LINK)
+        public InviteMemberCommand(string identifier, CommandCollection collection = null)
         {
+            Register(identifier, collection);
         }
 
-        private MinecraftGuild TargetGuild;
-        private List<SocketGuildUser> newMembers = new List<SocketGuildUser>();
-        private List<string> parseErrors = new List<string>();
-
-        protected override ArgumentParseResult TryParseArgumentsGuildSynchronous(GuildCommandContext context)
+        private class ArgumentContainer
         {
+            public MinecraftGuild TargetGuild;
+            public List<SocketGuildUser> newMembers = new List<SocketGuildUser>();
+            public List<string> parseErrors = new List<string>();
+        }
+
+
+        protected override Task<ArgumentParseResult> ParseArgumentsGuildAsync(IGuildCommandContext context)
+        {
+            ArgumentContainer args = new ArgumentContainer();
+
             bool captainOrMate = false;
-            if (MinecraftGuildModel.TryGetGuildOfUser(context.User.Id, out TargetGuild))
+            if (MinecraftGuildModel.TryGetGuildOfUser(context.User.Id, out args.TargetGuild))
             {
-                captainOrMate = TargetGuild.CaptainId == context.User.Id || TargetGuild.MateIds.Contains(context.User.Id);
+                captainOrMate = args.TargetGuild.CaptainId == context.User.Id || args.TargetGuild.MateIds.Contains(context.User.Id);
             }
 
             if (!captainOrMate)
             {
-                return new ArgumentParseResult("This command requires you to be a captain or mate in a guild!");
+                return Task.FromResult(new ArgumentParseResult("This command requires you to be a captain or mate in a guild!"));
             }
 
-            if (!TargetGuild.Active)
+            if (!args.TargetGuild.Active)
             {
-                return new ArgumentParseResult("Your guild is set to inactive! Contact an admin to reactivate it");
+                return Task.FromResult(new ArgumentParseResult("Your guild is set to inactive! Contact an admin to reactivate it"));
             }
 
-            newMembers.Clear();
-            parseErrors.Clear();
             for (; context.Arguments.Count > 0; context.Arguments.Index++)
             {
                 if (ArgumentParsing.TryParseGuildUser(context, context.Arguments.First, out SocketGuildUser newMember, allowSelf: false))
                 {
                     if (MinecraftGuildModel.TryGetGuildOfUser(newMember.Id, out MinecraftGuild existingGuild, true))
                     {
-                        parseErrors.Add($"{newMember.Mention} is already in guild \"{(existingGuild.NameAndColorFound ? existingGuild.Name : existingGuild.ChannelId.ToString())}\"");
+                        args.parseErrors.Add($"{newMember.Mention} is already in guild \"{(existingGuild.NameAndColorFound ? existingGuild.Name : existingGuild.ChannelId.ToString())}\"");
                     }
                     else
                     {
-                        newMembers.Add(newMember);
+                        args.newMembers.Add(newMember);
                     }
                 }
                 else
                 {
-                    parseErrors.Add($"Unable to parse `{context.Arguments.First}` to a guild user!");
+                    args.parseErrors.Add($"Unable to parse `{context.Arguments.First}` to a guild user!");
                 }
             }
-            if (newMembers.Count == 0)
+            if (args.newMembers.Count == 0)
             {
-                return new ArgumentParseResult(ARGS[0], "Could not parse any of your arguments to members!\n" + string.Join('\n', parseErrors));
+                return Task.FromResult(new ArgumentParseResult(ARGS[0], "Could not parse any of your arguments to members!\n" + string.Join('\n', args.parseErrors)));
             }
             else
             {
-                return ArgumentParseResult.SuccessfullParse;
+                return Task.FromResult(new ArgumentParseResult(args));
             }
         }
 
-        protected override async Task HandleCommandGuildAsync(GuildCommandContext context)
+        protected override async Task ExecuteGuild(IGuildCommandContext context, object argObj)
         {
-            foreach (SocketGuildUser newMember in newMembers)
+            ArgumentContainer args = argObj as ArgumentContainer;
+
+            foreach (SocketGuildUser newMember in args.newMembers)
             {
-                await GuildInvitationInteractiveMessage.CreateConfirmationMessage(TargetGuild, newMember, TargetGuild.DiscordColor);
+                await GuildInvitationInteractiveMessage.CreateConfirmationMessage(args.TargetGuild, newMember, args.TargetGuild.DiscordColor);
             }
 
-            if (parseErrors.Count > 0)
+            if (args.parseErrors.Count > 0)
             {
-                await context.Channel.SendEmbedAsync($"Invitation sent to: {string.Join(", ", newMembers)}\n\nFailed to parse some of the members:\n{string.Join('\n', parseErrors)}");
+                await context.Channel.SendEmbedAsync($"Invitation sent to: {string.Join(", ", args.newMembers)}\n\nFailed to parse some of the members:\n{string.Join('\n', args.parseErrors)}");
             }
             else
             {
-                await context.Channel.SendEmbedAsync($"Invitation sent to: {string.Join(", ", newMembers)}");
+                await context.Channel.SendEmbedAsync($"Invitation sent to: {string.Join(", ", args.newMembers)}");
             }
         }
     }
@@ -922,102 +887,116 @@ namespace YNBBot.NestedCommands
 
     class KickGuildMemberCommand : Command
     {
+        public override HandledContexts ArgumentParserMethod => HandledContexts.GuildOnly;
+        public override HandledContexts ExecutionMethod => HandledContexts.GuildOnly;
+        public override string Summary => SUMMARY;
+        public override string Link => LINK;
+        public override Argument[] Arguments => ARGS;
+        private static readonly Precondition[] PRECONDITIONS = new Precondition[] { new HasRolePrecondition(Var.MinecraftBranchRoleBotVarId), new MinecraftGuildRankPrecondition(GuildRank.Mate) };
+        public override Precondition[] ExecutePreconditions => PRECONDITIONS;
+        public override Precondition[] ViewPreconditions => PRECONDITIONS;
+        public override bool RunInAsyncMode => true;
         public const string SUMMARY = "Kick members from your guild";
         public const string LINK = "https://docs.google.com/document/d/1IdTQoq2l9YhF5Tlj5lBYz5Zcz56NQEgL3Hg5Dg2RyWs/edit#heading=h.lqccs9cye6i3";
         public static readonly Argument[] ARGS = new Argument[] { new Argument("Member", "All members you want to have kicked from the guild. They can rejoin with a new invitation.", multiple: true) };
-        public static readonly Precondition[] AUTHCHECKS = new Precondition[] { AccessLevelAuthPrecondition.MINECRAFT, MinecraftGuildRankAuthPrecondition.MATE };
 
-        public KickGuildMemberCommand(string identifier) : base(identifier, OverriddenMethod.GuildSynchronous, OverriddenMethod.GuildAsync, false, ARGS, AUTHCHECKS, SUMMARY, helplink:LINK)
+        public KickGuildMemberCommand(string identifier, CommandCollection collection = null)
         {
+            Register(identifier, collection);
         }
 
-        private MinecraftGuild TargetGuild;
-        private List<SocketGuildUser> kickedMembers = new List<SocketGuildUser>();
-        private List<string> parseErrors = new List<string>();
-
-        protected override ArgumentParseResult TryParseArgumentsGuildSynchronous(GuildCommandContext context)
+        private class ArgumentContainer
         {
+            public MinecraftGuild TargetGuild;
+            public List<SocketGuildUser> kickedMembers = new List<SocketGuildUser>();
+            public List<string> parseErrors = new List<string>();
+        }
+
+        protected override Task<ArgumentParseResult> ParseArgumentsGuildAsync(IGuildCommandContext context)
+        {
+            ArgumentContainer args = new ArgumentContainer();
+
             bool captainOrMate = false;
-            if (MinecraftGuildModel.TryGetGuildOfUser(context.User.Id, out TargetGuild))
+            if (MinecraftGuildModel.TryGetGuildOfUser(context.User.Id, out args.TargetGuild))
             {
-                captainOrMate = TargetGuild.CaptainId == context.User.Id || TargetGuild.MateIds.Contains(context.User.Id);
+                captainOrMate = args.TargetGuild.GetMemberRank(context.User.Id) >= GuildRank.Mate;
             }
 
             if (!captainOrMate)
             {
-                return new ArgumentParseResult("This command requires you to be a captain or mate in a guild!");
+                return Task.FromResult(new ArgumentParseResult("This command requires you to be a captain or mate in a guild!"));
             }
 
-            if (!TargetGuild.Active)
+            if (!args.TargetGuild.Active)
             {
-                return new ArgumentParseResult("Your guild is set to inactive! Contact an admin to reactivate it");
+                return Task.FromResult(new ArgumentParseResult("Your guild is set to inactive! Contact an admin to reactivate it"));
             }
 
-            kickedMembers.Clear();
-            parseErrors.Clear();
             for (; context.Arguments.Count > 0; context.Arguments.Index++)
             {
                 if (ArgumentParsing.TryParseGuildUser(context, context.Arguments.First, out SocketGuildUser kickedMember, allowSelf: false))
                 {
                     if (kickedMember.Id == context.User.Id)
                     {
-                        parseErrors.Add("Can not kick yourself!");
+                        args.parseErrors.Add("Can not kick yourself!");
                     }
                     else
                     {
                         bool foundGuild = false;
                         if (MinecraftGuildModel.TryGetGuildOfUser(kickedMember.Id, out MinecraftGuild existingGuild, true))
                         {
-                            if (existingGuild == TargetGuild)
+                            if (existingGuild == args.TargetGuild)
                             {
-                                if (TargetGuild.MemberIds.Contains(kickedMember.Id) || (TargetGuild.MateIds.Contains(kickedMember.Id) && TargetGuild.CaptainId == context.User.Id))
+                                if (args.TargetGuild.MemberIds.Contains(kickedMember.Id) || (args.TargetGuild.MateIds.Contains(kickedMember.Id) && args.TargetGuild.CaptainId == context.User.Id))
                                 {
                                     foundGuild = true;
-                                    kickedMembers.Add(kickedMember);
+                                    args.kickedMembers.Add(kickedMember);
                                 }
                             }
                         }
 
                         if (!foundGuild)
                         {
-                            parseErrors.Add($"User {kickedMember.Mention} is not in a guild you manage!");
+                            args.parseErrors.Add($"User {kickedMember.Mention} is not in a guild you manage!");
                         }
 
                     }
                 }
                 else
                 {
-                    parseErrors.Add($"Unable to parse `{context.Arguments.First}` to a guild user!");
+                    args.parseErrors.Add($"Unable to parse `{context.Arguments.First}` to a guild user!");
                 }
             }
-            if (kickedMembers.Count == 0)
+            if (args.kickedMembers.Count == 0)
             {
-                return new ArgumentParseResult(ARGS[0], "Could not parse any of your arguments to members!\n" + string.Join('\n', parseErrors));
+                return Task.FromResult(new ArgumentParseResult(ARGS[0], "Could not parse any of your arguments to members!\n" + string.Join('\n', args.parseErrors)));
             }
             else
             {
-                return ArgumentParseResult.SuccessfullParse;
+                return Task.FromResult(new ArgumentParseResult(args));
             }
         }
 
-        protected override async Task HandleCommandGuildAsync(GuildCommandContext context)
+        protected override async Task ExecuteGuild(IGuildCommandContext context, object argObj)
         {
+            ArgumentContainer args = argObj as ArgumentContainer;
+
             StringBuilder kicked = new StringBuilder();
-            for (int i = 0; i < kickedMembers.Count; i++)
+            for (int i = 0; i < args.kickedMembers.Count; i++)
             {
-                SocketGuildUser kickedMember = kickedMembers[i];
-                await MinecraftGuildModel.MemberLeaveGuildAsync(TargetGuild, kickedMember);
+                SocketGuildUser kickedMember = args.kickedMembers[i];
+                await MinecraftGuildModel.MemberLeaveGuildAsync(args.TargetGuild, kickedMember);
 
                 kicked.Append(kickedMember.Mention);
-                if (i < kickedMembers.Count - 1)
+                if (i < args.kickedMembers.Count - 1)
                 {
                     kicked.Append(", ");
                 }
             }
 
-            if (parseErrors.Count > 0)
+            if (args.parseErrors.Count > 0)
             {
-                await context.Channel.SendEmbedAsync($"Kicked members: {kicked}\n\nFailed to parse some of the members:\n{string.Join('\n', parseErrors)}");
+                await context.Channel.SendEmbedAsync($"Kicked members: {kicked}\n\nFailed to parse some of the members:\n{string.Join('\n', args.parseErrors)}");
             }
             else
             {
@@ -1032,17 +1011,26 @@ namespace YNBBot.NestedCommands
 
     class LeaveGuildCommand : Command
     {
+        public override HandledContexts ArgumentParserMethod => HandledContexts.None;
+        public override HandledContexts ExecutionMethod => HandledContexts.GuildOnly;
+        public override string Summary => SUMMARY;
+        public override string Remarks => REMARKS;
+        public override string Link => LINK;
+        public override Argument[] Arguments => ARGS;
         public const string SUMMARY = "Leave a guild";
         public const string REMARKS = "A captain can only leave their guild if no members are left, deleting it in the progress";
         public const string LINK = "https://docs.google.com/document/d/1IdTQoq2l9YhF5Tlj5lBYz5Zcz56NQEgL3Hg5Dg2RyWs/edit#heading=h.94kph266h8s2";
         public static readonly Argument[] ARGS = new Argument[] { };
-        public static readonly Precondition[] AUTHCHECKS = new Precondition[] { AccessLevelAuthPrecondition.MINECRAFT };
+        private static readonly Precondition[] PRECONDITIONS = new Precondition[] { new HasRolePrecondition(Var.MinecraftBranchRoleBotVarId), new MinecraftGuildRankPrecondition(GuildRank.Regular) };
+        public override Precondition[] ExecutePreconditions => PRECONDITIONS;
+        public override Precondition[] ViewPreconditions => PRECONDITIONS;
 
-        public LeaveGuildCommand(string identifier) : base(identifier, OverriddenMethod.None, OverriddenMethod.GuildAsync, false, ARGS, AUTHCHECKS, SUMMARY, REMARKS, LINK)
+        public LeaveGuildCommand(string identifier, CommandCollection collection = null)
         {
+            Register(identifier, collection);
         }
 
-        protected override async Task HandleCommandGuildAsync(GuildCommandContext context)
+        protected override async Task ExecuteGuild(IGuildCommandContext context, object argObj)
         {
             bool sendmessage = true;
             bool error = false;
@@ -1096,61 +1084,77 @@ namespace YNBBot.NestedCommands
 
     class PassCaptainRightsCommand : Command
     {
+        public override HandledContexts ArgumentParserMethod => HandledContexts.GuildOnly;
+        public override HandledContexts ExecutionMethod => HandledContexts.GuildOnly;
+        public override string Summary => SUMMARY;
+        public override string Remarks => REMARKS;
+        public override string Link => LINK;
+        public override Argument[] Arguments => ARGS;
+        private static readonly Precondition[] PRECONDITIONS = new Precondition[] { new HasRolePrecondition(Var.MinecraftBranchRoleBotVarId), new MinecraftGuildRankPrecondition(GuildRank.Captain) };
+        public override Precondition[] ExecutePreconditions => PRECONDITIONS;
+        public override Precondition[] ViewPreconditions => PRECONDITIONS;
         public const string SUMMARY = "Pass your captain position to another member";
         public const string REMARKS = default;
         public const string LINK = "https://docs.google.com/document/d/1IdTQoq2l9YhF5Tlj5lBYz5Zcz56NQEgL3Hg5Dg2RyWs/edit#heading=h.z9qkxx7wamoo";
         public static readonly Argument[] ARGS = new Argument[] { new Argument("Member", "The member you want to pass your captain position to") };
-        public static readonly Precondition[] AUTHCHECKS = new Precondition[] { AccessLevelAuthPrecondition.MINECRAFT, MinecraftGuildRankAuthPrecondition.CAPTAIN };
 
-        private MinecraftGuild TargetGuild;
-        private SocketGuildUser NewCaptain;
-
-        public PassCaptainRightsCommand(string identifier) : base(identifier, OverriddenMethod.GuildSynchronous, OverriddenMethod.GuildAsync, false, ARGS, AUTHCHECKS, SUMMARY, REMARKS, LINK)
+        public class ArgumentContainer
         {
+            public MinecraftGuild TargetGuild;
+            public SocketGuildUser NewCaptain;
         }
 
-        protected override ArgumentParseResult TryParseArgumentsGuildSynchronous(GuildCommandContext context)
+        public PassCaptainRightsCommand(string identifier, CommandCollection collection = null)
         {
+            Register(identifier, collection);
+        }
+
+        protected override Task<ArgumentParseResult> ParseArgumentsGuildAsync(IGuildCommandContext context)
+        {
+            ArgumentContainer args = new ArgumentContainer();
+
             bool ownsGuild = false;
-            if (MinecraftGuildModel.TryGetGuildOfUser(context.User.Id, out TargetGuild))
+            if (MinecraftGuildModel.TryGetGuildOfUser(context.User.Id, out args.TargetGuild))
             {
-                ownsGuild = TargetGuild.CaptainId == context.User.Id;
+                ownsGuild = args.TargetGuild.CaptainId == context.User.Id;
             }
 
             if (!ownsGuild)
             {
-                return new ArgumentParseResult("You are not a captain of a guild!");
+                return Task.FromResult(new ArgumentParseResult("You are not a captain of a guild!"));
             }
 
-            if (!TargetGuild.Active)
+            if (!args.TargetGuild.Active)
             {
-                return new ArgumentParseResult("Your guild is set to inactive! Contact an admin to reactivate it");
+                return Task.FromResult(new ArgumentParseResult("Your guild is set to inactive! Contact an admin to reactivate it"));
             }
 
-            if (ArgumentParsing.TryParseGuildUser(context, context.Arguments.First, out NewCaptain))
+            if (ArgumentParsing.TryParseGuildUser(context, context.Arguments.First, out args.NewCaptain))
             {
-                if (NewCaptain.Id == context.User.Id)
+                if (args.NewCaptain.Id == context.User.Id)
                 {
-                    return new ArgumentParseResult(ARGS[0], "Can not pass captain rights to yourself!");
+                    return Task.FromResult(new ArgumentParseResult(ARGS[0], "Can not pass captain rights to yourself!"));
                 }
-                else if (!TargetGuild.MemberIds.Contains(NewCaptain.Id) && !TargetGuild.MateIds.Contains(NewCaptain.Id))
+                else if (!args.TargetGuild.MemberIds.Contains(args.NewCaptain.Id) && !args.TargetGuild.MateIds.Contains(args.NewCaptain.Id))
                 {
-                    return new ArgumentParseResult(ARGS[0], "Can not pass captain rights to a user not in your guild!");
+                    return Task.FromResult(new ArgumentParseResult(ARGS[0], "Can not pass captain rights to a user not in your guild!"));
                 }
             }
             else
             {
-                return new ArgumentParseResult(ARGS[0], "Could not parse to a valid user!");
+                return Task.FromResult(new ArgumentParseResult(ARGS[0], "Could not parse to a valid user!"));
             }
 
-            return ArgumentParseResult.SuccessfullParse;
+            return Task.FromResult(new ArgumentParseResult(args));
         }
 
-        protected override async Task HandleCommandGuildAsync(GuildCommandContext context)
+        protected override async Task ExecuteGuild(IGuildCommandContext context, object argObj)
         {
-            if (await MinecraftGuildModel.SetGuildCaptain(TargetGuild, NewCaptain, context.GuildUser))
+            ArgumentContainer args = argObj as ArgumentContainer;
+
+            if (await MinecraftGuildModel.SetGuildCaptain(args.TargetGuild, args.NewCaptain, context.GuildUser))
             {
-                await context.Channel.SendEmbedAsync($"{context.GuildUser.Mention} passed on captain rights to {NewCaptain.Mention}!");
+                await context.Channel.SendEmbedAsync($"{context.GuildUser.Mention} passed on captain rights to {args.NewCaptain.Mention}!");
             }
             else
             {
@@ -1164,75 +1168,90 @@ namespace YNBBot.NestedCommands
 
     class PromoteMateCommand : Command
     {
+        public override HandledContexts ArgumentParserMethod => HandledContexts.GuildOnly;
+        public override HandledContexts ExecutionMethod => HandledContexts.GuildOnly;
+        public override string Summary => SUMMARY;
+        public override string Remarks => REMARKS;
+        public override string Link => LINK;
+        public override Argument[] Arguments => ARGS;
+        private static readonly Precondition[] PRECONDITIONS = new Precondition[] { new HasRolePrecondition(Var.MinecraftBranchRoleBotVarId), new MinecraftGuildRankPrecondition(GuildRank.Captain) };
+        public override Precondition[] ExecutePreconditions => PRECONDITIONS;
+        public override Precondition[] ViewPreconditions => PRECONDITIONS;
         public const string SUMMARY = "Promote a member of your guild to mate";
         public const string REMARKS = "Mates are able to invite and kick members of your guild";
         public const string LINK = default;
         public static readonly Argument[] ARGS = new Argument[] { new Argument("Mate", "The member of your guild you want to promote to mate rank") };
-        public static readonly Precondition[] AUTHCHECKS = new Precondition[] { AccessLevelAuthPrecondition.MINECRAFT, MinecraftGuildRankAuthPrecondition.CAPTAIN };
 
-        public PromoteMateCommand(string identifier) : base(identifier, OverriddenMethod.GuildSynchronous, OverriddenMethod.GuildAsync, false, ARGS, AUTHCHECKS, SUMMARY, REMARKS, LINK)
+        public PromoteMateCommand(string identifier, CommandCollection collection = null)
         {
+            Register(identifier, collection);
         }
 
-        private MinecraftGuild TargetGuild;
-        private SocketGuildUser NewMate;
+        private class ArgumentContainer {
+            public MinecraftGuild TargetGuild;
+            public SocketGuildUser NewMate;
+        }
 
-        protected override ArgumentParseResult TryParseArgumentsGuildSynchronous(GuildCommandContext context)
+        protected override Task<ArgumentParseResult> ParseArgumentsGuildAsync(IGuildCommandContext context)
         {
+            ArgumentContainer args = new ArgumentContainer();
+
             bool ownsGuild = false;
-            if (MinecraftGuildModel.TryGetGuildOfUser(context.User.Id, out TargetGuild))
+            if (MinecraftGuildModel.TryGetGuildOfUser(context.User.Id, out args.TargetGuild))
             {
-                ownsGuild = TargetGuild.CaptainId == context.User.Id;
+                ownsGuild = args.TargetGuild.CaptainId == context.User.Id;
             }
 
             if (!ownsGuild)
             {
-                return new ArgumentParseResult("You are not a captain of a guild!");
+                return Task.FromResult(new ArgumentParseResult("You are not a captain of a guild!"));
             }
 
-            if (!TargetGuild.Active)
+            if (!args.TargetGuild.Active)
             {
-                return new ArgumentParseResult("Your guild is set to inactive! Contact an admin to reactivate it");
+                return Task.FromResult(new ArgumentParseResult("Your guild is set to inactive! Contact an admin to reactivate it"));
             }
 
-            if (ArgumentParsing.TryParseGuildUser(context, context.Arguments.First, out NewMate, allowSelf: false))
+            if (ArgumentParsing.TryParseGuildUser(context, context.Arguments.First, out args.NewMate, allowSelf: false))
             {
-                if (MinecraftGuildModel.TryGetGuildOfUser(NewMate.Id, out MinecraftGuild MateGuild))
+                if (MinecraftGuildModel.TryGetGuildOfUser(args.NewMate.Id, out MinecraftGuild MateGuild))
                 {
-                    if (MateGuild == TargetGuild)
+                    if (MateGuild == args.TargetGuild)
                     {
-                        if (!MateGuild.MemberIds.Contains(NewMate.Id))
+                        if (!MateGuild.MemberIds.Contains(args.NewMate.Id))
                         {
-                            return new ArgumentParseResult(ARGS[0], "The user promoted to mate must be a regular guild member!");
+                            return Task.FromResult(new ArgumentParseResult(ARGS[0], "The user promoted to mate must be a regular guild member!"));
                         }
                     }
                     else
                     {
-                        return new ArgumentParseResult(ARGS[0], "The user you want to promote is not your guild");
+                        return Task.FromResult(new ArgumentParseResult(ARGS[0], "The user you want to promote is not your guild"));
                     }
                 }
                 else
                 {
-                    return new ArgumentParseResult(ARGS[0], "The user you want to promote is not your guild");
+                    return Task.FromResult(new ArgumentParseResult(ARGS[0], "The user you want to promote is not your guild"));
                 }
             }
             else
             {
-                return new ArgumentParseResult(ARGS[0], $"Could not parse {context.Arguments.First} to a user in this guild!");
+                return Task.FromResult(new ArgumentParseResult(ARGS[0], $"Could not parse {context.Arguments.First} to a user in this guild!"));
             }
 
-            return ArgumentParseResult.SuccessfullParse;
+            return Task.FromResult(new ArgumentParseResult(args));
         }
 
-        protected override async Task HandleCommandGuildAsync(GuildCommandContext context)
+        protected override async Task ExecuteGuild(IGuildCommandContext context, object argObj)
         {
-            if (await MinecraftGuildModel.PromoteGuildMember(TargetGuild, NewMate))
+            ArgumentContainer args = argObj as ArgumentContainer;
+
+            if (await MinecraftGuildModel.PromoteGuildMember(args.TargetGuild, args.NewMate))
             {
-                await context.Channel.SendEmbedAsync($"Successfully promoted {NewMate.Mention} to `Mate` rank!");
+                await context.Channel.SendEmbedAsync($"Successfully promoted {args.NewMate.Mention} to `Mate` rank!");
             }
             else
             {
-                await context.Channel.SendEmbedAsync($"Failed to promote {NewMate.Mention} to `Mate` rank!", true);
+                await context.Channel.SendEmbedAsync($"Failed to promote {args.NewMate.Mention} to `Mate` rank!", true);
             }
         }
     }
@@ -1242,75 +1261,91 @@ namespace YNBBot.NestedCommands
 
     class DemoteMateCommand : Command
     {
+        public override HandledContexts ArgumentParserMethod => HandledContexts.GuildOnly;
+        public override HandledContexts ExecutionMethod => HandledContexts.GuildOnly;
+        public override string Summary => SUMMARY;
+        public override string Remarks => REMARKS;
+        public override string Link => LINK;
+        public override Argument[] Arguments => ARGS;
+        private static readonly Precondition[] PRECONDITIONS = new Precondition[] { new HasRolePrecondition(Var.MinecraftBranchRoleBotVarId), new MinecraftGuildRankPrecondition(GuildRank.Captain) };
+        public override Precondition[] ExecutePreconditions => PRECONDITIONS;
+        public override Precondition[] ViewPreconditions => PRECONDITIONS;
         public const string SUMMARY = "Demote a mate in your guild to a regular member";
         public const string REMARKS = default;
         public const string LINK = default;
         public static readonly Argument[] ARGS = new Argument[] { new Argument("Mate", "The mate in your guild you want to demote to a regular member") };
-        public static readonly Precondition[] AUTHCHECKS = new Precondition[] { AccessLevelAuthPrecondition.MINECRAFT, MinecraftGuildRankAuthPrecondition.CAPTAIN };
 
-        public DemoteMateCommand(string identifier) : base(identifier, OverriddenMethod.GuildSynchronous, OverriddenMethod.GuildAsync, false, ARGS, AUTHCHECKS, SUMMARY, REMARKS, LINK)
+        public DemoteMateCommand(string identifier, CommandCollection collection = null)
         {
+            Register(identifier, collection);
         }
 
-        private MinecraftGuild TargetGuild;
-        private SocketGuildUser DemotedMate;
-
-        protected override ArgumentParseResult TryParseArgumentsGuildSynchronous(GuildCommandContext context)
+        private class ArgumentContainer
         {
+            public MinecraftGuild TargetGuild;
+            public SocketGuildUser DemotedMate;
+        }
+
+        protected override Task<ArgumentParseResult> ParseArgumentsGuildAsync(IGuildCommandContext context)
+        {
+            ArgumentContainer args = new ArgumentContainer();
+
             bool ownsGuild = false;
-            if (MinecraftGuildModel.TryGetGuildOfUser(context.User.Id, out TargetGuild))
+            if (MinecraftGuildModel.TryGetGuildOfUser(context.User.Id, out args.TargetGuild))
             {
-                ownsGuild = TargetGuild.CaptainId == context.User.Id;
+                ownsGuild = args.TargetGuild.CaptainId == context.User.Id;
             }
 
             if (!ownsGuild)
             {
-                return new ArgumentParseResult("You are not a captain of a guild!");
+                return Task.FromResult(new ArgumentParseResult("You are not a captain of a guild!"));
             }
 
-            if (!TargetGuild.Active)
+            if (!args.TargetGuild.Active)
             {
-                return new ArgumentParseResult("Your guild is set to inactive! Contact an admin to reactivate it");
+                return Task.FromResult(new ArgumentParseResult("Your guild is set to inactive! Contact an admin to reactivate it"));
             }
 
-            if (ArgumentParsing.TryParseGuildUser(context, context.Arguments.First, out DemotedMate, allowSelf: false))
+            if (ArgumentParsing.TryParseGuildUser(context, context.Arguments.First, out args.DemotedMate, allowSelf: false))
             {
-                if (MinecraftGuildModel.TryGetGuildOfUser(DemotedMate.Id, out MinecraftGuild MateGuild))
+                if (MinecraftGuildModel.TryGetGuildOfUser(args.DemotedMate.Id, out MinecraftGuild MateGuild))
                 {
-                    if (MateGuild == TargetGuild)
+                    if (MateGuild == args.TargetGuild)
                     {
-                        if (!MateGuild.MateIds.Contains(DemotedMate.Id))
+                        if (!MateGuild.MateIds.Contains(args.DemotedMate.Id))
                         {
-                            return new ArgumentParseResult(ARGS[0], "The user demoted to regular member must be a mate!");
+                            return Task.FromResult(new ArgumentParseResult(ARGS[0], "The user demoted to regular member must be a mate!"));
                         }
                     }
                     else
                     {
-                        return new ArgumentParseResult(ARGS[0], "The user you want to demote is not your guild");
+                        return Task.FromResult(new ArgumentParseResult(ARGS[0], "The user you want to demote is not your guild"));
                     }
                 }
                 else
                 {
-                    return new ArgumentParseResult(ARGS[0], "The user you want to demote is not your guild");
+                    return Task.FromResult(new ArgumentParseResult(ARGS[0], "The user you want to demote is not your guild"));
                 }
             }
             else
             {
-                return new ArgumentParseResult(ARGS[0], $"Could not parse {context.Arguments.First} to a user in this guild!");
+                return Task.FromResult(new ArgumentParseResult(ARGS[0], $"Could not parse {context.Arguments.First} to a user in this guild!"));
             }
 
-            return ArgumentParseResult.SuccessfullParse;
+            return Task.FromResult(new ArgumentParseResult(args));
         }
 
-        protected override async Task HandleCommandGuildAsync(GuildCommandContext context)
+        protected override async Task ExecuteGuild(IGuildCommandContext context, object argObj)
         {
-            if (await MinecraftGuildModel.DemoteGuildMember(TargetGuild, DemotedMate))
+            ArgumentContainer args = argObj as ArgumentContainer;
+
+            if (await MinecraftGuildModel.DemoteGuildMember(args.TargetGuild, args.DemotedMate))
             {
-                await context.Channel.SendEmbedAsync($"Successfully demote {DemotedMate.Mention} to `Regular Member` rank!");
+                await context.Channel.SendEmbedAsync($"Successfully demote {args.DemotedMate.Mention} to `Regular Member` rank!");
             }
             else
             {
-                await context.Channel.SendEmbedAsync($"Failed to demote {DemotedMate.Mention} to `Mate` rank!", true);
+                await context.Channel.SendEmbedAsync($"Failed to demote {args.DemotedMate.Mention} to `Mate` rank!", true);
             }
         }
     }
@@ -1320,123 +1355,128 @@ namespace YNBBot.NestedCommands
 
     class SyncGuildsCommand : Command
     {
+        public override HandledContexts ArgumentParserMethod => HandledContexts.GuildOnly;
+        public override HandledContexts ExecutionMethod => HandledContexts.GuildOnly;
+        public override string Summary => SUMMARY;
+        public override string Remarks => REMARKS;
+        public override string Link => LINK;
+        public override Argument[] Arguments => ARGS;
+        private static readonly Precondition[] PRECONDITIONS = new Precondition[] { new HasRolePrecondition(BotCore.ADMINROLE_BOTVARID) };
+        public override Precondition[] ExecutePreconditions => PRECONDITIONS;
+        public override Precondition[] ViewPreconditions => PRECONDITIONS;
+
         public const string SUMMARY = "Start the guild info syncing process";
         public const string REMARKS = "This command is used to sync data internally stored with discord data";
         public const string LINK = default;
         public static readonly Argument[] ARGS = new Argument[] { new Argument("GuildId", "Discord Id of the guild (Discord Server) you want to sync against", true) };
-        public static readonly Precondition[] AUTHCHECKS = new Precondition[] { AccessLevelAuthPrecondition.ADMIN };
 
-        public SyncGuildsCommand(string identifier) : base(identifier, OverriddenMethod.BasicSynchronous, OverriddenMethod.BasicAsync, false, ARGS, AUTHCHECKS, SUMMARY, REMARKS, LINK)
+        public SyncGuildsCommand(string identifier, CommandCollection collection = null)
         {
+            Register(identifier, collection);
         }
 
-        private SocketGuild DiscordGuild;
-
-        protected override ArgumentParseResult TryParseArgumentsSynchronous(CommandContext context)
+        protected override Task<ArgumentParseResult> ParseArgumentsGuildAsync(IGuildCommandContext context)
         {
+            SocketGuild guild;
+
             if (context.Arguments.Count == 0)
             {
-                if (GuildCommandContext.TryConvert(context, out GuildCommandContext guildContext))
-                {
-                    DiscordGuild = guildContext.Guild;
-                }
-                else
-                {
-                    return new ArgumentParseResult(ARGS[0], "This command can not be used without arguments in PMs");
-                }
+                guild = context.Guild;
             }
             else
             {
                 if (ulong.TryParse(context.Arguments.First, out ulong guildId))
                 {
-                    DiscordGuild = BotCore.Client.GetGuild(guildId);
-                    if (DiscordGuild == null)
+                    guild = BotCore.Client.GetGuild(guildId);
+                    if (guild == null)
                     {
-                        return new ArgumentParseResult(ARGS[0], $"Could not find a guild with id `{guildId}`");
+                        return Task.FromResult(new ArgumentParseResult(ARGS[0], $"Could not find a guild with id `{guildId}`"));
                     }
                 }
                 else
                 {
-                    return new ArgumentParseResult(ARGS[0], $"Could not parse {context.Arguments.First} to a valid discord Id");
+                    return Task.FromResult(new ArgumentParseResult(ARGS[0], $"Could not parse {context.Arguments.First} to a valid discord Id"));
                 }
             }
 
-            return ArgumentParseResult.SuccessfullParse;
+            return Task.FromResult(new ArgumentParseResult(guild));
         }
 
-        protected override async Task HandleCommandAsync(CommandContext context)
+        protected override async Task ExecuteGuild(IGuildCommandContext context, object argObj)
         {
+            SocketGuild guild = argObj as SocketGuild;
+
             List<DesyncItem> problems = new List<DesyncItem>();
 
-            List<ulong> userIds = new List<ulong>(DiscordGuild.Users.Select(user => { return user.Id; }));
+            List<ulong> userIds = new List<ulong>(guild.Users.Select(user => { return user.Id; }));
             List<Tuple<SocketRole, MinecraftGuild>> roles = new List<Tuple<SocketRole, MinecraftGuild>>();
 
             // Missing Guild Channels and Roles
 
-            foreach (MinecraftGuild guild in MinecraftGuildModel.Guilds)
+            foreach (MinecraftGuild minecraftGuild in MinecraftGuildModel.Guilds)
             {
-                guild.TryFindNameAndColor();
-                bool channelFound = DiscordGuild.GetTextChannel(guild.ChannelId) != null;
-                SocketRole guildRole = DiscordGuild.GetRole(guild.RoleId);
+                minecraftGuild.TryFindNameAndColor();
+                bool channelFound = guild.GetTextChannel(minecraftGuild.ChannelId) != null;
+                SocketRole guildRole = guild.GetRole(minecraftGuild.RoleId);
                 bool roleFound = guildRole != null;
 
                 if (!channelFound)
                 {
                     // Channel missing
-                    problems.Add(new DesyncItem("Channel Not Found", $"The channel of guild \"{guild.Name}\" couldn't be located. Suggested action: Assign new channel with `/guild modify {guild.Name_CommandSafe} setchannel:<NewChannel>`", new DeleteGuildDatasetOption(guild)));
+                    problems.Add(new DesyncItem("Channel Not Found", $"The channel of guild \"{minecraftGuild.Name}\" couldn't be located. Suggested action: Assign new channel with `/guild modify {minecraftGuild.Name_CommandSafe} setchannel:<NewChannel>`", new DeleteGuildDatasetOption(minecraftGuild)));
                 }
                 if (!roleFound)
                 {
                     // role missing
-                    problems.Add(new DesyncItem("Role Not Found", $"The role of guild \"{guild.Name}\" couldn't be located (guild names can not be loaded without roles!). Suggested action: Assign new role with `/guild modify {guild.Name_CommandSafe} setrole:<NewRole>`", new DeleteGuildDatasetOption(guild)));
+                    problems.Add(new DesyncItem("Role Not Found", $"The role of guild \"{minecraftGuild.Name}\" couldn't be located (guild names can not be loaded without roles!). Suggested action: Assign new role with `/guild modify {minecraftGuild.Name_CommandSafe} setrole:<NewRole>`", new DeleteGuildDatasetOption(minecraftGuild)));
                 }
                 else
                 {
-                    roles.Add(new Tuple<SocketRole, MinecraftGuild>(guildRole, guild));
+                    roles.Add(new Tuple<SocketRole, MinecraftGuild>(guildRole, minecraftGuild));
                 }
             }
 
             // Missing Users
 
-            foreach (MinecraftGuild guild in MinecraftGuildModel.Guilds)
+            foreach (MinecraftGuild minecraftGuild in MinecraftGuildModel.Guilds)
             {
-                SocketRole guildRole = roles.Find((Tuple<SocketRole, MinecraftGuild> tuple) => { return tuple.Item2 == guild; })?.Item1;
+                SocketRole guildRole = roles.Find((Tuple<SocketRole, MinecraftGuild> tuple) => { return tuple.Item2 == minecraftGuild; })?.Item1;
 
-                if (!userIds.Contains(guild.CaptainId))
+                if (!userIds.Contains(minecraftGuild.CaptainId))
                 {
                     // Captain Missing!
-                    problems.Add(new DesyncItem("Captain Not Found", $"Captain (ID: `{guild.CaptainId}`, DebugMention: {Markdown.Mention_User(guild.CaptainId)}) of Guild \"{guild.Name}\" missing! Recommended action: Reassign new captain with command `/guild modify {guild.Name_CommandSafe} setcaptain:<NewCaptain>`"));
+                    problems.Add(new DesyncItem("Captain Not Found", $"Captain (ID: `{minecraftGuild.CaptainId}`, DebugMention: {Markdown.Mention_User(minecraftGuild.CaptainId)}) of Guild \"{minecraftGuild.Name}\" missing! Recommended action: Reassign new captain with command `/guild modify {minecraftGuild.Name_CommandSafe} setcaptain:<NewCaptain>`"));
                 }
-                else if ((guildRole != null) && !guildRole.Members.Any((SocketGuildUser user) => { return user.Id == guild.CaptainId; }))
+                else if ((guildRole != null) && !guildRole.Members.Any((SocketGuildUser user) => { return user.Id == minecraftGuild.CaptainId; }))
                 {
                     // Captain does not have guild role
-                    problems.Add(new DesyncItem("Captain without guild role", $"Captain {Markdown.Mention_User(guild.CaptainId)} of Guild \"{guild.Name}\" does not have a guild role!", new AddRoleOption(DiscordGuild.GetUser(guild.CaptainId), guildRole), new DeleteGuildDatasetOption(guild)));
+                    problems.Add(new DesyncItem("Captain without guild role", $"Captain {Markdown.Mention_User(minecraftGuild.CaptainId)} of Guild \"{minecraftGuild.Name}\" does not have a guild role!", new AddRoleOption(guild.GetUser(minecraftGuild.CaptainId), guildRole), new DeleteGuildDatasetOption(minecraftGuild)));
                 }
-                foreach (ulong mateId in guild.MateIds)
+                foreach (ulong mateId in minecraftGuild.MateIds)
                 {
                     if (!userIds.Contains(mateId))
                     {
                         // Mate Missing!
-                        problems.Add(new DesyncItem("Mate Member Not Found", $"Mate (ID: `{mateId}`, DebugMention: {Markdown.Mention_User(mateId)}) of Guild \"{guild.Name}\" missing!",
-                            new RemoveMemberDatasetDesyncOption(guild, mateId)));
+                        problems.Add(new DesyncItem("Mate Member Not Found", $"Mate (ID: `{mateId}`, DebugMention: {Markdown.Mention_User(mateId)}) of Guild \"{minecraftGuild.Name}\" missing!",
+                            new RemoveMemberDatasetDesyncOption(minecraftGuild, mateId)));
                     }
                     else if ((guildRole != null) && !guildRole.Members.Any((SocketGuildUser user) => { return user.Id == mateId; }))
                     {
                         // Mate does not have guild role
-                        problems.Add(new DesyncItem("Mate without guild role", $"Mate {Markdown.Mention_User(mateId)} of Guild \"{guild.Name}\" does not have a guild role!", new AddRoleOption(DiscordGuild.GetUser(mateId), guildRole), new RemoveMemberDatasetDesyncOption(guild, mateId)));
+                        problems.Add(new DesyncItem("Mate without guild role", $"Mate {Markdown.Mention_User(mateId)} of Guild \"{minecraftGuild.Name}\" does not have a guild role!", new AddRoleOption(guild.GetUser(mateId), guildRole), new RemoveMemberDatasetDesyncOption(minecraftGuild, mateId)));
                     }
                 }
-                foreach (ulong memberId in guild.MemberIds)
+                foreach (ulong memberId in minecraftGuild.MemberIds)
                 {
                     if (!userIds.Contains(memberId))
                     {
                         // Member Missing!
-                        problems.Add(new DesyncItem("Member Not Found", $"Member (ID: `{memberId}`, DebugMention: {Markdown.Mention_User(memberId)}) of Guild \"{guild.Name}\" missing!",
-                            new RemoveMemberDatasetDesyncOption(guild, memberId)));
+                        problems.Add(new DesyncItem("Member Not Found", $"Member (ID: `{memberId}`, DebugMention: {Markdown.Mention_User(memberId)}) of Guild \"{minecraftGuild.Name}\" missing!",
+                            new RemoveMemberDatasetDesyncOption(minecraftGuild, memberId)));
                     }
                     else if ((guildRole != null) && !guildRole.Members.Any((SocketGuildUser user) => { return user.Id == memberId; }))
                     {
-                        problems.Add(new DesyncItem("Mate without guild role", $"Mate {Markdown.Mention_User(memberId)} of Guild \"{guild.Name}\" does not have a guild role!", new AddRoleOption(DiscordGuild.GetUser(memberId), guildRole), new RemoveMemberDatasetDesyncOption(guild, memberId)));
+                        problems.Add(new DesyncItem("Mate without guild role", $"Mate {Markdown.Mention_User(memberId)} of Guild \"{minecraftGuild.Name}\" does not have a guild role!", new AddRoleOption(guild.GetUser(memberId), guildRole), new RemoveMemberDatasetDesyncOption(minecraftGuild, memberId)));
                         // Mate does not have guild role
                     }
                 }

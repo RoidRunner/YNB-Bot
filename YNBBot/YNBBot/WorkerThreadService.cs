@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -170,7 +171,7 @@ namespace YNBBot.MultiThreading
 
         private async void Run()
         {
-            Thread.CurrentThread.CurrentCulture = Var.Culture;
+            Thread.CurrentThread.CurrentCulture = CultureInfo.InvariantCulture;
             while (!closeThreadAfterWork)
             {
                 if (Task != null)

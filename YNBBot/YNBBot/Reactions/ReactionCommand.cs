@@ -1,4 +1,5 @@
-﻿using Discord;
+﻿using BotCoreNET.CommandHandling;
+using Discord;
 using Discord.WebSocket;
 using System;
 using System.Collections.Generic;
@@ -25,21 +26,14 @@ namespace YNBBot.Reactions
     internal struct ReactionCommand
     {
         internal string Emote;
-        internal AccessLevel RequiredAccess;
         internal HandleReaction HandleReaction;
         internal bool IsShitposting { get; private set; }
 
-        public ReactionCommand(string emote, AccessLevel requiredAccess, HandleReaction handleReaction, bool isShitPosting = false)
+        public ReactionCommand(string emote, HandleReaction handleReaction, bool isShitPosting = false)
         {
             Emote = emote;
-            RequiredAccess = requiredAccess;
             HandleReaction = handleReaction;
             IsShitposting = isShitPosting;
-        }
-
-        internal bool HasPermission(AccessLevel userlevel)
-        {
-            return userlevel >= RequiredAccess;
         }
     }
 }

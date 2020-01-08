@@ -24,17 +24,6 @@ namespace YNBBot
             ModerationLogsPath = Environment.CurrentDirectory + "/YNBBot/ModerationLogs/";
         }
 
-        public static bool CheckSettingsFilesExistence()
-        {
-            return File.Exists(SettingsFilePath);
-        }
-
-        public static async Task InitiateBasicFiles()
-        {
-            Directory.CreateDirectory(SettingsDirectory);
-            await SettingsModel.SaveSettings();
-        }
-
         #region Save/Load
 
         public static async Task<LoadFileOperation> LoadToJSONObject(string path)

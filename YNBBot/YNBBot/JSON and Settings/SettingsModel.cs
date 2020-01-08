@@ -11,6 +11,8 @@ using JSON;
 using YNBBot.EventLogging;
 using BotCoreNET;
 using BotCoreNET.Helpers;
+using BotCoreNET.CommandHandling;
+using BotCoreNET.BotVars;
 
 namespace YNBBot
 {
@@ -20,26 +22,8 @@ namespace YNBBot
     static class SettingsModel
     {
         #region Variables
-        /// <summary>
-        /// The bot token used to log into discord
-        /// </summary>
-        internal static string token;
-        /// <summary>
-        /// A list containing all Bot Admin IDs
-        /// </summary>
-        public static List<ulong> botAdminIDs;
-        /// <summary>
-        /// The ID of the moderator role
-        /// </summary>
+
         public static ulong AdminRole = 0;
-        /// <summary>
-        /// The Id of the minecraft branch role
-        /// </summary>
-        public static ulong MinecraftBranchRole = 0;
-        /// <summary>
-        /// The ID of the bot dev role (pinging on error messages)
-        /// </summary>
-        public static ulong BotDevRole = 0;
         /// <summary>
         /// The ID of the mute role (assigned to users when the EM threshholds have been triggered)
         /// </summary>
@@ -57,22 +41,6 @@ namespace YNBBot
         #endregion
         #region Initialization
 
-        static SettingsModel()
-        {
-            botAdminIDs = new List<ulong>();
-        }
-
-        /// <summary>
-        /// Initializes variables, loads settings and checks if loading was successful
-        /// </summary>
-        /// <param name="nclient"></param>
-        /// <returns>False if loading of the critical variables (bottoken, botadminIDs) fails</returns>
-        public static async Task<bool> LoadSettingsAndCheckToken()
-        {
-            await loadSettings();
-            return token != null && botAdminIDs.Count > 0;
-        }
-
         #endregion
         #region JSON, Save/Load
 
@@ -88,56 +56,41 @@ namespace YNBBot
         private const string JSON_CHANNELINFOS = "ChannelInfos";
         private const string JSON_AUTOASSIGNROLEIDS = "AutoAssignRoleIds";
 
-        /// <summary>
-        /// Loads and applies Settings from appdata/locallow/Ciridium Wing Bot/Settings.json
-        /// </summary>
-        /// <returns></returns>
-        private static async Task loadSettings()
+        internal static void SetupSettingsUpdateListener()
         {
-            LoadFileOperation operation = await ResourcesModel.LoadToJSONObject(ResourcesModel.SettingsFilePath);
-            if (operation.Success)
+            BotVarManager.GlobalBotVars.SubscribeToBotVarUpdateEvent(LoadSettings, "YNBsettings");
+        }
+
+        internal static void LoadSettings(ulong guildId, BotVar var)
+        {
+            if (var.IsGeneric)
             {
-                JSONContainer json = operation.Result;
-                if (json.TryGetField(JSON_BOTTOKEN, out token) && json.TryGetField(JSON_ADMINIDS, out JSONContainer botAdmins))
+                JSONContainer json = var.Generic;
+
+                if (json.TryGetField(JSON_ENABLEDEBUG, out JSONContainer debugSettings))
                 {
-                    if (botAdmins.IsArray)
+                    if (debugSettings.IsArray)
                     {
-                        foreach (var admin in botAdmins.Array)
+                        for (int i = 0; i < debugSettings.Array.Count && i < debugLogging.Length; i++)
                         {
-                            if (admin.IsNumber && !admin.IsFloat && !admin.IsSigned)
-                            {
-                                botAdminIDs.Add(admin.Unsigned_Int64);
-                            }
+                            debugLogging[i] = debugSettings.Array[i].Boolean;
                         }
                     }
-                    if (json.TryGetField(JSON_ENABLEDEBUG, out JSONContainer debugSettings))
+                }
+                json.TryGetField(JSON_MODERATORROLE, out AdminRole);
+                json.TryGetField(JSON_WELCOMINGMESSAGE, out welcomingMessage, welcomingMessage);
+                json.TryGetField(JSON_MUTEROLE, out MuteRole);
+                if (json.TryGetField(JSON_CHANNELINFOS, out JSONContainer guildChannelInfoContainer))
+                {
+                    GuildChannelHelper.FromJSON(guildChannelInfoContainer);
+                }
+                if (json.TryGetArrayField(JSON_AUTOASSIGNROLEIDS, out JSONContainer autoAssignRoles))
+                {
+                    foreach (JSONField idField in autoAssignRoles.Array)
                     {
-                        if (debugSettings.IsArray)
+                        if (idField.IsNumber && !idField.IsFloat && !idField.IsSigned)
                         {
-                            for (int i = 0; i < debugSettings.Array.Count && i < debugLogging.Length; i++)
-                            {
-                                debugLogging[i] = debugSettings.Array[i].Boolean;
-                            }
-                        }
-                    }
-                    json.TryGetField(JSON_WELCOMINGMESSAGE, out welcomingMessage, welcomingMessage);
-                    json.TryGetField(JSON_MODERATORROLE, out AdminRole);
-                    json.TryGetField(JSON_BOTDEVROLE, out BotDevRole);
-                    json.TryGetField(JSON_MINECRAFTBRANCHROLE, out MinecraftBranchRole);
-                    json.TryGetField(JSON_MUTEROLE, out MuteRole);
-                    json.TryGetField(JSON_PREFIX, out CommandHandler.Prefix, CommandHandler.Prefix);
-                    if (json.TryGetField(JSON_CHANNELINFOS, out JSONContainer guildChannelInfoContainer))
-                    {
-                        GuildChannelHelper.FromJSON(guildChannelInfoContainer);
-                    }
-                    if (json.TryGetArrayField(JSON_AUTOASSIGNROLEIDS, out JSONContainer autoAssignRoles))
-                    {
-                        foreach (JSONField idField in autoAssignRoles.Array)
-                        {
-                            if (idField.IsNumber && !idField.IsFloat && !idField.IsSigned)
-                            {
-                                EventLogger.AutoAssignRoleIds.Add(idField.Unsigned_Int64);
-                            }
+                            EventLogger.AutoAssignRoleIds.Add(idField.Unsigned_Int64);
                         }
                     }
                 }
@@ -147,30 +100,19 @@ namespace YNBBot
         /// <summary>
         /// Saves all settings to appdata/locallow/Ciridium Wing Bot/Settings.json
         /// </summary>
-        internal static async Task SaveSettings()
+        internal static void SaveSettings()
         {
             JSONContainer json = JSONContainer.NewObject();
 
-            json.TryAddField(JSON_BOTTOKEN, token);
-
-            JSONContainer adminIDs = JSONContainer.NewArray();
-            foreach (var adminID in botAdminIDs)
-            {
-                adminIDs.Add(adminID);
-            }
-            json.TryAddField(JSON_ADMINIDS, adminIDs);
             JSONContainer debugSettings = JSONContainer.NewArray();
             foreach (bool b in debugLogging)
             {
                 debugSettings.Add(b);
             }
+            json.TryAddField(JSON_MODERATORROLE, AdminRole);
             json.TryAddField(JSON_ENABLEDEBUG, debugSettings);
             json.TryAddField(JSON_WELCOMINGMESSAGE, welcomingMessage);
-            json.TryAddField(JSON_MODERATORROLE, AdminRole);
-            json.TryAddField(JSON_BOTDEVROLE, BotDevRole);
-            json.TryAddField(JSON_MINECRAFTBRANCHROLE, MinecraftBranchRole);
             json.TryAddField(JSON_MUTEROLE, MuteRole);
-            json.TryAddField(JSON_PREFIX, CommandHandler.Prefix);
             json.TryAddField(JSON_CHANNELINFOS, GuildChannelHelper.ToJSON());
 
             JSONContainer autoAssignRoleIds = JSONContainer.NewArray();
@@ -180,7 +122,7 @@ namespace YNBBot
             }
             json.TryAddField(JSON_AUTOASSIGNROLEIDS, autoAssignRoleIds);
 
-            await ResourcesModel.WriteJSONObjectToFile(ResourcesModel.SettingsFilePath, json);
+            BotVarManager.GlobalBotVars.SetBotVar("YNBsettings", json);
         }
 
         #endregion
@@ -227,7 +169,7 @@ namespace YNBBot
                 EmbedBuilder debugembed;
                 if (string.IsNullOrEmpty(description))
                 {
-                   debugembed = new EmbedBuilder
+                    debugembed = new EmbedBuilder
                     {
                         Color = BotCore.EmbedColor,
                         Title = $"**[{category.ToString().ToUpper()}]**",
@@ -247,7 +189,7 @@ namespace YNBBot
             }
         }
 
-        public static async Task SendAdminCommandUsedMessage(CommandContext context, Command command)
+        public static async Task SendAdminCommandUsedMessage(IDMCommandContext context, Command command)
         {
             if (GuildChannelHelper.TryGetChannel(GuildChannelHelper.AdminCommandUsageLogChannelId, out SocketTextChannel channel))
             {
@@ -256,9 +198,9 @@ namespace YNBBot
                     Color = BotCore.EmbedColor,
                     Title = $"Admin-Only command used by {context.User.Username}#{context.User.Discriminator}",
                 };
-                debugembed.AddField("Command and Arguments", $"Matched Command```{command.PrefixIdentifier}```Arguments```{context.Message.Content}".MaxLength(1021) + "```");
+                debugembed.AddField("Command and Arguments", $"Matched Command```{command.Syntax}```Arguments```{context.Message.Content}".MaxLength(1021) + "```");
                 string location;
-                if (GuildCommandContext.TryConvert(context, out GuildCommandContext guildContext))
+                if (GuildCommandContext.TryConvert(context, out IGuildCommandContext guildContext))
                 {
                     SocketTextChannel locationChannel = channel.Guild.GetTextChannel(guildContext.Channel.Id);
                     location = $"Guild `{guildContext.Guild.Name}` Channel {(locationChannel == null ? Markdown.InlineCodeBlock(guildContext.Channel.Name) : locationChannel.Mention)}";
@@ -275,16 +217,6 @@ namespace YNBBot
 
         #endregion
         #region Access Levels
-
-        /// <summary>
-        /// Checks if the user is listed as bot admin
-        /// </summary>
-        /// <param name="userID">User ID to check</param>
-        /// <returns>true if the user is a bot admin</returns>
-        public static bool UserIsBotAdmin(ulong userID)
-        {
-            return botAdminIDs.Contains(userID);
-        }
 
         /// <summary>
         /// Checks for the specified user having a role on a guild
@@ -304,27 +236,6 @@ namespace YNBBot
             return false;
         }
 
-        /// <summary>
-        /// Checks a users access level
-        /// </summary>
-        /// <param name="user">User to check</param>
-        /// <returns>the users access level</returns>
-        public static AccessLevel GetUserAccessLevel(SocketGuildUser user)
-        {
-            if (UserIsBotAdmin(user.Id))
-            {
-                return AccessLevel.BotAdmin;
-            }
-            AccessLevel result = AccessLevel.Basic;
-            foreach (var role in user.Roles)
-            {
-                if (role.Id == AdminRole && result < AccessLevel.Admin)
-                {
-                    result = AccessLevel.Admin;
-                }
-            }
-            return result;
-        }
         #endregion
 
     }

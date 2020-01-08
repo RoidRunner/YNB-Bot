@@ -13,8 +13,8 @@ namespace YNBBot.Reactions
     {
         public static void Init()
         {
-            ReactionService.AddReactionCommand(new ReactionCommand("getmessagelink", AccessLevel.Basic, HandleGetMessageLinkReaction));
-            ReactionService.AddReactionCommand(new ReactionCommand("getmessagecontent", AccessLevel.Basic, HandleGetMessageContentReaction));
+            ReactionService.AddReactionCommand(new ReactionCommand("getmessagelink", HandleGetMessageLinkReaction));
+            ReactionService.AddReactionCommand(new ReactionCommand("getmessagecontent", HandleGetMessageContentReaction));
         }
 
         public static async Task HandleGetMessageLinkReaction(ReactionContext context)

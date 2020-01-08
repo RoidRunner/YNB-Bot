@@ -1,4 +1,6 @@
-﻿using Discord.WebSocket;
+﻿using BotCoreNET;
+using BotCoreNET.Helpers;
+using Discord.WebSocket;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -70,7 +72,7 @@ namespace YNBBot.MinecraftGuildSystem
         {
             Guild = guild;
             UserId = userId;
-            Description = $"Add {Macros.Mention_User(userId)} to dataset of guild \"{guild.Name}\"";
+            Description = $"Add {Markdown.Mention_User(userId)} to dataset of guild \"{guild.Name}\"";
         }
 
         public Task ExecuteAsync()

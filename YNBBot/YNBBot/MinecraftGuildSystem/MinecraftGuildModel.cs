@@ -11,6 +11,7 @@ using JSON;
 using YNBBot.Interactive;
 using System.Linq;
 using BotCoreNET;
+using BotCoreNET.CommandHandling;
 
 namespace YNBBot.MinecraftGuildSystem
 {
@@ -31,8 +32,8 @@ namespace YNBBot.MinecraftGuildSystem
         /// <summary>
         /// Min amount of members required to found a guild
         /// </summary>
-        public const int MIN_GUILDFOUNDINGMEMBERS = 1;
-        private const int GUILD_ROLE_POSITION = 3;
+        public const int MIN_GUILDFOUNDINGMEMBERS = 3;
+        private const int GUILD_ROLE_POSITION = 14;
 
         private static readonly OverwritePermissions GuildRoleChannelPerms = new OverwritePermissions(addReactions: PermValue.Allow, viewChannel: PermValue.Allow, sendMessages: PermValue.Allow, readMessageHistory: PermValue.Allow);
         private static readonly OverwritePermissions CaptainChannelPerms = new OverwritePermissions(addReactions: PermValue.Allow, viewChannel: PermValue.Allow, sendMessages: PermValue.Allow, readMessageHistory: PermValue.Allow, manageMessages: PermValue.Allow);
@@ -715,6 +716,14 @@ namespace YNBBot.MinecraftGuildSystem
         {
             guilds.Remove(guild);
             return SaveAll();
+        }
+
+        #endregion
+        #region Argument Parsing
+
+        public static bool TryParseMinecraftGuild(string argument, out MinecraftGuild minecraftGuild)
+        {
+            return TryGetGuild(argument, out minecraftGuild, true);
         }
 
         #endregion
